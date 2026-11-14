@@ -19,6 +19,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -155,7 +156,7 @@ class ScanActivity : ComponentActivity() {
                 } else {
                     Column(
                         Modifier.fillMaxSize().background(idleBg).clickable { startScan(granted, { permission.launch(it) }) { scanning = true } },
-                        horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Alignment.Center,
+                        horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center,
                     ) {
                         Icon(Icons.Outlined.QrCodeScanner, null, tint = orange, modifier = Modifier.size(64.dp))
                         Spacer(Modifier.height(16.dp))
