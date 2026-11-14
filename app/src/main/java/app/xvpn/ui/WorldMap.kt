@@ -224,7 +224,8 @@ fun WorldMap(
         val mLon = from.lon + dLon * t
         val mLat = from.lat + dLat * t
         val dist = hypot(abs(dLon), abs(dLat)).toFloat()
-        val dip = (dist / 100f).coerceAtMost(0.6f)
+        // gentle zoom-out on long trips; capped so a trip never reaches the "whole planet from space" view
+        val dip = (dist / 100f).coerceAtMost(0.3f)
         val z = zoom * (1f - dip * sin(PI * t).toFloat())      // zoom out a little on long trips
         val r = w * R_DEFAULT * z
         val space = smooth((1.15f * w - r) / (0.6f * w))        // 0 = close up, 1 = whole planet in view
