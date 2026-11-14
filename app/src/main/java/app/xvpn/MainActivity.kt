@@ -29,6 +29,7 @@ import androidx.compose.material.icons.filled.Place
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -37,6 +38,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.xvpn.data.LinkParser
@@ -54,8 +58,24 @@ import kotlin.concurrent.thread
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { App() }
+        setContent { DesignScale { App() } }
     }
+}
+
+/**
+ * The design is drawn on a 360dp-wide phone. Phones differ in "display size" / font size settings, which
+ * made every dp/sp value render larger or smaller than the mockup. Re-base the density so the screen is always
+ * 360dp wide (portrait) and ignore the system font scale: layout proportions then match the design everywhere.
+ */
+@Composable
+private fun DesignScale(content: @Composable () -> Unit) {
+    val d = LocalDensity.current
+    val cfg = LocalConfiguration.current
+    val scale = minOf(cfg.screenWidthDp, cfg.screenHeightDp) / 360f
+    CompositionLocalProvider(
+        LocalDensity provides Density(d.density * scale, fontScale = 1f),
+        content = content,
+    )
 }
 
 private enum class Tab(val label: String, val icon: ImageVector) {

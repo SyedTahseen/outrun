@@ -34,6 +34,7 @@ android {
     // libsingbox.so as a process (and keeps the APK small).
     // keepDebugSymbols: libsingbox.so is a Go executable, don't let AGP run strip on it.
     packaging {
+        resources.excludes += listOf("/META-INF/{AL2.0,LGPL2.1}", "/META-INF/*.version", "/DebugProbesKt.bin")
         jniLibs {
             useLegacyPackaging = true
             keepDebugSymbols += "**/libsingbox.so"
@@ -42,7 +43,10 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            // R8 + resource shrinking: drops unused Compose / material-icons-extended code (several MB)
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             // Personal-use build: sign with the debug key so the APK is installable.
             // Swap in your own signingConfig for anything you distribute.
             signingConfig = signingConfigs.getByName("debug")
@@ -53,6 +57,7 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     kotlinOptions { jvmTarget = "17" }
+    dependenciesInfo { includeInApk = false; includeInBundle = false }
     buildFeatures { compose = true }
 }
 
