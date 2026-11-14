@@ -207,8 +207,8 @@ private fun App() {
 
     fun importClipboard() { importText(clipboardText()) }
 
-    val qrLauncher = rememberLauncherForActivityResult(com.journeyapps.barcodescanner.ScanContract()) { r ->
-        r.contents?.let { importText(it) }
+    val qrLauncher = rememberLauncherForActivityResult(ScanContract()) { text ->
+        text?.let { importText(it) }
     }
     val fileLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
@@ -293,13 +293,7 @@ private fun App() {
                     onDelete = { p -> store.remove(p.link); store.favorites = store.favorites - p.link; favs = store.favorites; reload() },
                     onPasteClipboard = ::importClipboard,
                     onScanQr = {
-                        qrLauncher.launch(
-                            com.journeyapps.barcodescanner.ScanOptions()
-                                .setDesiredBarcodeFormats(com.journeyapps.barcodescanner.ScanOptions.QR_CODE)
-                                .setPrompt("Scan a proxy QR code")
-                                .setBeepEnabled(false)
-                                .setOrientationLocked(false)
-                        )
+                        qrLauncher.launch(Unit)
                     },
                     onImportFile = { fileLauncher.launch(arrayOf("*/*")) },
                     onAddManual = { importText(it) },
