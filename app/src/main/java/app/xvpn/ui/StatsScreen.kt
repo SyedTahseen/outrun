@@ -67,10 +67,10 @@ fun StatsScreen(profile: Profile?, real: IpInfo?, proxy: IpInfo?, onBack: () -> 
         )
         Spacer(Modifier.height(18.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Badge(profile?.protocol ?: "—")
+            FlagBadge(profile?.name)
             Spacer(Modifier.width(14.dp))
             Column {
-                Text(profile?.name ?: "Server", color = C.Text, fontSize = 20.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                Text(profile?.let { Flags.clean(it.name) } ?: "Server", color = C.Text, fontSize = 20.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
                 Text(
                     listOfNotNull(proxy?.city, proxy?.country).filter { it.isNotBlank() }.joinToString(", "),
                     color = C.Muted, fontSize = 14.sp,
@@ -119,8 +119,8 @@ fun StatsScreen(profile: Profile?, real: IpInfo?, proxy: IpInfo?, onBack: () -> 
             Row2("Connected for", fmtDuration(now - connectedAt))
             Row2("Country", proxy?.country?.ifBlank { "—" } ?: "—")
             Row2("City", proxy?.city?.ifBlank { "—" } ?: "—")
-            Row2("Server", profile?.name ?: "—")
-            Row2("Protocol", profile?.protocol?.uppercase() ?: "—", last = true)
+            Row2("Server", profile?.let { Flags.clean(it.name) } ?: "—")
+            Row2("Protocol", profile?.let { app.xvpn.data.LinkParser.describe(it.link) }?.ifBlank { null } ?: "—", last = true)
         }
         Spacer(Modifier.height(24.dp))
     }

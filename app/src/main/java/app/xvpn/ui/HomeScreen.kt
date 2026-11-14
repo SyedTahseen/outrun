@@ -121,10 +121,10 @@ fun HomeScreen(
                     Modifier.fillMaxWidth().then(if (on) Modifier.clickable(onClick = onOpenStats) else Modifier),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Badge(selected?.protocol ?: "—")
+                    FlagBadge(selected?.name)
                     Spacer(Modifier.width(14.dp))
                     Column(Modifier.weight(1f)) {
-                        Text(selected?.name ?: "No server selected", color = C.Text, fontSize = 19.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                        Text(selected?.let { Flags.clean(it.name) } ?: "No server selected", color = C.Text, fontSize = 19.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
                         Text(
                             when {
                                 on && proxy != null -> listOf(proxy.city, proxy.country).filter { it.isNotBlank() }.joinToString(", ")
@@ -228,13 +228,13 @@ private fun OutlineButton(label: String, onClick: () -> Unit) {
     ) { Text(label, color = C.Text, fontSize = 19.sp, fontWeight = FontWeight.Medium) }
 }
 
-/** Protocol pill used in place of the country flag. */
+/** Country flag (from the proxy name) in a rounded tile. */
 @Composable
-fun Badge(protocol: String) {
+fun FlagBadge(name: String?) {
     Box(
-        Modifier.size(width = 48.dp, height = 32.dp).clip(RoundedCornerShape(8.dp)).background(C.Green),
+        Modifier.size(width = 48.dp, height = 34.dp).clip(RoundedCornerShape(8.dp)).background(C.ButtonGrey),
         contentAlignment = Alignment.Center,
     ) {
-        Text(protocol.uppercase(), color = Color(0xFF0B2E25), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+        Text(Flags.find(name ?: ""), fontSize = 22.sp)
     }
 }

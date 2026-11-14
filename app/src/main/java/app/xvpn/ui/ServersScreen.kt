@@ -269,14 +269,15 @@ private fun ServerRow(
     var menu by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxWidth().background(C.Bg)) {
         Row(
-            Modifier.fillMaxWidth().clickable(onClick = onConnect).padding(start = 20.dp, end = 8.dp).height(72.dp),
+            Modifier.fillMaxWidth().clickable(onClick = onConnect).padding(start = 20.dp, end = 8.dp).height(84.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Badge(p.protocol)
+            FlagBadge(p.name)
             Spacer(Modifier.width(16.dp))
             Column(Modifier.weight(1f)) {
-                Text(p.name, color = if (selected) C.Green else C.Text, fontSize = 17.sp, maxLines = 1)
-                Text(if (selected) "Selected · ${p.host}:${p.port}" else "${p.host}:${p.port}", color = C.Muted, fontSize = 13.sp, maxLines = 1)
+                Text(Flags.clean(p.name), color = if (selected) C.Green else C.Text, fontSize = 17.sp, maxLines = 1)
+                Text("${p.host}:${p.port}", color = C.Muted, fontSize = 13.sp, maxLines = 1)
+                Text(app.xvpn.data.LinkParser.describe(p.link), color = C.Muted.copy(alpha = 0.8f), fontSize = 12.sp, maxLines = 1)
             }
             when {
                 ping == null -> if (testing) Text("…", color = C.Muted, fontSize = 14.sp)

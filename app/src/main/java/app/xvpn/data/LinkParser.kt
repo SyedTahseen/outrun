@@ -93,4 +93,33 @@ object LinkParser {
         val port = j.get("port").toString().toInt()
         return Profile(j.optString("ps").ifEmpty { "$host:$port" }, "vmess", host, port, link)
     }
+
+    private val describeCache = HashMap<String, String>()
+
+    /** Human-readable protocol line, e.g. "VLESS / Reality", "VMess / WS / TLS", "Trojan / TLS", "Shadowsocks". */
+    fun describe(link: String): String = describeCache.getOrPut(link) {
+        runCatching {
+            val parts = mutableListOf<String>()
+            when {
+                link.startsWith("vless://") || link.startsWith("trojan://") -> {
+                    val vless = link.startsWith("vless://")
+                    parts += if (vless) "VLESS" else "Trojan"
+                    val q = query(URI(link))
+                    val net = (q["type"] ?: "tcp").lowercase()
+                    val sec = (q["security"] ?: if (vless) "none" else "tls").lowercase()
+                    if (net != "tcp") parts += net.uppercase()
+                    when (sec) { "reality" -> parts += "Reality"; "tls" -> parts += "TLS"; "xtls" -> parts += "XTLS" }
+                }
+                link.startsWith("vmess://") -> {
+                    parts += "VMess"
+                    val j = org.json.JSONObject(decodeB64(link.removePrefix("vmess://"))!!)
+                    val net = j.optString("net").lowercase()
+                    if (net.isNotEmpty() && net != "tcp") parts += net.uppercase()
+                    if (j.optString("tls").lowercase() == "tls") parts += "TLS"
+                }
+                link.startsWith("ss://") -> parts += "Shadowsocks"
+            }
+            parts.joinToString(" / ")
+        }.getOrDefault("")
+    }
 }
