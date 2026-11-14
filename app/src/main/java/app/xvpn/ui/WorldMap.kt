@@ -66,9 +66,10 @@ fun WorldMap(
             ?: geo?.let { WorldGeo.codeAt(it, target.lon, target.lat) }
     }
     var oldCode by remember { mutableStateOf<String?>(null) }   // highlighted country fading out
-    var newCode by remember { mutableStateOf<String?>(null) }   // highlighted country fading in
+    var newCode by remember { mutableStateOf(countryCode?.trim()?.uppercase()?.takeIf { it.length == 2 }) }   // fading in
 
     LaunchedEffect(target, activeNow) {
+        if (target == to && activeNow == newCode) return@LaunchedEffect   // nothing changed (e.g. screen re-entered): no animation
         oldCode = newCode
         newCode = activeNow
         val t = prog.value.toDouble()

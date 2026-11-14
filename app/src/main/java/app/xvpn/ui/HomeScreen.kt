@@ -91,8 +91,10 @@ fun HomeScreen(
     )
 
     // where the dot should be: your real location, or the proxy's once connected
-    var cam by remember { mutableStateOf(GeoPoint(103.8, 1.3)) }
-    var camCode by remember { mutableStateOf<String?>(null) }
+    // start from the already-known location so returning to this screen doesn't replay the trip from a default
+    val start = if (on) proxy else real
+    var cam by remember { mutableStateOf(start?.let { GeoPoint(it.lon, it.lat) } ?: GeoPoint(103.8, 1.3)) }
+    var camCode by remember { mutableStateOf(start?.code?.ifBlank { null }) }
     LaunchedEffect(on, real, proxy) {
         val p = if (on) proxy else real
         if (p != null) { cam = GeoPoint(p.lon, p.lat); camCode = p.code.ifBlank { null } }
