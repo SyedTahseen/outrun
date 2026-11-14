@@ -1,0 +1,76 @@
+name: Build APK
+
+on:
+  push:
+    branches: [main, master]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      xray_aar_version:
+        description: "AndroidLibXrayLite release tag (blank = latest)"
+        required: false
+        default: ""
+      hev_ref:
+        description: "hev-socks5-tunnel tag/commit (blank = default branch)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write   # needed to attach the APK to a release on tag pushes
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install Android SDK packages
+        run: |
+          yes | sdkmanager --licenses > /dev/null || true
+          sdkmanager "platforms;android-34" "build-tools;34.0.0"
+
+      - name: Fetch Xray core (libv2ray.aar)
+        env:
+          XRAY_AAR_VERSION: ${{ github.event.inputs.xray_aar_version }}
+        run: bash scripts/fetch-xray.sh
+
+      - name: Build tun2socks (hev-socks5-tunnel) with the NDK
+        env:
+          HEV_REF: ${{ github.event.inputs.hev_ref }}
+        run: bash scripts/build-native.sh
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+
+      - name: Build APK
+        run: gradle --no-daemon :app:assembleRelease
+
+      - name: Rename APK
+        run: |
+          mkdir -p dist
+          cp app/build/outputs/apk/release/app-release.apk "dist/XrayVpn-${GITHUB_REF_NAME//\//-}.apk"
+          ls -l dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: XrayVpn-apk
+          path: dist/*.apk
+          if-no-files-found: error
+
+      - name: Attach APK to release (tags only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.apk

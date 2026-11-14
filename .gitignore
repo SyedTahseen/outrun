@@ -1,0 +1,16 @@
+*.iml
+.gradle/
+/local.properties
+/.idea/
+.DS_Store
+/build/
+/captures/
+.externalNativeBuild/
+.cxx/
+app/build/
+build-native/
+dist/
+
+# fetched / built during CI (scripts/fetch-xray.sh, scripts/build-native.sh)
+app/libs/*.aar
+app/src/main/jniLibs/
