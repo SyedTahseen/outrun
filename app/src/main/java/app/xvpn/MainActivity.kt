@@ -14,7 +14,22 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.runtime.LaunchedEffect
+import app.xvpn.data.GeoIp
+import app.xvpn.data.NetInfo
+import app.xvpn.ui.StatsScreen
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -24,8 +39,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.Place
+import androidx.compose.material.icons.filled.Public
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -80,8 +95,8 @@ private fun DesignScale(content: @Composable () -> Unit) {
 
 private enum class Tab(val label: String, val icon: ImageVector) {
     Home("Home", Icons.Filled.Home),
-    Servers("Servers", Icons.Filled.Place),
-    Menu("Menu", Icons.Filled.Menu),
+    Servers("Servers", Icons.Filled.Public),
+    Menu("Settings", Icons.Filled.Settings),
 }
 
 @Composable
@@ -94,6 +109,34 @@ private fun App() {
     var subs by remember { mutableStateOf(store.subscriptions) }
     var message by remember { mutableStateOf<String?>(null) }
     val status by VpnState.status.collectAsState()
+    val socks by VpnState.socksPort.collectAsState()
+    val real by NetInfo.real.collectAsState()
+    val proxy by NetInfo.proxy.collectAsState()
+    var showStats by remember { mutableStateOf(false) }
+
+    // Look up our real location when the VPN is off, and the proxy's exit location (through sing-box's
+    // local SOCKS port, because this app is excluded from the tunnel) when it is on.
+    LaunchedEffect(status, socks) {
+        if (status != Status.Connected) showStats = false
+        when {
+            status == Status.Disconnected -> {
+                NetInfo.proxy.value = null
+                for (i in 0 until 4) {
+                    val r = withContext(Dispatchers.IO) { GeoIp.lookup(0) }
+                    if (r != null) { NetInfo.real.value = r; break }
+                    delay(1500)
+                }
+            }
+            status == Status.Connected && socks > 0 -> {
+                for (i in 0 until 5) {
+                    val r = withContext(Dispatchers.IO) { GeoIp.lookup(socks) }
+                    if (r != null) { NetInfo.proxy.value = r; break }
+                    delay(1500)
+                }
+            }
+        }
+    }
+    BackHandler(enabled = showStats) { showStats = false }
 
     fun reload() {
         profiles = store.profiles(); subs = store.subscriptions
@@ -144,11 +187,16 @@ private fun App() {
 
     Column(Modifier.fillMaxSize().background(C.Bg).statusBarsPadding()) {
         Box(Modifier.weight(1f)) {
-            when (tab) {
+            if (showStats && status == Status.Connected) StatsScreen(
+                profile = profiles.firstOrNull { it.link == selectedLink },
+                real = real, proxy = proxy, onBack = { showStats = false },
+            ) else when (tab) {
                 Tab.Home -> HomeScreen(
                     selected = profiles.firstOrNull { it.link == selectedLink },
+                    real = real, proxy = proxy,
                     onToggle = ::toggle,
                     onChangeServer = { tab = Tab.Servers },
+                    onOpenStats = { showStats = true },
                 )
                 Tab.Servers -> ServersScreen(
                     profiles = profiles,
@@ -166,7 +214,7 @@ private fun App() {
                 )
             }
         }
-        Row(
+        if (!(showStats && status == Status.Connected)) Row(
             Modifier.fillMaxWidth().background(C.Card).navigationBarsPadding().padding(vertical = 10.dp),
         ) {
             Tab.values().forEach { t ->
@@ -174,9 +222,14 @@ private fun App() {
                     Modifier.weight(1f).clickable { tab = t },
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    val c = if (t == tab) C.Accent else C.Muted
-                    Icon(t.icon, t.label, tint = c)
-                    Text(t.label, color = c, fontSize = 11.sp)
+                    val sel = t == tab
+                    val c = if (sel) C.Accent else C.Muted
+                    Box(
+                        Modifier.width(64.dp).height(32.dp).clip(RoundedCornerShape(16.dp))
+                            .background(if (sel) C.NavPill else Color.Transparent),
+                        contentAlignment = Alignment.Center,
+                    ) { Icon(t.icon, t.label, tint = c, modifier = Modifier.size(22.dp)) }
+                    Text(t.label, color = c, fontSize = 12.sp)
                 }
             }
         }

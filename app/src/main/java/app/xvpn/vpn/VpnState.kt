@@ -11,4 +11,6 @@ object VpnState {
     val upBytesPerSec = MutableStateFlow(0L)
     val downBytesPerSec = MutableStateFlow(0L)
     val error = MutableStateFlow<String?>(null)
+    val socksPort = MutableStateFlow(0)          // local sing-box SOCKS port while connected (0 = none)
+    val speedHistory = MutableStateFlow<List<Pair<Long, Long>>>(emptyList())  // (up, down) B/s, last ~60 s
 }

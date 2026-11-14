@@ -67,6 +67,7 @@ class SingBoxVpnService : VpnService() {
             val x = SingBoxCore(this)
             core = x
             x.start(ConfigBuilder.build(link, port), port)
+            VpnState.socksPort.value = port
 
             // 2) Create the TUN interface
             val pfd = Builder()
@@ -112,6 +113,8 @@ class SingBoxVpnService : VpnService() {
                 val (up, down) = read()
                 VpnState.upBytesPerSec.value = (up - lastUp).coerceAtLeast(0)
                 VpnState.downBytesPerSec.value = (down - lastDown).coerceAtLeast(0)
+                VpnState.speedHistory.value =
+                    (VpnState.speedHistory.value + (VpnState.upBytesPerSec.value to VpnState.downBytesPerSec.value)).takeLast(60)
                 lastUp = up; lastDown = down
             }
         }
@@ -126,6 +129,8 @@ class SingBoxVpnService : VpnService() {
         tun = null
         VpnState.upBytesPerSec.value = 0
         VpnState.downBytesPerSec.value = 0
+        VpnState.speedHistory.value = emptyList()
+        VpnState.socksPort.value = 0
         VpnState.status.value = Status.Disconnected
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()

@@ -3,14 +3,20 @@ package app.xvpn.ui
 import androidx.compose.ui.graphics.Color
 
 object C {
-    val Bg = Color(0xFF08080D)
-    val Card = Color(0xFF1B1B21)
-    val CardBorder = Color(0xFF2A2A33)
+    val Bg = Color(0xFF1C1B24)
+    val Card = Color(0xFF282731)
+    val CardBorder = Color(0xFF3A3944)
     val Accent = Color(0xFF8B6CF6)
+    val Button = Color(0xFF6D4AFF)
+    val ButtonGrey = Color(0xFF3A3846)
     val AccentDeep = Color(0xFF1B2250)
-    val AccentMid = Color(0xFF232B66)
+    val AccentMid = Color(0xFF3B3175)
+    val NavPill = Color(0xFF4A3F8A)
     val Text = Color(0xFFF2F2F7)
-    val Muted = Color(0xFF8E8E99)
-    val Green = Color(0xFF3DDC84)
-    val Red = Color(0xFFEF5350)
+    val Muted = Color(0xFF9A98A8)
+    val Green = Color(0xFF2DF5C0)
+    val Red = Color(0xFFF0728C)
+    val Amber = Color(0xFFFFB74D)
+    val Land = Color(0xFF2A2933)
+    val LandLine = Color(0xFF3D3C4A)
 }
