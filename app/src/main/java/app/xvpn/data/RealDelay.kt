@@ -22,10 +22,10 @@ import java.net.URL
 object RealDelay {
     private const val BATCH = 20          // servers per sing-box process
     private const val PARALLEL = 10       // probes at the same time inside one process
-    private val URLS = listOf("https://www.gstatic.com/generate_204", "https://cp.cloudflare.com/generate_204")
+    val DEFAULT_URLS = listOf("https://www.gstatic.com/generate_204", "https://cp.cloudflare.com/generate_204")
 
     /** [onResult] is called on the main thread with (link, milliseconds) or (link, -1) for a failure/timeout. */
-    suspend fun test(ctx: Context, links: List<String>, onResult: (String, Int) -> Unit) = withContext(Dispatchers.IO) {
+    suspend fun test(ctx: Context, links: List<String>, urls: List<String> = DEFAULT_URLS, onResult: (String, Int) -> Unit) = withContext(Dispatchers.IO) {
         suspend fun emit(link: String, ms: Int) = withContext(Dispatchers.Main) { onResult(link, ms) }
         for (chunk in links.chunked(BATCH)) {
             val usable = ArrayList<Pair<String, JSONObject>>()
@@ -33,7 +33,7 @@ object RealDelay {
                 val o = runCatching { ConfigBuilder.outbound(l) }.getOrNull()
                 if (o == null) emit(l, -1) else usable += l to o      // e.g. unsupported transport
             }
-            if (usable.isNotEmpty()) runGroup(ctx, usable) { l, ms -> emit(l, ms) }
+            if (usable.isNotEmpty()) runGroup(ctx, usable, urls) { l, ms -> emit(l, ms) }
         }
     }
 
@@ -43,7 +43,7 @@ object RealDelay {
         return set.toList()
     }
 
-    private suspend fun runGroup(ctx: Context, items: List<Pair<String, JSONObject>>, emit: suspend (String, Int) -> Unit) {
+    private suspend fun runGroup(ctx: Context, items: List<Pair<String, JSONObject>>, urls: List<String>, emit: suspend (String, Int) -> Unit) {
         val ports = freePorts(items.size)
         val core = SingBoxCore(ctx, "singbox-test")
         try {
@@ -54,15 +54,15 @@ object RealDelay {
             if (items.size == 1) { emit(items[0].first, -1); return }
             // one bad outbound makes sing-box refuse the whole config: split to isolate it
             val h = items.size / 2
-            runGroup(ctx, items.subList(0, h), emit)
-            runGroup(ctx, items.subList(h, items.size), emit)
+            runGroup(ctx, items.subList(0, h), urls, emit)
+            runGroup(ctx, items.subList(h, items.size), urls, emit)
             return
         }
         try {
             val sem = Semaphore(PARALLEL)
             coroutineScope {
                 items.forEachIndexed { i, (link, _) ->
-                    launch(Dispatchers.IO) { sem.withPermit { emit(link, probe(ports[i])) } }
+                    launch(Dispatchers.IO) { sem.withPermit { emit(link, probe(ports[i], urls)) } }
                 }
             }
         } finally {
@@ -71,8 +71,8 @@ object RealDelay {
     }
 
     /** Time of one HTTPS request through the SOCKS port, or -1. */
-    private fun probe(port: Int): Int {
-        for (url in URLS) {
+    private fun probe(port: Int, urls: List<String>): Int {
+        for (url in urls) {
             val ms = runCatching {
                 val c = URL(url).openConnection(Proxy(Proxy.Type.SOCKS, InetSocketAddress("127.0.0.1", port))) as HttpURLConnection
                 try {

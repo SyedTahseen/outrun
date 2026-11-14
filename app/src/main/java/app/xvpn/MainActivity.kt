@@ -187,7 +187,7 @@ private fun App() {
         val list = profiles.map { it.link }
         scope.launch {
             // real delay: an HTTPS request through each server (not just a TCP connect to its port)
-            runCatching { RealDelay.test(ctx, list) { link, ms -> pings = pings + (link to ms) } }
+            runCatching { RealDelay.test(ctx, list, store.testUrls()) { link, ms -> pings = pings + (link to ms) } }
             testing = false
         }
     }
@@ -239,6 +239,11 @@ private fun App() {
         }
     }
 
+    // "Connect on launch": once, when the app opens with the VPN off and a server selected
+    LaunchedEffect(Unit) {
+        if (store.autoConnect && status == Status.Disconnected && selectedLink != null) toggle()
+    }
+
     fun refreshSubs(list: List<String>, silent: Boolean = false) {
         if (!silent) message = "Updating…"
         thread {
@@ -266,6 +271,7 @@ private fun App() {
 
     // Respect each subscription's profile-update-interval (default 24h): refresh stale ones when the app opens.
     LaunchedEffect(Unit) {
+        if (!store.autoUpdateSubs) return@LaunchedEffect
         val info = store.subInfo
         val stale = store.subscriptions.filter {
             val i = info[it]
@@ -354,11 +360,27 @@ private fun App() {
                     },
                 )
                 Tab.Menu -> MenuScreen(
-                    subscriptions = subs,
-                    message = message,
-                    onAddSubscription = { refreshSubs(listOf(it)) },
-                    onRefreshSubscriptions = { refreshSubs(subs) },
-                    onImportClipboard = ::importClipboard,
+                    store = store,
+                    onExport = {
+                        (ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager)
+                            .setPrimaryClip(android.content.ClipData.newPlainText("servers", profiles.joinToString("\n") { it.link }))
+                        toast("Copied ${profiles.size} server link${if (profiles.size == 1) "" else "s"}")
+                    },
+                    onRemoveAll = {
+                        if (status != Status.Disconnected) SingBoxVpnService.stop(ctx)
+                        store.clear(); store.subscriptions = emptyList(); store.subInfo = emptyMap()
+                        reload(); toast("All servers removed")
+                    },
+                    onDebugInfo = {
+                        val info = "App ${runCatching { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName }.getOrNull()}\n" +
+                            "Android ${android.os.Build.VERSION.RELEASE} (API ${android.os.Build.VERSION.SDK_INT})\n" +
+                            "Device ${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}\n" +
+                            "Status $status\nServers ${profiles.size}\nSubscriptions ${subs.size}\n" +
+                            "Last error ${VpnState.error.value ?: "none"}"
+                        (ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager)
+                            .setPrimaryClip(android.content.ClipData.newPlainText("debug", info))
+                        toast("Debug info copied")
+                    },
                 )
             }
         }

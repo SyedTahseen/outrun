@@ -11,6 +11,7 @@ import android.os.ParcelFileDescriptor
 import app.xvpn.MainActivity
 import app.xvpn.data.ConfigBuilder
 import app.xvpn.data.LinkParser
+import app.xvpn.data.Store
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -88,20 +89,25 @@ class SingBoxVpnService : VpnService() {
             val port = SingBoxCore.freePort()
             x = SingBoxCore(this)
             core = x
-            x.start(ConfigBuilder.build(link, port), port)
+            val settings = Store(this)
+            val dns = settings.dnsServers()
+            x.start(ConfigBuilder.build(link, port, dns.first()), port)
             currentCoroutineContext().ensureActive()
 
             // 2) Create the TUN interface
-            pfd = Builder()
+            val b = Builder()
                 .setSession(profile.name)
                 .setMtu(MTU)
                 .addAddress("10.10.14.1", 30)
                 .addAddress("fd00:10:10:14::1", 126)
                 .addRoute("0.0.0.0", 0)
                 .addRoute("::", 0)
-                .addDnsServer("1.1.1.1")
-                .addDnsServer("8.8.8.8")
-                .addDisallowedApplication(packageName)   // never loop our own traffic
+            dns.forEach { b.addDnsServer(it) }
+            // split tunneling: the chosen apps bypass the VPN (a VPN may only use allowed OR disallowed apps)
+            if (settings.splitEnabled) settings.splitApps.forEach { pkg ->
+                if (pkg != packageName) runCatching { b.addDisallowedApplication(pkg) }
+            }
+            pfd = b.addDisallowedApplication(packageName)   // never loop our own traffic
                 .establish() ?: error("VPN permission was not granted")
             tun = pfd
             currentCoroutineContext().ensureActive()

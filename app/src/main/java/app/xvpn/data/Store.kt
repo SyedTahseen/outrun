@@ -23,6 +23,27 @@ data class SubInfo(
 
 class SubSync(val added: Int, val removed: Int, val total: Int, val skipped: Map<String, Int> = emptyMap())
 
+class DnsOption(val id: String, val name: String, val note: String, val servers: List<String>)
+class TestUrlOption(val id: String, val name: String, val url: String)
+
+/** Choices offered in Settings. */
+object Choices {
+    val dns = listOf(
+        DnsOption("cloudflare", "Cloudflare", "1.1.1.1 · fast, private", listOf("1.1.1.1", "1.0.0.1")),
+        DnsOption("google", "Google", "8.8.8.8 · reliable", listOf("8.8.8.8", "8.8.4.4")),
+        DnsOption("quad9", "Quad9", "9.9.9.9 · blocks malicious domains", listOf("9.9.9.9", "149.112.112.112")),
+        DnsOption("adguard", "AdGuard", "Blocks ads and trackers", listOf("94.140.14.14", "94.140.15.15")),
+    )
+    val testUrls = listOf(
+        TestUrlOption("google", "Google", "https://www.gstatic.com/generate_204"),
+        TestUrlOption("cloudflare", "Cloudflare", "https://cp.cloudflare.com/generate_204"),
+        TestUrlOption("apple", "Apple", "https://captive.apple.com/"),
+    )
+    private val ipv4 = Regex("^((25[0-5]|2[0-4]\\d|1?\\d?\\d)\\.){3}(25[0-5]|2[0-4]\\d|1?\\d?\\d)$")
+    fun parseDns(text: String): List<String> = text.split(',', ' ', ';', '\n').map { it.trim() }.filter { it.isNotEmpty() }
+        .let { parts -> if (parts.isNotEmpty() && parts.all { ipv4.matches(it) }) parts else emptyList() }
+}
+
 /** Stores saved share links + subscription URLs in SharedPreferences. */
 class Store(context: Context) {
     private val prefs = context.getSharedPreferences("xvpn", Context.MODE_PRIVATE)
@@ -98,6 +119,42 @@ class Store(context: Context) {
     var favorites: Set<String>
         get() = (prefs.getString("favs", "") ?: "").split("\n").filter { it.isNotBlank() }.toSet()
         set(v) = prefs.edit().putString("favs", v.joinToString("\n")).apply()
+
+    // ---- settings ----
+    var splitEnabled: Boolean
+        get() = prefs.getBoolean("split_on", false)
+        set(v) = prefs.edit().putBoolean("split_on", v).apply()
+    /** Package names that bypass the VPN while split tunneling is on. */
+    var splitApps: Set<String>
+        get() = (prefs.getString("split_apps", "") ?: "").split("\n").filter { it.isNotBlank() }.toSet()
+        set(v) = prefs.edit().putString("split_apps", v.joinToString("\n")).apply()
+    var dnsChoice: String
+        get() = prefs.getString("dns", "cloudflare") ?: "cloudflare"
+        set(v) = prefs.edit().putString("dns", v).apply()
+    var dnsCustom: String
+        get() = prefs.getString("dns_custom", "") ?: ""
+        set(v) = prefs.edit().putString("dns_custom", v).apply()
+    var testUrlChoice: String
+        get() = prefs.getString("test_url", "google") ?: "google"
+        set(v) = prefs.edit().putString("test_url", v).apply()
+    var autoConnect: Boolean
+        get() = prefs.getBoolean("auto_connect", false)
+        set(v) = prefs.edit().putBoolean("auto_connect", v).apply()
+    var autoUpdateSubs: Boolean
+        get() = prefs.getBoolean("auto_update_subs", true)
+        set(v) = prefs.edit().putBoolean("auto_update_subs", v).apply()
+
+    /** DNS servers handed to the VPN interface. */
+    fun dnsServers(): List<String> {
+        if (dnsChoice == "custom") Choices.parseDns(dnsCustom).takeIf { it.isNotEmpty() }?.let { return it }
+        return (Choices.dns.firstOrNull { it.id == dnsChoice } ?: Choices.dns.first()).servers
+    }
+
+    /** Latency test URLs: the chosen one first, the others as fallback. */
+    fun testUrls(): List<String> {
+        val first = Choices.testUrls.firstOrNull { it.id == testUrlChoice } ?: Choices.testUrls.first()
+        return listOf(first.url) + Choices.testUrls.filter { it !== first }.map { it.url }
+    }
 
     fun clear() {
         prefs.edit().putString("links", "").putString("src", "{}").putString("favs", "").putString("selected", null).apply()

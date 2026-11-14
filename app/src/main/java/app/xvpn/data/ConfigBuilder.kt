@@ -27,10 +27,10 @@ object ConfigBuilder {
     }
 
     // Plain UDP DNS, used only to resolve the proxy server's own hostname.
-    private fun dnsBlock() = JSONObject()
+    private fun dnsBlock(dns: String = "1.1.1.1") = JSONObject()
         .put(
             "servers", JSONArray().put(
-                JSONObject().put("type", "udp").put("tag", "dns-direct").put("server", "1.1.1.1")
+                JSONObject().put("type", "udp").put("tag", "dns-direct").put("server", dns)
             )
         )
         .put("final", "dns-direct")
@@ -56,22 +56,14 @@ object ConfigBuilder {
             .toString()
     }
 
-    fun build(link: String, socksPort: Int): String {
+    fun build(link: String, socksPort: Int, dns: String = "1.1.1.1"): String {
         val proxy = outbound(link)
 
         val root = JSONObject()
             .put("log", JSONObject().put("level", "warn"))
             // Plain UDP DNS, used only to resolve the proxy server's own hostname.
             // (Go on Android has no /etc/resolv.conf, so the "local" resolver can't be relied on.)
-            .put(
-                "dns", JSONObject()
-                    .put(
-                        "servers", JSONArray().put(
-                            JSONObject().put("type", "udp").put("tag", "dns-direct").put("server", "1.1.1.1")
-                        )
-                    )
-                    .put("final", "dns-direct")
-            )
+            .put("dns", dnsBlock(dns))
             .put(
                 "inbounds", JSONArray().put(
                     JSONObject()
