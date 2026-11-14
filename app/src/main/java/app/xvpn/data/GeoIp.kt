@@ -9,6 +9,7 @@ import java.net.URL
 data class IpInfo(
     val ip: String,
     val country: String,
+    val code: String = "",   // ISO 3166-1 alpha-2, used to highlight the country on the map
     val city: String,
     val lat: Double,
     val lon: Double,
@@ -33,6 +34,7 @@ object GeoIp {
         IpInfo(
             ip = j.getString("ip"),
             country = j.optString("country"),
+            code = j.optString("country_code"),
             city = j.optString("city"),
             lat = j.getDouble("latitude"),
             lon = j.getDouble("longitude"),

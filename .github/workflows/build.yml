@@ -53,6 +53,10 @@ jobs:
           HEV_REF: ${{ github.event.inputs.hev_ref }}
         run: bash scripts/build-native.sh
 
+      - name: Build world map asset (Natural Earth borders)
+        run: |
+          [ -f app/src/main/assets/world.bin ] || python3 scripts/build-map.py
+
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.9"

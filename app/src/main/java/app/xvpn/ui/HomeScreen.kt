@@ -92,14 +92,15 @@ fun HomeScreen(
 
     // where the dot should be: your real location, or the proxy's once connected
     var cam by remember { mutableStateOf(GeoPoint(103.8, 1.3)) }
+    var camCode by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(on, real, proxy) {
         val p = if (on) proxy else real
-        if (p != null) cam = GeoPoint(p.lon, p.lat)
+        if (p != null) { cam = GeoPoint(p.lon, p.lat); camCode = p.code.ifBlank { null } }
     }
 
     Box(Modifier.fillMaxSize()) {
         WorldMap(
-            target = cam, dotColor = tone, pulseMs = if (connecting) 700 else 1600,
+            target = cam, countryCode = camCode, dotColor = tone, pulseMs = if (connecting) 700 else 1600,
             modifier = Modifier.fillMaxSize(), centerY = 0.46f,
         )
         // colour wash at the top (red = unprotected, green = protected) and a fade into the background below

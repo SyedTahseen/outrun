@@ -17,6 +17,8 @@ object C {
     val Green = Color(0xFF2DF5C0)
     val Red = Color(0xFFF0728C)
     val Amber = Color(0xFFFFB74D)
-    val Land = Color(0xFF2A2933)
-    val LandLine = Color(0xFF3D3C4A)
+    // map colours sampled from the design: other countries / the country you are in / borders
+    val Land = Color(0xFF292734)
+    val LandActive = Color(0xFF4A4657)
+    val LandLine = Color(0xFF5A5866)
 }
