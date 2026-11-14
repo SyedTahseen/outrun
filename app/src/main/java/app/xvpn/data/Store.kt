@@ -21,7 +21,7 @@ data class SubInfo(
     val used: Long get() = upload + download
 }
 
-class SubSync(val added: Int, val removed: Int, val total: Int)
+class SubSync(val added: Int, val removed: Int, val total: Int, val skipped: Map<String, Int> = emptyMap())
 
 /** Stores saved share links + subscription URLs in SharedPreferences. */
 class Store(context: Context) {
@@ -226,6 +226,6 @@ class Store(context: Context) {
         if (gone.isNotEmpty()) favorites = favorites - gone
         if (selected in gone) selected = null
         subInfo = subInfo + (url to parseInfo(url, f.headers, text, found.size))
-        return SubSync(added, gone.size, found.size)
+        return SubSync(added, gone.size, found.size, LinkParser.skipped(text))
     }
 }

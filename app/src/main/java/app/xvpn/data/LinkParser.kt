@@ -16,7 +16,7 @@ object LinkParser {
 
     /** Parse one share link. Returns null if unsupported or malformed. */
     fun parse(raw: String): Profile? = try {
-        val link = raw.trim()
+        val link = sanitize(raw.trim())
         when {
             link.startsWith("vless://") -> uriProfile(link, "vless")
             link.startsWith("trojan://") -> uriProfile(link, "trojan")
@@ -27,6 +27,44 @@ object LinkParser {
     } catch (e: Exception) {
         null
     }
+
+    private const val ALLOWED = "-._~:/?[]@!\$&'()*+,;="
+
+    /**
+     * Subscriptions often contain links that java.net.URI rejects (spaces, '|', '{', stray '%' or a second '#' in the
+     * server name). Percent-encode those characters so the link parses (and the config can be built from it later).
+     */
+    fun sanitize(link: String): String {
+        val sb = StringBuilder(link.length + 16)
+        var seenHash = false
+        fun enc(c: Char) { for (b in c.toString().toByteArray(Charsets.UTF_8)) sb.append('%').append("%02X".format(b.toInt() and 0xFF)) }
+        var i = 0
+        while (i < link.length) {
+            val c = link[i]
+            when {
+                c == '%' -> {
+                    val ok = i + 2 < link.length && link[i + 1].isHex() && link[i + 2].isHex()
+                    if (ok) sb.append(c) else sb.append("%25")
+                }
+                c == '#' -> { if (seenHash) sb.append("%23") else { seenHash = true; sb.append(c) } }
+                c.isLetterOrDigit() && c.code < 128 -> sb.append(c)
+                c in ALLOWED -> sb.append(c)
+                c.code < 128 -> enc(c)
+                Character.isSpaceChar(c) || Character.isISOControl(c) -> enc(c)
+                else -> sb.append(c)
+            }
+            i++
+        }
+        return sb.toString()
+    }
+
+    private fun Char.isHex() = this in '0'..'9' || this in 'a'..'f' || this in 'A'..'F'
+
+    /** Lines that look like share links (scheme://) but aren't supported, counted per scheme. */
+    fun skipped(text: String): Map<String, Int> =
+        text.lines().map { it.trim() }.filter { it.contains("://") && parse(it) == null }
+            .groupingBy { it.substringBefore("://").lowercase().takeIf { s -> s.length in 1..12 && s.all { c -> c.isLetterOrDigit() } } ?: "invalid" }
+            .eachCount()
 
     /** The readable text of a subscription body: the body itself if it holds share links, else its base64 decoding. */
     fun plainText(text: String): String {

@@ -240,10 +240,11 @@ private fun App() {
     fun refreshSubs(list: List<String>, silent: Boolean = false) {
         if (!silent) message = "Updating…"
         thread {
-            var added = 0; var removed = 0; var failed = 0; var err = ""
+            var added = 0; var removed = 0; var failed = 0; var err = ""; var total = 0
+            val skipped = HashMap<String, Int>()
             list.forEach {
                 runCatching { store.importSubscription(it) }
-                    .onSuccess { r -> added += r.added; removed += r.removed }
+                    .onSuccess { r -> added += r.added; removed += r.removed; total += r.total; r.skipped.forEach { (k, v) -> skipped[k] = (skipped[k] ?: 0) + v } }
                     .onFailure { e -> failed++; err = e.message ?: e.javaClass.simpleName }
             }
             android.os.Handler(android.os.Looper.getMainLooper()).post {
@@ -251,7 +252,9 @@ private fun App() {
                 if (!silent) {
                     message = when {
                         failed > 0 && failed == list.size -> "Couldn't update: $err"
-                        else -> "Updated: $added new, $removed removed" + if (failed > 0) ", $failed failed" else ""
+                        else -> "Updated: $added new, $removed removed ($total in subscription)" +
+                            (if (failed > 0) ", $failed failed" else "") +
+                            (if (skipped.isNotEmpty()) ". Skipped unsupported: " + skipped.entries.joinToString { "${it.key} ×${it.value}" } else "")
                     }
                     toast(message!!)
                 }
