@@ -20,6 +20,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -99,6 +100,7 @@ fun ServersScreen(
     onSortChange: (SortMode) -> Unit,
     filter: String?,                      // selected chip: null = All, "fav", "default" or "sub:<url>"
     onFilterChange: (String?) -> Unit,
+    onScrolledChange: (Boolean) -> Unit = {},
 ) {
     var searching by remember { mutableStateOf(false) }
     var query by remember { mutableStateOf("") }
@@ -136,6 +138,9 @@ fun ServersScreen(
     val listState = rememberLazyListState()
     val scrolled by remember { derivedStateOf { listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 0 } }
     val headerColor by animateColorAsState(if (scrolled) C.Card else C.Bg, label = "headerColor")
+    // Tell the activity so the status bar strip can follow the header colour.
+    LaunchedEffect(scrolled) { onScrolledChange(scrolled) }
+    DisposableEffect(Unit) { onDispose { onScrolledChange(false) } }
 
     Column(Modifier.fillMaxSize()) {
         // header: background colour at rest, switches to the bottom-bar colour once the list is scrolled

@@ -27,6 +27,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.rememberCoroutineScope
 import app.xvpn.data.Ping
 import kotlinx.coroutines.joinAll
@@ -250,12 +251,25 @@ private fun App() {
     // Home draws its own map behind the status bar; every other screen sits below it.
     val homeVisible = tab == Tab.Home && !(showStats && status == Status.Connected)
     val dockHidden = showStats && status == Status.Connected
+    // Servers header colour is reported by ServersScreen: Bg at rest, Card once the list is scrolled.
+    var serversScrolled by remember { mutableStateOf(false) }
+    val statusStripColor by animateColorAsState(
+        if (tab == Tab.Servers && serversScrolled) C.Card else C.Bg, label = "statusStrip",
+    )
+    // System navigation bar follows the bottom dock: Card with the dock, Bg when the dock is hidden (stats screen).
+    val navBarColor = if (dockHidden) C.Bg else C.Card
+    SideEffect {
+        (ctx as? ComponentActivity)?.enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
+            navigationBarStyle = SystemBarStyle.dark(navBarColor.toArgb()),
+        )
+    }
     Column(Modifier.fillMaxSize().background(C.Bg).imePadding()) {
         // Home draws its map behind the status bar. Other screens get a solid strip there: the Servers header
-        // colour (same as the bottom dock) so header and status bar read as one bar, the app background elsewhere.
+        // colour (Bg, fading to Card on scroll) so header and status bar read as one bar, Bg elsewhere.
         if (!homeVisible) Spacer(
             Modifier.fillMaxWidth().windowInsetsTopHeight(WindowInsets.statusBars)
-                .background(if (tab == Tab.Servers) C.Card else C.Bg),
+                .background(statusStripColor),
         )
         Box(
             Modifier.weight(1f)
@@ -310,6 +324,7 @@ private fun App() {
                     onDeleteAll = { store.clear(); favs = emptySet(); reload(); toast("All servers deleted") },
                     sort = sort, onSortChange = { sort = it; store.sortName = it.name },
                     filter = serverFilter, onFilterChange = { serverFilter = it },
+                    onScrolledChange = { serversScrolled = it },
                 )
                 Tab.Menu -> MenuScreen(
                     subscriptions = subs,
