@@ -92,17 +92,19 @@ fun ServersScreen(
     subscriptions: List<String>,
     sources: Map<String, String>,     // link -> subscription URL (missing = Default)
     onDeleteSubscription: (String) -> Unit,
+    sort: SortMode,                       // kept by the caller so it survives switching tabs
+    onSortChange: (SortMode) -> Unit,
+    filter: String?,                      // selected chip: null = All, "fav", "default" or "sub:<url>"
+    onFilterChange: (String?) -> Unit,
 ) {
     var searching by remember { mutableStateOf(false) }
     var query by remember { mutableStateOf("") }
-    var filter by remember { mutableStateOf<String?>(null) }
     var addMenu by remember { mutableStateOf(false) }
     var moreMenu by remember { mutableStateOf(false) }
     var manual by remember { mutableStateOf(false) }
     var delSub by remember { mutableStateOf<String?>(null) }
     var subDialog by remember { mutableStateOf(false) }
     var sortMenu by remember { mutableStateOf(false) }
-    var sort by remember { mutableStateOf(SortMode.Default) }
     val focus = remember { FocusRequester() }
     LaunchedEffect(searching) { if (searching) focus.requestFocus() }
 
@@ -150,13 +152,13 @@ fun ServersScreen(
                         Text("Servers", color = C.Text, fontSize = 26.sp, fontWeight = FontWeight.Bold)
                         Spacer(Modifier.width(10.dp))
                         Box(
-                            Modifier.clip(RoundedCornerShape(10.dp)).background(C.ButtonGrey).padding(horizontal = 10.dp, vertical = 3.dp),
+                            Modifier.clip(RoundedCornerShape(Radius.Small)).background(C.ButtonGrey).padding(horizontal = 10.dp, vertical = 3.dp),
                         ) { Text("${profiles.size}", color = C.Text, fontSize = 15.sp, fontWeight = FontWeight.Medium) }
                     }
                     HeaderIcon(Icons.Filled.Search, "Search") { searching = true }
                     Box {
                         HeaderIcon(Icons.Filled.Add, "Add") { addMenu = true }
-                        DropdownMenu(addMenu, { addMenu = false }, shape = RoundedCornerShape(20.dp), containerColor = C.Card) {
+                        DropdownMenu(addMenu, { addMenu = false }, shape = RoundedCornerShape(Radius.Card), containerColor = C.Card) {
                             MenuRow(Icons.Outlined.QrCodeScanner, "Scan QR code") { addMenu = false; onScanQr() }
                             MenuRow(Icons.Outlined.ContentPaste, "Paste from clipboard") { addMenu = false; onPasteClipboard() }
                             MenuRow(Icons.Outlined.InsertDriveFile, "Import from file") { addMenu = false; onImportFile() }
@@ -166,18 +168,18 @@ fun ServersScreen(
                     }
                     Box {
                         HeaderIcon(Icons.Filled.MoreVert, "More") { moreMenu = true }
-                        DropdownMenu(moreMenu, { moreMenu = false }, shape = RoundedCornerShape(20.dp), containerColor = C.Card) {
+                        DropdownMenu(moreMenu, { moreMenu = false }, shape = RoundedCornerShape(Radius.Card), containerColor = C.Card) {
                             MenuRow(Icons.Outlined.Speed, if (testing) "Testing…" else "Test latency") { moreMenu = false; if (!testing) onTestLatency() }
                             MenuRow(Icons.AutoMirrored.Outlined.Sort, "Sort by: ${sort.label}") { moreMenu = false; sortMenu = true }
                             MenuRow(Icons.Outlined.Refresh, "Update subscriptions") { moreMenu = false; onRefreshSubscriptions() }
                             MenuRow(Icons.Outlined.DeleteOutline, "Delete all servers") { moreMenu = false; onDeleteAll() }
                         }
-                        DropdownMenu(sortMenu, { sortMenu = false }, shape = RoundedCornerShape(20.dp), containerColor = C.Card) {
+                        DropdownMenu(sortMenu, { sortMenu = false }, shape = RoundedCornerShape(Radius.Card), containerColor = C.Card) {
                             SortMode.values().forEach { m ->
                                 DropdownMenuItem(
                                     text = { Text(m.label, color = if (m == sort) C.Accent else C.Text, fontSize = 17.sp) },
                                     trailingIcon = { if (m == sort) Icon(Icons.Filled.Check, null, tint = C.Accent, modifier = Modifier.size(20.dp)) },
-                                    onClick = { sort = m; sortMenu = false },
+                                    onClick = { onSortChange(m); sortMenu = false },
                                 )
                             }
                         }
@@ -190,16 +192,17 @@ fun ServersScreen(
                 Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 20.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                Chip("All", f == null) { filter = null }
-                if (hasFav) Chip("★ Favorites", f == "fav") { filter = "fav" }
-                Chip("Default", f == "default") { filter = "default" }
+                Chip("All", f == null) { onFilterChange(null) }
+                if (hasFav) Chip("★ Favorites", f == "fav") { onFilterChange("fav") }
+                Chip("Default", f == "default") { onFilterChange("default") }
                 subscriptions.forEach { url ->
                     val n = sources.count { it.value == url }
-                    Chip("${subHost(url)} ($n)", f == "sub:$url", onLongClick = { delSub = url }) { filter = "sub:$url" }
+                    Chip("${subHost(url)} ($n)", f == "sub:$url", onLongClick = { delSub = url }) { onFilterChange("sub:$url") }
                 }
             }
             Spacer(Modifier.height(16.dp))
         }
+        Box(Modifier.fillMaxWidth().height(1.dp).background(C.CardBorder))
 
         if (shown.isEmpty()) {
             Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
@@ -223,10 +226,10 @@ fun ServersScreen(
         AlertDialog(
             onDismissRequest = { delSub = null },
             containerColor = C.Card,
-            shape = RoundedCornerShape(24.dp),
+            shape = RoundedCornerShape(Radius.Card),
             title = { Text("Delete subscription?", color = C.Text, fontSize = 20.sp) },
             text = { Text("${subHost(url)} and its $n server(s) will be removed.", color = C.Muted, fontSize = 14.sp) },
-            confirmButton = { TextButton({ onDeleteSubscription(url); delSub = null; filter = null }) { Text("Delete", color = C.Red) } },
+            confirmButton = { TextButton({ onDeleteSubscription(url); delSub = null; onFilterChange(null) }) { Text("Delete", color = C.Red) } },
             dismissButton = { TextButton({ delSub = null }) { Text("Cancel", color = C.Muted) } },
         )
     }
@@ -254,7 +257,7 @@ private fun MenuRow(icon: ImageVector, label: String, onClick: () -> Unit) {
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 private fun Chip(label: String, selected: Boolean, onLongClick: (() -> Unit)? = null, onClick: () -> Unit) {
     Box(
-        Modifier.height(44.dp).clip(RoundedCornerShape(14.dp))
+        Modifier.height(44.dp).clip(RoundedCornerShape(Radius.Small))
             .background(if (selected) C.Button else C.ButtonGrey)
             .combinedClickable(onLongClick = onLongClick, onClick = onClick).padding(horizontal = 22.dp),
         contentAlignment = Alignment.Center,
@@ -290,7 +293,7 @@ private fun ServerRow(
             )
             Box {
                 HeaderIcon(Icons.Filled.MoreVert, "Options") { menu = true }
-                DropdownMenu(menu, { menu = false }, shape = RoundedCornerShape(20.dp), containerColor = C.Card) {
+                DropdownMenu(menu, { menu = false }, shape = RoundedCornerShape(Radius.Card), containerColor = C.Card) {
                     MenuRow(Icons.Outlined.PlayArrow, "Connect") { menu = false; onConnect() }
                     MenuRow(Icons.Outlined.ContentCopy, "Copy") { menu = false; onCopy() }
                     MenuRow(if (fav) Icons.Filled.Star else Icons.Outlined.StarBorder, if (fav) "Remove favorite" else "Add to favorites") { menu = false; onFavorite() }
@@ -309,7 +312,7 @@ private fun ManualDialog(onDismiss: () -> Unit, onAdd: (String) -> Boolean) {
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = C.Card,
-        shape = RoundedCornerShape(24.dp),
+        shape = RoundedCornerShape(Radius.Card),
         title = { Text("Add manually", color = C.Text, fontSize = 20.sp) },
         text = {
             Column {
@@ -319,7 +322,7 @@ private fun ManualDialog(onDismiss: () -> Unit, onAdd: (String) -> Boolean) {
                     value = text, onValueChange = { text = it; bad = false },
                     textStyle = TextStyle(color = C.Text, fontSize = 13.sp),
                     cursorBrush = SolidColor(C.Accent),
-                    modifier = Modifier.fillMaxWidth().height(120.dp).clip(RoundedCornerShape(12.dp)).background(C.Bg).padding(12.dp),
+                    modifier = Modifier.fillMaxWidth().height(120.dp).clip(RoundedCornerShape(Radius.Small)).background(C.Bg).padding(12.dp),
                 )
                 if (bad) Text("No valid link found", color = C.Red, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
             }
@@ -335,7 +338,7 @@ private fun SubscriptionDialog(onDismiss: () -> Unit, onAdd: (String) -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = C.Card,
-        shape = RoundedCornerShape(24.dp),
+        shape = RoundedCornerShape(Radius.Card),
         title = { Text("Add subscription link", color = C.Text, fontSize = 20.sp) },
         text = {
             Column {
@@ -345,7 +348,7 @@ private fun SubscriptionDialog(onDismiss: () -> Unit, onAdd: (String) -> Unit) {
                     value = url, onValueChange = { url = it }, singleLine = true,
                     textStyle = TextStyle(color = C.Text, fontSize = 14.sp),
                     cursorBrush = SolidColor(C.Accent),
-                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(C.Bg).padding(14.dp),
+                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(Radius.Small)).background(C.Bg).padding(14.dp),
                     decorationBox = { inner ->
                         if (url.isEmpty()) Text("https://…", color = C.Muted, fontSize = 14.sp)
                         inner()

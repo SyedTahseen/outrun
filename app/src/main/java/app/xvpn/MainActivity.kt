@@ -41,6 +41,10 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsTopHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
@@ -74,7 +78,9 @@ import app.xvpn.data.Store
 import app.xvpn.ui.C
 import app.xvpn.ui.HomeScreen
 import app.xvpn.ui.MenuScreen
+import app.xvpn.ui.Radius
 import app.xvpn.ui.ServersScreen
+import app.xvpn.ui.SortMode
 import app.xvpn.vpn.Status
 import app.xvpn.vpn.VpnState
 import app.xvpn.vpn.SingBoxVpnService
@@ -125,6 +131,9 @@ private fun App() {
     var tab by remember { mutableStateOf(Tab.Home) }
     var profiles by remember { mutableStateOf(store.profiles()) }
     var selectedLink by remember { mutableStateOf(store.selected ?: profiles.firstOrNull()?.link) }
+    // Servers-screen choices live here so they survive switching tabs (the screen itself leaves composition)
+    var sort by remember { mutableStateOf(SortMode.values().firstOrNull { it.name == store.sortName } ?: SortMode.Default) }
+    var serverFilter by remember { mutableStateOf<String?>(null) }
     var subs by remember { mutableStateOf(store.subscriptions) }
     var favs by remember { mutableStateOf(store.favorites) }
     var sources by remember { mutableStateOf(store.sources) }
@@ -242,9 +251,14 @@ private fun App() {
     val homeVisible = tab == Tab.Home && !(showStats && status == Status.Connected)
     val dockHidden = showStats && status == Status.Connected
     Column(Modifier.fillMaxSize().background(C.Bg).imePadding()) {
+        // Home draws its map behind the status bar. Other screens get a solid strip there: the Servers header
+        // colour (same as the bottom dock) so header and status bar read as one bar, the app background elsewhere.
+        if (!homeVisible) Spacer(
+            Modifier.fillMaxWidth().windowInsetsTopHeight(WindowInsets.statusBars)
+                .background(if (tab == Tab.Servers) C.Card else C.Bg),
+        )
         Box(
             Modifier.weight(1f)
-                .then(if (homeVisible) Modifier else Modifier.statusBarsPadding())
                 .then(if (dockHidden) Modifier.navigationBarsPadding() else Modifier),
         ) {
             if (showStats && status == Status.Connected) StatsScreen(
@@ -294,6 +308,8 @@ private fun App() {
                     },
                     onAddSubscription = { refreshSubs(listOf(it)) },
                     onDeleteAll = { store.clear(); favs = emptySet(); reload(); toast("All servers deleted") },
+                    sort = sort, onSortChange = { sort = it; store.sortName = it.name },
+                    filter = serverFilter, onFilterChange = { serverFilter = it },
                 )
                 Tab.Menu -> MenuScreen(
                     subscriptions = subs,
@@ -315,7 +331,7 @@ private fun App() {
                     val sel = t == tab
                     val c = if (sel) C.Accent else C.Muted
                     Box(
-                        Modifier.width(64.dp).height(32.dp).clip(RoundedCornerShape(16.dp))
+                        Modifier.width(64.dp).height(32.dp).clip(RoundedCornerShape(Radius.Pill))
                             .background(if (sel) C.NavPill else Color.Transparent),
                         contentAlignment = Alignment.Center,
                     ) { Icon(t.icon, t.label, tint = c, modifier = Modifier.size(22.dp)) }

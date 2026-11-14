@@ -44,7 +44,7 @@ fun MenuScreen(
 
         // gradient card (replaces the "Premium" card in the mockup)
         Column(
-            Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(Radius.Card))
                 .background(androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFF14121F), Color(0xFF3A2A7A), Color(0xFF8B6CF6))))
                 .padding(16.dp),
         ) {
@@ -55,7 +55,7 @@ fun MenuScreen(
             Text("• Subscription URLs", color = C.Text, fontSize = 12.sp)
             Spacer(Modifier.height(12.dp))
             Row(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(Color(0x33FFFFFF))
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(Radius.Small)).background(Color(0x33FFFFFF))
                     .clickable(onClick = onImportClipboard).padding(12.dp),
             ) {
                 Text("Import from clipboard", color = C.Text, fontSize = 13.sp, modifier = Modifier.weight(1f))
@@ -64,11 +64,11 @@ fun MenuScreen(
         }
 
         Spacer(Modifier.height(14.dp))
-        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(C.Card).padding(16.dp)) {
+        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(Radius.Card)).background(C.Card).padding(16.dp)) {
             Text("Subscription URL", color = C.Text, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.height(8.dp))
             Row(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(C.Bg).padding(12.dp),
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(Radius.Small)).background(C.Bg).padding(12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 BasicTextField(

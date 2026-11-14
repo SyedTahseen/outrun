@@ -9,6 +9,11 @@ import java.net.URL
 class Store(context: Context) {
     private val prefs = context.getSharedPreferences("xvpn", Context.MODE_PRIVATE)
 
+    /** Sort order chosen in the Servers screen (SortMode name). Survives tab switches and restarts. */
+    var sortName: String
+        get() = prefs.getString("sort", "Default") ?: "Default"
+        set(v) = prefs.edit().putString("sort", v).apply()
+
     /** Last location seen with the VPN off. Shown immediately on launch so the map doesn't start from a default. */
     var lastReal: IpInfo?
         get() = runCatching {

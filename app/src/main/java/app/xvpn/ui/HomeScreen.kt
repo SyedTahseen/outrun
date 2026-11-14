@@ -147,7 +147,7 @@ fun HomeScreen(
                 when { on -> "Browsing safely from"; connecting -> "Connecting to..."; else -> "Selected server" },
                 color = C.Text, fontSize = 17.sp, modifier = Modifier.padding(start = 4.dp, bottom = 10.dp),
             )
-            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(C.Card).border(1.dp, C.CardBorder, RoundedCornerShape(20.dp)).padding(16.dp)) {
+            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(Radius.Card)).background(C.Card).border(1.dp, C.CardBorder, RoundedCornerShape(Radius.Card)).padding(16.dp)) {
                 Row(
                     Modifier.fillMaxWidth().then(if (on) Modifier.clickable(onClick = onOpenStats) else Modifier),
                     verticalAlignment = Alignment.CenterVertically,
@@ -199,7 +199,7 @@ private fun UnprotectedHeader(real: IpInfo?, error: String?) {
         )
         Spacer(Modifier.height(10.dp))
         Row(
-            Modifier.clip(RoundedCornerShape(12.dp)).background(Color(0x66000000)).padding(horizontal = 14.dp, vertical = 8.dp),
+            Modifier.clip(RoundedCornerShape(Radius.Small)).background(Color(0x66000000)).padding(horizontal = 14.dp, vertical = 8.dp),
         ) {
             Text(real?.let { r -> r.city.ifBlank { r.country } } ?: "Locating…", color = C.Text, fontSize = 16.sp)
             if (real != null) Text("  ·  ${real.ip}", color = C.Muted, fontSize = 16.sp)
@@ -227,7 +227,7 @@ private fun ConnectingHeader(real: IpInfo?) {
             color = C.Text, fontSize = 22.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center,
         )
         Spacer(Modifier.height(10.dp))
-        Row(Modifier.clip(RoundedCornerShape(12.dp)).background(Color(0x66000000)).padding(horizontal = 14.dp, vertical = 8.dp)) {
+        Row(Modifier.clip(RoundedCornerShape(Radius.Small)).background(Color(0x66000000)).padding(horizontal = 14.dp, vertical = 8.dp)) {
             val label = real?.let { r -> listOf(r.city.ifBlank { r.country }, "·", r.ip).joinToString(" ") } ?: "Locating…"
             ScrambleText(label, C.Text, 16.sp)
         }
@@ -256,7 +256,7 @@ private fun ProtectedHeader(time: String, up: Long, down: Long) {
         }
         Spacer(Modifier.height(18.dp))
         Row(
-            Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(C.Card.copy(alpha = 0.92f)).padding(16.dp),
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(Radius.Card)).background(C.Card.copy(alpha = 0.92f)).padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(Modifier.weight(1f)) {
@@ -282,7 +282,7 @@ private fun Speed(icon: ImageVector, tint: Color, text: String) {
 @Composable
 private fun BigButton(label: String, bg: Color, onClick: () -> Unit) {
     Box(
-        Modifier.fillMaxWidth().height(54.dp).clip(RoundedCornerShape(16.dp)).background(bg).clickable(onClick = onClick),
+        Modifier.fillMaxWidth().height(54.dp).clip(RoundedCornerShape(Radius.Small)).background(bg).clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) { Text(label, color = Color.White, fontSize = 19.sp, fontWeight = FontWeight.Medium) }
 }
@@ -290,8 +290,8 @@ private fun BigButton(label: String, bg: Color, onClick: () -> Unit) {
 @Composable
 private fun OutlineButton(label: String, onClick: () -> Unit) {
     Box(
-        Modifier.fillMaxWidth().height(54.dp).clip(RoundedCornerShape(16.dp))
-            .border(1.dp, Color(0xFF4F4D5C), RoundedCornerShape(16.dp)).clickable(onClick = onClick),
+        Modifier.fillMaxWidth().height(54.dp).clip(RoundedCornerShape(Radius.Small))
+            .border(1.dp, Color(0xFF4F4D5C), RoundedCornerShape(Radius.Small)).clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) { Text(label, color = C.Text, fontSize = 19.sp, fontWeight = FontWeight.Medium) }
 }
@@ -301,7 +301,7 @@ private fun OutlineButton(label: String, onClick: () -> Unit) {
 fun FlagBadge(name: String?) {
     val res = name?.let { Flags.iso(it) }?.let { FLAG_RES[it] }
     Box(
-        Modifier.size(width = 36.dp, height = 24.dp).clip(RoundedCornerShape(5.dp)).background(C.ButtonGrey),
+        Modifier.size(width = 36.dp, height = 24.dp).clip(RoundedCornerShape(Radius.Badge)).background(C.ButtonGrey),
         contentAlignment = Alignment.Center,
     ) {
         if (res != null) Image(painterResource(res), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)

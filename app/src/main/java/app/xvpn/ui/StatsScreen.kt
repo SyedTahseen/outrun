@@ -80,7 +80,7 @@ fun StatsScreen(profile: Profile?, real: IpInfo?, proxy: IpInfo?, onBack: () -> 
 
         Label("IP address")
         Row(
-            Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(C.Card).padding(horizontal = 20.dp, vertical = 18.dp),
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(Radius.Card)).background(C.Card).padding(horizontal = 20.dp, vertical = 18.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -115,7 +115,7 @@ fun StatsScreen(profile: Profile?, real: IpInfo?, proxy: IpInfo?, onBack: () -> 
         SpeedChart(history, Modifier.fillMaxWidth().height(150.dp))
 
         Label("Connection details")
-        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(C.Card)) {
+        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(Radius.Card)).background(C.Card)) {
             Row2("Connected for", fmtDuration(now - connectedAt))
             Row2("Country", proxy?.country?.ifBlank { "—" } ?: "—")
             Row2("City", proxy?.city?.ifBlank { "—" } ?: "—")

@@ -1,6 +1,7 @@
 package app.xvpn.ui
 
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 
 object C {
     val Bg = Color(0xFF1C1B24)
@@ -22,4 +23,12 @@ object C {
     val Land = Color(0xFF292734)
     val LandActive = Color(0xFF4A4657)
     val LandLine = Color(0xFF5A5866)
+}
+
+/** Corner radii measured from the design. Use these instead of hardcoding numbers. */
+object Radius {
+    val Badge = 4.dp    // flag tiles
+    val Small = 8.dp    // buttons, location pill, chips, inputs, inner boxes
+    val Card = 16.dp    // cards, panels, dialogs, menus
+    val Pill = 16.dp    // selected nav-bar pill (32dp tall, fully round)
 }
