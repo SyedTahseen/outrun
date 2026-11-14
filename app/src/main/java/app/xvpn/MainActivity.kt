@@ -9,6 +9,8 @@ import android.net.VpnService
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -23,6 +25,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberCoroutineScope
 import app.xvpn.data.Ping
@@ -40,6 +43,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -79,6 +83,13 @@ import kotlin.concurrent.thread
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Edge-to-edge: the app draws behind the status bar (so the map reaches the top of the screen) and behind
+        // the navigation bar, which gets the same colour as our bottom dock instead of system black.
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),   // light icons over the map
+            navigationBarStyle = SystemBarStyle.dark(C.Card.toArgb()),
+        )
+        window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(C.Bg.toArgb()))
         setContent { DesignScale { App() } }
     }
 }
@@ -224,8 +235,15 @@ private fun App() {
         }
     }
 
-    Column(Modifier.fillMaxSize().background(C.Bg).statusBarsPadding()) {
-        Box(Modifier.weight(1f)) {
+    // Home draws its own map behind the status bar; every other screen sits below it.
+    val homeVisible = tab == Tab.Home && !(showStats && status == Status.Connected)
+    val dockHidden = showStats && status == Status.Connected
+    Column(Modifier.fillMaxSize().background(C.Bg).imePadding()) {
+        Box(
+            Modifier.weight(1f)
+                .then(if (homeVisible) Modifier else Modifier.statusBarsPadding())
+                .then(if (dockHidden) Modifier.navigationBarsPadding() else Modifier),
+        ) {
             if (showStats && status == Status.Connected) StatsScreen(
                 profile = profiles.firstOrNull { it.link == selectedLink },
                 real = real, proxy = proxy, onBack = { showStats = false },
