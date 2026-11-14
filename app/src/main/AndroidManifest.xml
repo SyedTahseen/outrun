@@ -9,7 +9,7 @@
 
     <application
         android:allowBackup="false"
-        android:label="Xray VPN"
+        android:label="SingBox VPN"
         android:supportsRtl="true"
         android:theme="@android:style/Theme.Material.NoActionBar">
 
@@ -24,7 +24,7 @@
         </activity>
 
         <service
-            android:name=".vpn.XrayVpnService"
+            android:name=".vpn.SingBoxVpnService"
             android:exported="false"
             android:foregroundServiceType="systemExempted"
             android:permission="android.permission.BIND_VPN_SERVICE">

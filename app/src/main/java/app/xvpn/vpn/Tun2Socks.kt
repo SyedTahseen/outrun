@@ -2,7 +2,7 @@ package app.xvpn.vpn
 
 /**
  * Bridge to hev-socks5-tunnel (tun2socks). It reads packets from the TUN fd and forwards them
- * to Xray's local SOCKS inbound.
+ * to sing-box's local SOCKS inbound.
  *
  * The native library registers ALL FOUR methods below on this exact class with these exact
  * signatures (see hev-jni.c); if any is missing or has a different return type, System.loadLibrary

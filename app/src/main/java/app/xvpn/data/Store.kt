@@ -39,7 +39,7 @@ class Store(context: Context) {
         val c = URL(url).openConnection() as HttpURLConnection
         c.connectTimeout = 15000
         c.readTimeout = 15000
-        c.setRequestProperty("User-Agent", "XrayVpn/1.0")
+        c.setRequestProperty("User-Agent", "VpnClient/1.0")
         val body = c.inputStream.bufferedReader().use { it.readText() }
         if (url !in subscriptions) subscriptions = subscriptions + url
         return add(LinkParser.parseMany(body))

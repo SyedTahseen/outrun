@@ -16,7 +16,7 @@ android {
         versionName = "1.0"
     }
 
-    // One APK per CPU type instead of one 100MB+ APK holding every Xray build.
+    // One APK per CPU type, each holding only its own sing-box binary.
     // Most phones: install app-arm64-v8a-release.apk
     splits {
         abi {
@@ -27,9 +27,14 @@ android {
         }
     }
 
-    // Keep native libs compressed inside the APK (they are stored raw otherwise, which tripled the size)
+    // useLegacyPackaging: libs are extracted to nativeLibraryDir on install, which is required to exec
+    // libsingbox.so as a process (and keeps the APK small).
+    // keepDebugSymbols: libsingbox.so is a Go executable, don't let AGP run strip on it.
     packaging {
-        jniLibs { useLegacyPackaging = true }
+        jniLibs {
+            useLegacyPackaging = true
+            keepDebugSymbols += "**/libsingbox.so"
+        }
     }
 
     buildTypes {
@@ -57,7 +62,4 @@ dependencies {
     implementation("androidx.compose.ui:ui")
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
-
-    // Xray core (gomobile AAR from 2dust/AndroidLibXrayLite) -> put it in app/libs/
-    implementation(fileTree(mapOf("dir" to "libs", "include" to listOf("*.aar"))))
 }

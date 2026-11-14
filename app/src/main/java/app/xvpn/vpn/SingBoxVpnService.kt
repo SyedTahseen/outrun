@@ -21,7 +21,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.io.File
 
-class XrayVpnService : VpnService() {
+class SingBoxVpnService : VpnService() {
 
     companion object {
         const val ACTION_START = "app.xvpn.START"
@@ -31,18 +31,18 @@ class XrayVpnService : VpnService() {
         private const val CHANNEL = "vpn"
 
         fun start(ctx: Context, link: String) = ctx.startForegroundService(
-            Intent(ctx, XrayVpnService::class.java).setAction(ACTION_START).putExtra(EXTRA_LINK, link)
+            Intent(ctx, SingBoxVpnService::class.java).setAction(ACTION_START).putExtra(EXTRA_LINK, link)
         )
 
         fun stop(ctx: Context) = ctx.startService(
-            Intent(ctx, XrayVpnService::class.java).setAction(ACTION_STOP)
+            Intent(ctx, SingBoxVpnService::class.java).setAction(ACTION_STOP)
         )
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var statsJob: Job? = null
     private var tun: ParcelFileDescriptor? = null
-    private var core: XrayCore? = null
+    private var core: SingBoxCore? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
@@ -62,10 +62,11 @@ class XrayVpnService : VpnService() {
         try {
             val profile = LinkParser.parse(link) ?: error("Invalid link")
 
-            // 1) Start Xray (SOCKS inbound on 127.0.0.1:10808)
-            val x = XrayCore(this)
-            x.start(ConfigBuilder.build(link))
+            // 1) Start sing-box (SOCKS inbound on a free 127.0.0.1 port)
+            val port = SingBoxCore.freePort()
+            val x = SingBoxCore(this)
             core = x
+            x.start(ConfigBuilder.build(link, port), port)
 
             // 2) Create the TUN interface
             val pfd = Builder()
@@ -81,9 +82,9 @@ class XrayVpnService : VpnService() {
                 .establish() ?: error("VPN permission was not granted")
             tun = pfd
 
-            // 3) tun2socks: TUN fd <-> Xray SOCKS
+            // 3) tun2socks: TUN fd <-> sing-box SOCKS
             val cfg = File(filesDir, "tun2socks.yml").apply {
-                writeText(Tun2Socks.yaml(ConfigBuilder.SOCKS_PORT, MTU))
+                writeText(Tun2Socks.yaml(port, MTU))
             }
             if (!Tun2Socks.TProxyStartService(cfg.absolutePath, pfd.fd)) error("tun2socks failed to start")
 
@@ -133,6 +134,7 @@ class XrayVpnService : VpnService() {
     override fun onRevoke() = shutdown()
 
     override fun onDestroy() {
+        runCatching { core?.stop() }
         scope.cancel()
         super.onDestroy()
     }
@@ -144,7 +146,7 @@ class XrayVpnService : VpnService() {
             this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE
         )
         return Notification.Builder(this, CHANNEL)
-            .setContentTitle("Xray VPN")
+            .setContentTitle("SingBox VPN")
             .setContentText(text)
             .setSmallIcon(android.R.drawable.ic_lock_lock)
             .setContentIntent(pi)

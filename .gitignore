@@ -11,6 +11,6 @@ app/build/
 build-native/
 dist/
 
-# fetched / built during CI (scripts/fetch-xray.sh, scripts/build-native.sh)
-app/libs/*.aar
+# fetched / built during CI (scripts/fetch-singbox.sh, scripts/build-native.sh)
+
 app/src/main/jniLibs/

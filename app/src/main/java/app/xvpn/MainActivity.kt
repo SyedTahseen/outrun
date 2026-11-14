@@ -48,7 +48,7 @@ import app.xvpn.ui.MenuScreen
 import app.xvpn.ui.ServersScreen
 import app.xvpn.vpn.Status
 import app.xvpn.vpn.VpnState
-import app.xvpn.vpn.XrayVpnService
+import app.xvpn.vpn.SingBoxVpnService
 import kotlin.concurrent.thread
 
 class MainActivity : ComponentActivity() {
@@ -92,21 +92,21 @@ private fun App() {
     }
 
     val vpnPermission = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { r ->
-        if (r.resultCode == Activity.RESULT_OK) selectedLink?.let { XrayVpnService.start(ctx, it) }
+        if (r.resultCode == Activity.RESULT_OK) selectedLink?.let { SingBoxVpnService.start(ctx, it) }
     }
     val notifPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
 
     fun connect(link: String) {
         selectedLink = link; store.selected = link
         val intent = VpnService.prepare(ctx)
-        if (intent != null) vpnPermission.launch(intent) else XrayVpnService.start(ctx, link)
+        if (intent != null) vpnPermission.launch(intent) else SingBoxVpnService.start(ctx, link)
     }
 
     fun toggle() {
         if (Build.VERSION.SDK_INT >= 33) notifPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
         when (status) {
             Status.Disconnected -> selectedLink?.let { connect(it) } ?: run { tab = Tab.Servers }
-            else -> XrayVpnService.stop(ctx)
+            else -> SingBoxVpnService.stop(ctx)
         }
     }
 

@@ -7,8 +7,8 @@ on:
   pull_request:
   workflow_dispatch:
     inputs:
-      xray_aar_version:
-        description: "AndroidLibXrayLite release tag (blank = latest)"
+      singbox_version:
+        description: "sing-box version without the v, e.g. 1.14.4 (blank = 1.14.4, or type latest)"
         required: false
         default: ""
       hev_ref:
@@ -43,10 +43,10 @@ jobs:
       - name: Point scripts at the NDK
         run: echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.2.12479018" >> "$GITHUB_ENV"
 
-      - name: Fetch Xray core (libv2ray.aar)
+      - name: Fetch sing-box binaries (official release)
         env:
-          XRAY_AAR_VERSION: ${{ github.event.inputs.xray_aar_version }}
-        run: bash scripts/fetch-xray.sh
+          SINGBOX_VERSION: ${{ github.event.inputs.singbox_version }}
+        run: bash scripts/fetch-singbox.sh
 
       - name: Build tun2socks (hev-socks5-tunnel) with the NDK
         env:
@@ -65,14 +65,30 @@ jobs:
           mkdir -p dist
           for f in app/build/outputs/apk/release/*.apk; do
             abi=$(basename "$f" .apk | sed 's/^app-//; s/-release$//')
-            cp "$f" "dist/XrayVpn-${GITHUB_REF_NAME//\//-}-$abi.apk"
+            cp "$f" "dist/SingBoxVpn-${GITHUB_REF_NAME//\//-}-$abi.apk"
           done
           ls -lh dist
 
-      - uses: actions/upload-artifact@v4
+      # archive: false -> each APK is uploaded as-is (no zip). It allows one file per step.
+      - name: Upload APK (arm64-v8a)
+        uses: actions/upload-artifact@v7
         with:
-          name: XrayVpn-apk
-          path: dist/*.apk
+          path: dist/*-arm64-v8a.apk
+          archive: false
+          if-no-files-found: error
+
+      - name: Upload APK (armeabi-v7a)
+        uses: actions/upload-artifact@v7
+        with:
+          path: dist/*-armeabi-v7a.apk
+          archive: false
+          if-no-files-found: error
+
+      - name: Upload APK (x86_64)
+        uses: actions/upload-artifact@v7
+        with:
+          path: dist/*-x86_64.apk
+          archive: false
           if-no-files-found: error
 
       - name: Attach APK to release (tags only)
