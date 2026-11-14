@@ -69,5 +69,6 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.compose.ui:ui")
     implementation("androidx.core:core-ktx:1.13.1")
+    implementation("com.journeyapps:zxing-android-embedded:4.3.0")   // QR scanner
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
 }

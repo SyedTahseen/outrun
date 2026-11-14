@@ -147,11 +147,28 @@ private fun App() {
         (ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager)
             .primaryClip?.getItemAt(0)?.coerceToText(ctx)?.toString().orEmpty()
 
-    fun importClipboard() {
-        val found = LinkParser.parseMany(clipboardText())
+    fun toast(m: String) = android.widget.Toast.makeText(ctx, m, android.widget.Toast.LENGTH_SHORT).show()
+
+    /** Parses share links / a subscription body from any text. Returns true if at least one valid link was found. */
+    fun importText(text: String): Boolean {
+        val found = LinkParser.parseMany(text)
         val n = store.add(found)
-        message = if (found.isEmpty()) "No valid links found in clipboard" else "Added $n server(s)"
+        message = if (found.isEmpty()) "No valid links found" else "Added $n server(s)"
+        toast(message!!)
         reload()
+        return found.isNotEmpty()
+    }
+
+    fun importClipboard() { importText(clipboardText()) }
+
+    val qrLauncher = rememberLauncherForActivityResult(com.journeyapps.barcodescanner.ScanContract()) { r ->
+        r.contents?.let { importText(it) }
+    }
+    val fileLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            val text = runCatching { ctx.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() } }.getOrNull()
+            if (text == null) toast("Couldn't read file") else importText(text)
+        }
     }
 
     val vpnPermission = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { r ->
@@ -203,7 +220,20 @@ private fun App() {
                     selectedLink = selectedLink,
                     onConnect = { p -> connect(p.link); tab = Tab.Home },
                     onDelete = { p -> store.remove(p.link); reload() },
-                    onPasteLink = ::importClipboard,
+                    onPasteClipboard = ::importClipboard,
+                    onScanQr = {
+                        qrLauncher.launch(
+                            com.journeyapps.barcodescanner.ScanOptions()
+                                .setDesiredBarcodeFormats(com.journeyapps.barcodescanner.ScanOptions.QR_CODE)
+                                .setPrompt("Scan a proxy QR code")
+                                .setBeepEnabled(false)
+                                .setOrientationLocked(false)
+                        )
+                    },
+                    onImportFile = { fileLauncher.launch(arrayOf("*/*")) },
+                    onAddManual = { importText(it) },
+                    onRefreshSubscriptions = { if (subs.isEmpty()) toast("No subscriptions added") else refreshSubs(subs) },
+                    onDeleteAll = { store.clear(); reload(); toast("All servers deleted") },
                 )
                 Tab.Menu -> MenuScreen(
                     subscriptions = subs,

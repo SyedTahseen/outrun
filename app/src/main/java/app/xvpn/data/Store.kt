@@ -26,6 +26,10 @@ class Store(context: Context) {
         if (selected == link) selected = null
     }
 
+    fun clear() {
+        prefs.edit().putString("links", "").putString("selected", null).apply()
+    }
+
     var selected: String?
         get() = prefs.getString("selected", null)
         set(v) = prefs.edit().putString("selected", v).apply()
