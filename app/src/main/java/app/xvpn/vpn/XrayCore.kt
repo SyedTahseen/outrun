@@ -1,44 +1,48 @@
 package app.xvpn.vpn
 
-import android.net.VpnService
+import android.content.Context
+import android.provider.Settings
+import android.util.Base64
+import libv2ray.CoreCallbackHandler
+import libv2ray.CoreController
 import libv2ray.Libv2ray
-import libv2ray.V2RayPoint
-import libv2ray.V2RayVPNServiceSupportsSet
+import java.security.MessageDigest
 
 /**
- * Thin wrapper over the Xray gomobile AAR (2dust/AndroidLibXrayLite -> libs/libv2ray.aar).
- * API follows the v2rayNG 1.8.x era of that library; if you use a different AAR version,
- * only this file needs adjusting.
+ * Thin wrapper over the Xray gomobile AAR (2dust/AndroidLibXrayLite -> libs/libv2ray.aar),
+ * written against its CoreController API (initCoreEnv / newCoreController / startLoop / stopLoop).
+ *
+ * Xray runs with only a local SOCKS inbound (tunFd = 0); packets reach it through tun2socks.
+ * Its outbound sockets bypass the VPN because XrayVpnService excludes this app from the tunnel.
  */
-class XrayCore(private val service: VpnService) {
+class XrayCore(private val context: Context) {
 
-    private val callback = object : V2RayVPNServiceSupportsSet {
-        override fun onEmitStatus(l: Long, s: String?): Long = 0
-        override fun prepare(): Long = 0
-        override fun protect(l: Long): Boolean = service.protect(l.toInt())   // keep Xray's own sockets out of the tunnel
-        override fun setup(s: String?): Long = 0
+    private val callback = object : CoreCallbackHandler {
+        override fun startup(): Long = 0
         override fun shutdown(): Long = 0
+        override fun onEmitStatus(l: Long, s: String?): Long = 0
     }
 
-    private var point: V2RayPoint? = null
+    private var controller: CoreController? = null
 
-    val isRunning: Boolean get() = point?.isRunning == true
+    val isRunning: Boolean get() = controller?.isRunning == true
 
-    fun start(configJson: String, serverHostPort: String) {
-        Libv2ray.initV2Env(service.filesDir.absolutePath, "")
-        val p = Libv2ray.newV2RayPoint(callback, true)
-        p.configureFileContent = configJson
-        p.domainName = serverHostPort
-        p.runLoop(false)
-        point = p
+    fun start(configJson: String) {
+        Libv2ray.initCoreEnv(context.filesDir.absolutePath, xudpBaseKey())
+        val c = Libv2ray.newCoreController(callback)
+        c.startLoop(configJson, 0)
+        controller = c
     }
 
     fun stop() {
-        point?.stopLoop()
-        point = null
+        runCatching { controller?.stopLoop() }
+        controller = null
     }
 
-    /** Cumulative bytes through the outbound tagged "proxy". */
-    fun uplink(): Long = point?.queryStats("proxy", "uplink") ?: 0
-    fun downlink(): Long = point?.queryStats("proxy", "downlink") ?: 0
+    /** Xray wants a base64 (raw URL) 32-byte key for XUDP; derive a stable one per device. */
+    private fun xudpBaseKey(): String {
+        val id = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID) ?: "xvpn"
+        val digest = MessageDigest.getInstance("SHA-256").digest(id.toByteArray())
+        return Base64.encodeToString(digest, Base64.URL_SAFE or Base64.NO_PADDING or Base64.NO_WRAP)
+    }
 }

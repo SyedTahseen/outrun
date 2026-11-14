@@ -64,7 +64,7 @@ class XrayVpnService : VpnService() {
 
             // 1) Start Xray (SOCKS inbound on 127.0.0.1:10808)
             val x = XrayCore(this)
-            x.start(ConfigBuilder.build(link), "${profile.host}:${profile.port}")
+            x.start(ConfigBuilder.build(link))
             core = x
 
             // 2) Create the TUN interface
@@ -90,20 +90,25 @@ class XrayVpnService : VpnService() {
             VpnState.connectedAt.value = System.currentTimeMillis()
             VpnState.status.value = Status.Connected
             getSystemService(NotificationManager::class.java).notify(1, notification("Connected · ${profile.name}"))
-            startStats(x)
+            startStats()
         } catch (e: Throwable) {
             VpnState.error.value = e.message ?: e.javaClass.simpleName
             shutdown()
         }
     }
 
-    private fun startStats(x: XrayCore) {
+    /** Speeds come from tun2socks counters: [txPackets, txBytes, rxPackets, rxBytes]. */
+    private fun startStats() {
         statsJob?.cancel()
         statsJob = scope.launch {
-            var lastUp = x.uplink(); var lastDown = x.downlink()
+            fun read(): Pair<Long, Long> {
+                val s = runCatching { Tun2Socks.TProxyGetStats() }.getOrNull()
+                return if (s != null && s.size >= 4) s[1] to s[3] else 0L to 0L
+            }
+            var (lastUp, lastDown) = read()
             while (isActive) {
                 delay(1000)
-                val up = x.uplink(); val down = x.downlink()
+                val (up, down) = read()
                 VpnState.upBytesPerSec.value = (up - lastUp).coerceAtLeast(0)
                 VpnState.downBytesPerSec.value = (down - lastDown).coerceAtLeast(0)
                 lastUp = up; lastDown = down

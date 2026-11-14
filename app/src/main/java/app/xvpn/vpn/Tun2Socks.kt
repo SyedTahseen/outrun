@@ -12,7 +12,7 @@ object Tun2Socks {
 
     @JvmStatic external fun TProxyStartService(configPath: String, fd: Int)
     @JvmStatic external fun TProxyStopService()
-    @JvmStatic external fun TProxyGetStats(): LongArray   // [txPackets, txBytes, rxPackets, rxBytes]
+    @JvmStatic external fun TProxyGetStats(): LongArray?   // [txPackets, txBytes, rxPackets, rxBytes]
 
     fun yaml(socksPort: Int, mtu: Int) = """
         tunnel:
