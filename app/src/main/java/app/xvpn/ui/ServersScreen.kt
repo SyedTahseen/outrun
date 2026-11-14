@@ -369,7 +369,14 @@ private fun ServerRow(
     onConnect: () -> Unit, onDelete: () -> Unit, onFavorite: () -> Unit, onCopy: () -> Unit,
 ) {
     var menu by remember { mutableStateOf(false) }
-    Column(Modifier.fillMaxWidth().background(C.Bg)) {
+    // the selected server gets a raised row (card colour) with an accent bar on its left edge
+    val rowBg by animateColorAsState(if (selected) C.Card else C.Bg, label = "rowBg")
+    Column(Modifier.fillMaxWidth().background(rowBg)) {
+      Box(Modifier.fillMaxWidth()) {
+        if (selected) Box(
+            Modifier.align(Alignment.CenterStart).width(4.dp).height(48.dp)
+                .clip(RoundedCornerShape(topEnd = 2.dp, bottomEnd = 2.dp)).background(C.Green),
+        )
         Row(
             Modifier.fillMaxWidth().clickable(onClick = onConnect).padding(start = 20.dp, end = 8.dp).height(84.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -400,6 +407,7 @@ private fun ServerRow(
                 }
             }
         }
+      }
         Box(Modifier.fillMaxWidth().height(1.dp).background(C.CardBorder))
     }
 }
