@@ -73,6 +73,13 @@ internal fun fmtDuration(ms: Long): String {
     }
 }
 
+/** Where the map camera last was. HomeScreen leaves composition when you visit other tabs, so without this it
+ *  would restart at the NEW location (nothing to animate) instead of travelling from the old one. */
+private object MapMemory {
+    var pos: GeoPoint? = null
+    var code: String? = null
+}
+
 @Composable
 fun HomeScreen(
     selected: Profile?,
@@ -109,12 +116,13 @@ fun HomeScreen(
         val p = if (on) proxy else real
         return p?.let { GeoPoint(it.lon, it.lat) to it.code.ifBlank { null } }
     }
-    // start from the already-known location so returning to this screen doesn't replay the trip from a default
-    val start = place() ?: real?.let { GeoPoint(it.lon, it.lat) to it.code.ifBlank { null } }
+    // start where the map last was (so a new target is animated to), else from the best known location
+    val start = MapMemory.pos?.let { it to MapMemory.code }
+        ?: place() ?: real?.let { GeoPoint(it.lon, it.lat) to it.code.ifBlank { null } }
     var cam by remember { mutableStateOf(start?.first ?: GeoPoint(103.8, 1.3)) }
     var camCode by remember { mutableStateOf(start?.second) }
     LaunchedEffect(on, connecting, real, proxy, selected?.name) {
-        place()?.let { (g, c) -> cam = g; camCode = c }
+        place()?.let { (g, c) -> cam = g; camCode = c; MapMemory.pos = g; MapMemory.code = c }
     }
 
     // "Change server" only shows up if connecting is taking a while
