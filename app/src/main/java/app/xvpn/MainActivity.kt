@@ -120,6 +120,8 @@ private enum class Tab(val label: String, val icon: ImageVector) {
 private fun App() {
     val ctx = androidx.compose.ui.platform.LocalContext.current
     val store = remember { Store(ctx) }
+    // show the last known location straight away (before the first lookup finishes) instead of a default
+    remember { if (NetInfo.real.value == null) NetInfo.real.value = store.lastReal }
     var tab by remember { mutableStateOf(Tab.Home) }
     var profiles by remember { mutableStateOf(store.profiles()) }
     var selectedLink by remember { mutableStateOf(store.selected ?: profiles.firstOrNull()?.link) }
@@ -132,6 +134,7 @@ private fun App() {
     val real by NetInfo.real.collectAsState()
     val proxy by NetInfo.proxy.collectAsState()
     var showStats by remember { mutableStateOf(false) }
+    LaunchedEffect(real) { real?.let { store.lastReal = it } }
 
     // Look up our real location when the VPN is off, and the proxy's exit location (through sing-box's
     // local SOCKS port, because this app is excluded from the tunnel) when it is on.

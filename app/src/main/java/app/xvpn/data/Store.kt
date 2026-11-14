@@ -9,6 +9,22 @@ import java.net.URL
 class Store(context: Context) {
     private val prefs = context.getSharedPreferences("xvpn", Context.MODE_PRIVATE)
 
+    /** Last location seen with the VPN off. Shown immediately on launch so the map doesn't start from a default. */
+    var lastReal: IpInfo?
+        get() = runCatching {
+            val j = JSONObject(prefs.getString("last_real", null) ?: return null)
+            IpInfo(
+                ip = j.getString("ip"), country = j.optString("country"), code = j.optString("code"),
+                city = j.optString("city"), lat = j.getDouble("lat"), lon = j.getDouble("lon"),
+            )
+        }.getOrNull()
+        set(v) {
+            if (v == null) prefs.edit().remove("last_real").apply()
+            else prefs.edit().putString("last_real", JSONObject()
+                .put("ip", v.ip).put("country", v.country).put("city", v.city)
+                .put("lat", v.lat).put("lon", v.lon).put("code", v.code).toString()).apply()
+        }
+
     fun links(): List<String> =
         (prefs.getString("links", "") ?: "").split("\n").filter { it.isNotBlank() }
 
