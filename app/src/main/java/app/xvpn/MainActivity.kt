@@ -24,6 +24,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberCoroutineScope
+import app.xvpn.data.Ping
+import kotlinx.coroutines.joinAll
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import app.xvpn.data.GeoIp
 import app.xvpn.data.NetInfo
 import app.xvpn.ui.StatsScreen
@@ -107,6 +113,8 @@ private fun App() {
     var profiles by remember { mutableStateOf(store.profiles()) }
     var selectedLink by remember { mutableStateOf(store.selected ?: profiles.firstOrNull()?.link) }
     var subs by remember { mutableStateOf(store.subscriptions) }
+    var favs by remember { mutableStateOf(store.favorites) }
+    var sources by remember { mutableStateOf(store.sources) }
     var message by remember { mutableStateOf<String?>(null) }
     val status by VpnState.status.collectAsState()
     val socks by VpnState.socksPort.collectAsState()
@@ -139,8 +147,22 @@ private fun App() {
     BackHandler(enabled = showStats) { showStats = false }
 
     fun reload() {
-        profiles = store.profiles(); subs = store.subscriptions
+        profiles = store.profiles(); subs = store.subscriptions; sources = store.sources; favs = store.favorites
         if (selectedLink == null || profiles.none { it.link == selectedLink }) selectedLink = profiles.firstOrNull()?.link
+    }
+
+    val scope = rememberCoroutineScope()
+    var pings by remember { mutableStateOf<Map<String, Int>>(emptyMap()) }
+    var testing by remember { mutableStateOf(false) }
+    fun testLatency() {
+        if (testing || profiles.isEmpty()) return
+        testing = true; pings = emptyMap()
+        val list = profiles
+        scope.launch {
+            val sem = Semaphore(8)
+            list.map { p -> launch { sem.withPermit { val ms = Ping.tcp(p.host, p.port); pings = pings + (p.link to ms) } } }.joinAll()
+            testing = false
+        }
     }
 
     fun clipboardText(): String =
@@ -219,7 +241,7 @@ private fun App() {
                     profiles = profiles,
                     selectedLink = selectedLink,
                     onConnect = { p -> connect(p.link); tab = Tab.Home },
-                    onDelete = { p -> store.remove(p.link); reload() },
+                    onDelete = { p -> store.remove(p.link); store.favorites = store.favorites - p.link; favs = store.favorites; reload() },
                     onPasteClipboard = ::importClipboard,
                     onScanQr = {
                         qrLauncher.launch(
@@ -233,7 +255,24 @@ private fun App() {
                     onImportFile = { fileLauncher.launch(arrayOf("*/*")) },
                     onAddManual = { importText(it) },
                     onRefreshSubscriptions = { if (subs.isEmpty()) toast("No subscriptions added") else refreshSubs(subs) },
-                    onDeleteAll = { store.clear(); reload(); toast("All servers deleted") },
+                    favorites = favs,
+                    pings = pings, testing = testing, onTestLatency = ::testLatency,
+                    subscriptions = subs, sources = sources,
+                    onDeleteSubscription = { url ->
+                        val n = store.removeSubscription(url)
+                        reload(); toast("Deleted subscription and $n server(s)")
+                    },
+                    onToggleFavorite = { p ->
+                        store.favorites = if (p.link in favs) favs - p.link else favs + p.link
+                        favs = store.favorites
+                    },
+                    onCopy = { p ->
+                        (ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager)
+                            .setPrimaryClip(android.content.ClipData.newPlainText("proxy", p.link))
+                        toast("Copied ${p.name}")
+                    },
+                    onAddSubscription = { refreshSubs(listOf(it)) },
+                    onDeleteAll = { store.clear(); favs = emptySet(); reload(); toast("All servers deleted") },
                 )
                 Tab.Menu -> MenuScreen(
                     subscriptions = subs,

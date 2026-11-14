@@ -2,6 +2,7 @@ package app.xvpn.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -21,9 +22,16 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.automirrored.outlined.Sort
+import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.ContentCopy
+import androidx.compose.material.icons.outlined.Link
+import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material.icons.outlined.ContentPaste
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Edit
@@ -57,9 +65,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.xvpn.data.Profile
 
-private fun protoLabel(p: String) = when (p) {
-    "vless" -> "VLESS"; "trojan" -> "Trojan"; "ss" -> "Shadowsocks"; "vmess" -> "VMess"; else -> p.uppercase()
-}
+enum class SortMode(val label: String) { Default("Default"), Name("Name"), Latency("Latency"), Protocol("Protocol") }
+
+private fun subHost(url: String): String =
+    runCatching { java.net.URI(url).host }.getOrNull()?.removePrefix("www.")?.takeIf { it.isNotBlank() } ?: url.take(24)
 
 @Composable
 fun ServersScreen(
@@ -73,6 +82,16 @@ fun ServersScreen(
     onAddManual: (String) -> Boolean,   // returns true if the link was valid and added
     onRefreshSubscriptions: () -> Unit,
     onDeleteAll: () -> Unit,
+    favorites: Set<String>,
+    onToggleFavorite: (Profile) -> Unit,
+    onCopy: (Profile) -> Unit,
+    onAddSubscription: (String) -> Unit,
+    pings: Map<String, Int>,          // link -> ms, -1 = failed
+    testing: Boolean,
+    onTestLatency: () -> Unit,
+    subscriptions: List<String>,
+    sources: Map<String, String>,     // link -> subscription URL (missing = Default)
+    onDeleteSubscription: (String) -> Unit,
 ) {
     var searching by remember { mutableStateOf(false) }
     var query by remember { mutableStateOf("") }
@@ -80,14 +99,33 @@ fun ServersScreen(
     var addMenu by remember { mutableStateOf(false) }
     var moreMenu by remember { mutableStateOf(false) }
     var manual by remember { mutableStateOf(false) }
+    var delSub by remember { mutableStateOf<String?>(null) }
+    var subDialog by remember { mutableStateOf(false) }
+    var sortMenu by remember { mutableStateOf(false) }
+    var sort by remember { mutableStateOf(SortMode.Default) }
     val focus = remember { FocusRequester() }
     LaunchedEffect(searching) { if (searching) focus.requestFocus() }
 
-    val protos = profiles.map { it.protocol }.distinct()
-    val f = filter?.takeIf { it in protos }
+    val hasFav = profiles.any { it.link in favorites }
+    val f = filter?.takeIf {
+        it == "default" || (it == "fav" && hasFav) || (it.startsWith("sub:") && it.removePrefix("sub:") in subscriptions)
+    }
     val shown = profiles.filter {
-        (f == null || it.protocol == f) &&
+        when {
+            f == null -> true
+            f == "fav" -> it.link in favorites
+            f == "default" -> sources[it.link].isNullOrEmpty()
+            else -> sources[it.link] == f.removePrefix("sub:")
+        } &&
             (query.isBlank() || it.name.contains(query, true) || it.host.contains(query, true))
+    }.let { list ->
+        val ordered = when (sort) {
+            SortMode.Default -> list
+            SortMode.Name -> list.sortedBy { it.name.lowercase() }
+            SortMode.Protocol -> list.sortedBy { it.protocol }
+            SortMode.Latency -> list.sortedBy { pings[it.link]?.takeIf { ms -> ms > 0 } ?: Int.MAX_VALUE }
+        }
+        ordered.sortedByDescending { it.link in favorites }   // favourites always first (stable)
     }
 
     Column(Modifier.fillMaxSize()) {
@@ -108,7 +146,13 @@ fun ServersScreen(
                     )
                     HeaderIcon(Icons.Filled.Close, "Close search") { searching = false; query = "" }
                 } else {
-                    Text("Servers", color = C.Text, fontSize = 26.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                    Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+                        Text("Servers", color = C.Text, fontSize = 26.sp, fontWeight = FontWeight.Bold)
+                        Spacer(Modifier.width(10.dp))
+                        Box(
+                            Modifier.clip(RoundedCornerShape(10.dp)).background(C.ButtonGrey).padding(horizontal = 10.dp, vertical = 3.dp),
+                        ) { Text("${profiles.size}", color = C.Text, fontSize = 15.sp, fontWeight = FontWeight.Medium) }
+                    }
                     HeaderIcon(Icons.Filled.Search, "Search") { searching = true }
                     Box {
                         HeaderIcon(Icons.Filled.Add, "Add") { addMenu = true }
@@ -117,25 +161,42 @@ fun ServersScreen(
                             MenuRow(Icons.Outlined.ContentPaste, "Paste from clipboard") { addMenu = false; onPasteClipboard() }
                             MenuRow(Icons.Outlined.InsertDriveFile, "Import from file") { addMenu = false; onImportFile() }
                             MenuRow(Icons.Outlined.Edit, "Add manually") { addMenu = false; manual = true }
+                            MenuRow(Icons.Outlined.Link, "Add subscription link") { addMenu = false; subDialog = true }
                         }
                     }
                     Box {
                         HeaderIcon(Icons.Filled.MoreVert, "More") { moreMenu = true }
                         DropdownMenu(moreMenu, { moreMenu = false }, shape = RoundedCornerShape(20.dp), containerColor = C.Card) {
+                            MenuRow(Icons.Outlined.Speed, if (testing) "Testing…" else "Test latency") { moreMenu = false; if (!testing) onTestLatency() }
+                            MenuRow(Icons.AutoMirrored.Outlined.Sort, "Sort by: ${sort.label}") { moreMenu = false; sortMenu = true }
                             MenuRow(Icons.Outlined.Refresh, "Update subscriptions") { moreMenu = false; onRefreshSubscriptions() }
                             MenuRow(Icons.Outlined.DeleteOutline, "Delete all servers") { moreMenu = false; onDeleteAll() }
+                        }
+                        DropdownMenu(sortMenu, { sortMenu = false }, shape = RoundedCornerShape(20.dp), containerColor = C.Card) {
+                            SortMode.values().forEach { m ->
+                                DropdownMenuItem(
+                                    text = { Text(m.label, color = if (m == sort) C.Accent else C.Text, fontSize = 17.sp) },
+                                    trailingIcon = { if (m == sort) Icon(Icons.Filled.Check, null, tint = C.Accent, modifier = Modifier.size(20.dp)) },
+                                    onClick = { sort = m; sortMenu = false },
+                                )
+                            }
                         }
                     }
                 }
             }
             Spacer(Modifier.height(18.dp))
-            // protocol filter chips
+            // All / Default / one pill per subscription (long-press a subscription pill to delete it)
             Row(
                 Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 20.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 Chip("All", f == null) { filter = null }
-                protos.forEach { p -> Chip(protoLabel(p), f == p) { filter = p } }
+                if (hasFav) Chip("★ Favorites", f == "fav") { filter = "fav" }
+                Chip("Default", f == "default") { filter = "default" }
+                subscriptions.forEach { url ->
+                    val n = sources.count { it.value == url }
+                    Chip("${subHost(url)} ($n)", f == "sub:$url", onLongClick = { delSub = url }) { filter = "sub:$url" }
+                }
             }
             Spacer(Modifier.height(16.dp))
         }
@@ -151,19 +212,32 @@ fun ServersScreen(
         } else {
             LazyColumn(Modifier.fillMaxSize()) {
                 items(shown, key = { it.link }) { p ->
-                    ServerRow(p, p.link == selectedLink, { onConnect(p) }, { onDelete(p) })
+                    ServerRow(p, p.link == selectedLink, p.link in favorites, pings[p.link], testing, { onConnect(p) }, { onDelete(p) }, { onToggleFavorite(p) }, { onCopy(p) })
                 }
             }
         }
     }
 
+    delSub?.let { url ->
+        val n = sources.count { it.value == url }
+        AlertDialog(
+            onDismissRequest = { delSub = null },
+            containerColor = C.Card,
+            shape = RoundedCornerShape(24.dp),
+            title = { Text("Delete subscription?", color = C.Text, fontSize = 20.sp) },
+            text = { Text("${subHost(url)} and its $n server(s) will be removed.", color = C.Muted, fontSize = 14.sp) },
+            confirmButton = { TextButton({ onDeleteSubscription(url); delSub = null; filter = null }) { Text("Delete", color = C.Red) } },
+            dismissButton = { TextButton({ delSub = null }) { Text("Cancel", color = C.Muted) } },
+        )
+    }
+    if (subDialog) SubscriptionDialog(onDismiss = { subDialog = false }, onAdd = { onAddSubscription(it); subDialog = false })
     if (manual) ManualDialog(onDismiss = { manual = false }, onAdd = { onAddManual(it).also { ok -> if (ok) manual = false } })
 }
 
 @Composable
-private fun HeaderIcon(icon: ImageVector, desc: String, onClick: () -> Unit) {
+private fun HeaderIcon(icon: ImageVector, desc: String, tint: Color = C.Text, onClick: () -> Unit) {
     Box(Modifier.size(44.dp).clip(RoundedCornerShape(22.dp)).clickable(onClick = onClick), contentAlignment = Alignment.Center) {
-        Icon(icon, desc, tint = C.Text, modifier = Modifier.size(26.dp))
+        Icon(icon, desc, tint = tint, modifier = Modifier.size(26.dp))
     }
 }
 
@@ -177,16 +251,21 @@ private fun MenuRow(icon: ImageVector, label: String, onClick: () -> Unit) {
 }
 
 @Composable
-private fun Chip(label: String, selected: Boolean, onClick: () -> Unit) {
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+private fun Chip(label: String, selected: Boolean, onLongClick: (() -> Unit)? = null, onClick: () -> Unit) {
     Box(
         Modifier.height(44.dp).clip(RoundedCornerShape(14.dp))
-            .background(if (selected) C.Button else C.ButtonGrey).clickable(onClick = onClick).padding(horizontal = 22.dp),
+            .background(if (selected) C.Button else C.ButtonGrey)
+            .combinedClickable(onLongClick = onLongClick, onClick = onClick).padding(horizontal = 22.dp),
         contentAlignment = Alignment.Center,
     ) { Text(label, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Medium) }
 }
 
 @Composable
-private fun ServerRow(p: Profile, selected: Boolean, onConnect: () -> Unit, onDelete: () -> Unit) {
+private fun ServerRow(
+    p: Profile, selected: Boolean, fav: Boolean, ping: Int?, testing: Boolean,
+    onConnect: () -> Unit, onDelete: () -> Unit, onFavorite: () -> Unit, onCopy: () -> Unit,
+) {
     var menu by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxWidth().background(C.Bg)) {
         Row(
@@ -199,10 +278,21 @@ private fun ServerRow(p: Profile, selected: Boolean, onConnect: () -> Unit, onDe
                 Text(p.name, color = if (selected) C.Green else C.Text, fontSize = 17.sp, maxLines = 1)
                 Text(if (selected) "Selected · ${p.host}:${p.port}" else "${p.host}:${p.port}", color = C.Muted, fontSize = 13.sp, maxLines = 1)
             }
+            when {
+                ping == null -> if (testing) Text("…", color = C.Muted, fontSize = 14.sp)
+                ping < 0 -> Text("Timeout", color = C.Red, fontSize = 13.sp)
+                else -> Text("$ping ms", color = if (ping < 150) C.Green else if (ping < 400) C.Amber else C.Red, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+            }
+            HeaderIcon(
+                if (fav) Icons.Filled.Star else Icons.Outlined.StarBorder, "Favorite",
+                tint = if (fav) C.Amber else C.Muted, onClick = onFavorite,
+            )
             Box {
                 HeaderIcon(Icons.Filled.MoreVert, "Options") { menu = true }
                 DropdownMenu(menu, { menu = false }, shape = RoundedCornerShape(20.dp), containerColor = C.Card) {
                     MenuRow(Icons.Outlined.PlayArrow, "Connect") { menu = false; onConnect() }
+                    MenuRow(Icons.Outlined.ContentCopy, "Copy") { menu = false; onCopy() }
+                    MenuRow(if (fav) Icons.Filled.Star else Icons.Outlined.StarBorder, if (fav) "Remove favorite" else "Add to favorites") { menu = false; onFavorite() }
                     MenuRow(Icons.Outlined.DeleteOutline, "Delete") { menu = false; onDelete() }
                 }
             }
@@ -234,6 +324,35 @@ private fun ManualDialog(onDismiss: () -> Unit, onAdd: (String) -> Boolean) {
             }
         },
         confirmButton = { TextButton({ if (!onAdd(text)) bad = true }) { Text("Add", color = C.Accent) } },
+        dismissButton = { TextButton(onDismiss) { Text("Cancel", color = C.Muted) } },
+    )
+}
+
+@Composable
+private fun SubscriptionDialog(onDismiss: () -> Unit, onAdd: (String) -> Unit) {
+    var url by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = C.Card,
+        shape = RoundedCornerShape(24.dp),
+        title = { Text("Add subscription link", color = C.Text, fontSize = 20.sp) },
+        text = {
+            Column {
+                Text("Servers from this URL are added now and when you update subscriptions.", color = C.Muted, fontSize = 13.sp)
+                Spacer(Modifier.height(12.dp))
+                BasicTextField(
+                    value = url, onValueChange = { url = it }, singleLine = true,
+                    textStyle = TextStyle(color = C.Text, fontSize = 14.sp),
+                    cursorBrush = SolidColor(C.Accent),
+                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(C.Bg).padding(14.dp),
+                    decorationBox = { inner ->
+                        if (url.isEmpty()) Text("https://…", color = C.Muted, fontSize = 14.sp)
+                        inner()
+                    },
+                )
+            }
+        },
+        confirmButton = { TextButton({ if (url.isNotBlank()) onAdd(url.trim()) }) { Text("Add", color = C.Accent) } },
         dismissButton = { TextButton(onDismiss) { Text("Cancel", color = C.Muted) } },
     )
 }
