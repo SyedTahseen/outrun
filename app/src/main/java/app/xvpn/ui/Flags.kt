@@ -44,9 +44,9 @@ KY|Cayman Islands
 CL|Chile
 CN|China
 CO|Colombia
-CD|Congo
+CD|Democratic Republic of the Congo|DR Congo|Congo - Kinshasa|Congo Kinshasa|Congo
 CR|Costa Rica
-CI|Ivory Coast|Cote d'Ivoire
+CI|Ivory Coast|Cote d'Ivoire|Côte d'Ivoire|Côte d’Ivoire|Cote d’Ivoire
 HR|Croatia
 CU|Cuba
 CY|Cyprus
@@ -172,6 +172,56 @@ VN|Vietnam|Viet Nam
 YE|Yemen
 ZM|Zambia
 ZW|Zimbabwe
+ML|Mali
+MG|Madagascar
+GA|Gabon
+NE|Niger
+TG|Togo
+SL|Sierra Leone
+LR|Liberia
+GN|Guinea
+GW|Guinea-Bissau
+GM|Gambia
+MR|Mauritania
+MW|Malawi
+TD|Chad
+SO|Somalia
+SS|South Sudan
+ER|Eritrea
+BI|Burundi
+CV|Cape Verde
+DJ|Djibouti
+LS|Lesotho
+SZ|Eswatini|Swaziland
+CF|Central African Republic
+CG|Republic of Congo|Congo-Brazzaville|Congo Brazzaville
+GQ|Equatorial Guinea
+ST|Sao Tome and Principe
+KM|Comoros
+TL|Timor-Leste|East Timor
+AG|Antigua and Barbuda
+LC|Saint Lucia
+KN|Saint Kitts and Nevis
+VC|Saint Vincent
+DM|Dominica
+GD|Grenada
+NR|Nauru
+TV|Tuvalu
+KI|Kiribati
+MH|Marshall Islands
+FM|Micronesia
+PW|Palau
+WS|Samoa
+TO|Tonga
+VU|Vanuatu
+SB|Solomon Islands
+FO|Faroe Islands
+GG|Guernsey
+CK|Cook Islands
+RE|Reunion
+GF|French Guiana
+NU|Niue
+AX|Aland
 """.trimIndent()
 
     private val codes = HashSet<String>()
@@ -193,22 +243,18 @@ ZW|Zimbabwe
 
     private val cache = HashMap<String, String>()
 
-    fun emoji(iso: String): String =
-        iso.uppercase().map { String(Character.toChars(RI_FIRST + (it - 'A'))) }.joinToString("")
-
     private fun isRi(cp: Int) = cp in RI_FIRST..RI_LAST
 
-    /** Flag emoji for this proxy name, or a globe if unknown. */
-    fun find(name: String): String = cache.getOrPut(name) {
-        // 1) country name in the text
+    /** ISO country code for this proxy name ("Italy" -> "IT"), or null if the country isn't recognised. */
+    fun iso(name: String): String? = cache.getOrPut(name) {
         val clean = clean(name).lowercase()
-        exact[clean]?.let { return@getOrPut emoji(it) }
-        matchers.firstOrNull { it.first.containsMatchIn(clean) }?.let { return@getOrPut emoji(it.second) }
-        // 2) leading two-letter code like "US-1" / "DE | Frankfurt"
+        exact[clean]?.let { return@getOrPut it }
+        matchers.firstOrNull { it.first.containsMatchIn(clean) }?.let { return@getOrPut it.second }
+        // leading two-letter code like "US-1" / "DE | Frankfurt"
         Regex("^([A-Z]{2})(?![A-Za-z])").find(clean(name))?.groupValues?.get(1)
-            ?.takeIf { it in codes }?.let { return@getOrPut emoji(it) }
-        "\uD83C\uDF10"   // globe
-    }
+            ?.takeIf { it in codes }?.let { return@getOrPut it }
+        ""
+    }.ifEmpty { null }
 
     /** Name without flag emoji and leftover separators; falls back to the original if nothing remains. */
     fun clean(name: String): String {

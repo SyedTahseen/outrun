@@ -1,7 +1,11 @@
 package app.xvpn.ui
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.material.icons.filled.Public
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -228,13 +232,15 @@ private fun OutlineButton(label: String, onClick: () -> Unit) {
     ) { Text(label, color = C.Text, fontSize = 19.sp, fontWeight = FontWeight.Medium) }
 }
 
-/** Country flag (from the proxy name) in a rounded tile. */
+/** Flag image (looked up from the country name in the proxy name) in a rounded tile; a globe when unknown. */
 @Composable
 fun FlagBadge(name: String?) {
+    val res = name?.let { Flags.iso(it) }?.let { FLAG_RES[it] }
     Box(
-        Modifier.size(width = 48.dp, height = 34.dp).clip(RoundedCornerShape(8.dp)).background(C.ButtonGrey),
+        Modifier.size(width = 36.dp, height = 24.dp).clip(RoundedCornerShape(5.dp)).background(C.ButtonGrey),
         contentAlignment = Alignment.Center,
     ) {
-        Text(Flags.find(name ?: ""), fontSize = 22.sp)
+        if (res != null) Image(painterResource(res), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+        else Icon(Icons.Filled.Public, null, tint = C.Muted, modifier = Modifier.size(16.dp))
     }
 }
