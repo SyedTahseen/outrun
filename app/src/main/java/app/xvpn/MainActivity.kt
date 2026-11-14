@@ -160,6 +160,8 @@ private fun App() {
                     delay(1500)
                 }
             }
+            // switching servers: forget the old exit location so the map doesn't bounce back to it once connected
+            status == Status.Connecting -> NetInfo.proxy.value = null
             status == Status.Connected && socks > 0 -> {
                 for (i in 0 until 5) {
                     val r = withContext(Dispatchers.IO) { GeoIp.lookup(socks) }

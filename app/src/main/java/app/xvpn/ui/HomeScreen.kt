@@ -104,6 +104,7 @@ fun HomeScreen(
         if (connecting) {
             val c = selected?.name?.let { Flags.iso(it) }
             if (c != null) WorldGeo.centerOf(c)?.let { return it to c }
+            return null   // unknown country: stay where we are instead of flying back to the real location
         }
         val p = if (on) proxy else real
         return p?.let { GeoPoint(it.lon, it.lat) to it.code.ifBlank { null } }
