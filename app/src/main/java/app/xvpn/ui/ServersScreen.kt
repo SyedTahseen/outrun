@@ -391,7 +391,7 @@ private fun ServerRow(
             when {
                 ping == null -> if (testing) Text("…", color = C.Muted, fontSize = 14.sp)
                 ping < 0 -> Text("Timeout", color = C.Red, fontSize = 13.sp)
-                else -> Text("$ping ms", color = if (ping < 150) C.Green else if (ping < 400) C.Amber else C.Red, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                else -> Text("$ping ms", color = if (ping < 500) C.Green else if (ping < 1200) C.Amber else C.Red, fontSize = 14.sp, fontWeight = FontWeight.Medium)
             }
             HeaderIcon(
                 if (fav) Icons.Filled.Star else Icons.Outlined.StarBorder, "Favorite",

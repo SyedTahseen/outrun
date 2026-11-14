@@ -13,7 +13,8 @@ import java.net.URI
  */
 object ConfigBuilder {
 
-    fun build(link: String, socksPort: Int): String {
+    /** The "proxy" outbound for one share link. Throws if the link can't be used by sing-box. */
+    fun outbound(link: String): JSONObject {
         val proxy = when {
             link.startsWith("vless://") -> vless(link)
             link.startsWith("trojan://") -> trojan(link)
@@ -22,6 +23,41 @@ object ConfigBuilder {
             else -> error("Unsupported link")
         }
         proxy.put("tag", "proxy")
+        return proxy
+    }
+
+    // Plain UDP DNS, used only to resolve the proxy server's own hostname.
+    private fun dnsBlock() = JSONObject()
+        .put(
+            "servers", JSONArray().put(
+                JSONObject().put("type", "udp").put("tag", "dns-direct").put("server", "1.1.1.1")
+            )
+        )
+        .put("final", "dns-direct")
+
+    /**
+     * One config for many servers (used by the real-delay test): every server gets its own SOCKS inbound
+     * (ports[i]) that is routed to its own outbound, so each one can be probed independently in one process.
+     */
+    fun buildMulti(outs: List<JSONObject>, ports: List<Int>): String {
+        val inbounds = JSONArray(); val outbounds = JSONArray(); val rules = JSONArray()
+        outs.forEachIndexed { i, o ->
+            outbounds.put(o.put("tag", "p$i"))
+            inbounds.put(JSONObject().put("type", "socks").put("tag", "in$i").put("listen", "127.0.0.1").put("listen_port", ports[i]))
+            rules.put(JSONObject().put("inbound", JSONArray().put("in$i")).put("action", "route").put("outbound", "p$i"))
+        }
+        outbounds.put(JSONObject().put("type", "direct").put("tag", "direct"))
+        return JSONObject()
+            .put("log", JSONObject().put("level", "error"))
+            .put("dns", dnsBlock())
+            .put("inbounds", inbounds)
+            .put("outbounds", outbounds)
+            .put("route", JSONObject().put("rules", rules).put("final", "direct").put("default_domain_resolver", "dns-direct"))
+            .toString()
+    }
+
+    fun build(link: String, socksPort: Int): String {
+        val proxy = outbound(link)
 
         val root = JSONObject()
             .put("log", JSONObject().put("level", "warn"))

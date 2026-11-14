@@ -29,7 +29,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.rememberCoroutineScope
-import app.xvpn.data.Ping
+import app.xvpn.data.RealDelay
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
@@ -184,10 +184,10 @@ private fun App() {
     fun testLatency() {
         if (testing || profiles.isEmpty()) return
         testing = true; pings = emptyMap()
-        val list = profiles
+        val list = profiles.map { it.link }
         scope.launch {
-            val sem = Semaphore(8)
-            list.map { p -> launch { sem.withPermit { val ms = Ping.tcp(p.host, p.port); pings = pings + (p.link to ms) } } }.joinAll()
+            // real delay: an HTTPS request through each server (not just a TCP connect to its port)
+            runCatching { RealDelay.test(ctx, list) { link, ms -> pings = pings + (link to ms) } }
             testing = false
         }
     }

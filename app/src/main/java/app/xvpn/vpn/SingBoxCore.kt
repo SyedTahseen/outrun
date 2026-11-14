@@ -15,7 +15,7 @@ import kotlin.concurrent.thread
  *
  * Its outbound sockets bypass the VPN because SingBoxVpnService excludes this app (same uid) from the tunnel.
  */
-class SingBoxCore(private val context: Context) {
+class SingBoxCore(private val context: Context, private val dirName: String = "singbox") {
 
     companion object {
         /** Ask the OS for a free loopback port so a leftover process can never block a new connection. */
@@ -33,7 +33,7 @@ class SingBoxCore(private val context: Context) {
         val bin = File(context.applicationInfo.nativeLibraryDir, "libsingbox.so")
         if (!bin.exists()) error("sing-box binary missing for ${Build.SUPPORTED_ABIS.firstOrNull()}")
 
-        val dir = File(context.filesDir, "singbox").apply { mkdirs() }
+        val dir = File(context.filesDir, dirName).apply { mkdirs() }
         val cfg = File(dir, "config.json").apply { writeText(configJson) }
 
         val pb = ProcessBuilder(bin.absolutePath, "run", "-c", cfg.absolutePath, "-D", dir.absolutePath)
