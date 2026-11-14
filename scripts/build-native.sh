@@ -19,6 +19,11 @@ if [ -n "${HEV_REF:-}" ]; then
   git -C "$WORK/jni/hev-socks5-tunnel" submodule update --init --recursive
 fi
 
+# Hardcode the JNI class in the source too, so it can't depend on -D flags being propagated
+sed -i 's|^#define PKGNAME .*|#define PKGNAME app/xvpn/vpn|; s|^#define CLSNAME .*|#define CLSNAME Tun2Socks|' \
+  "$WORK/jni/hev-socks5-tunnel/src/hev-jni.c"
+grep -n "define PKGNAME\|define CLSNAME" "$WORK/jni/hev-socks5-tunnel/src/hev-jni.c"
+
 cat > "$WORK/jni/Android.mk" <<'EOF'
 TOP_PATH := $(call my-dir)
 include $(TOP_PATH)/hev-socks5-tunnel/Android.mk
@@ -42,6 +47,8 @@ EOF
 for abi in armeabi-v7a arm64-v8a x86_64; do
   so="$WORK/libs/$abi/libhev-socks5-tunnel.so"
   [ -f "$so" ] || { echo "Missing $so"; exit 1; }
+  # the JNI class path must be baked into the library, otherwise it fails with JNI_ERR at load time
+  strings "$so" | grep -qx "app/xvpn/vpn/Tun2Socks" || { echo "ERROR: $so is not bound to app/xvpn/vpn/Tun2Socks"; exit 1; }
   mkdir -p "app/src/main/jniLibs/$abi"
   cp "$so" "app/src/main/jniLibs/$abi/"
 done

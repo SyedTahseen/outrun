@@ -85,7 +85,7 @@ class XrayVpnService : VpnService() {
             val cfg = File(filesDir, "tun2socks.yml").apply {
                 writeText(Tun2Socks.yaml(ConfigBuilder.SOCKS_PORT, MTU))
             }
-            Tun2Socks.TProxyStartService(cfg.absolutePath, pfd.fd)
+            if (!Tun2Socks.TProxyStartService(cfg.absolutePath, pfd.fd)) error("tun2socks failed to start")
 
             VpnState.connectedAt.value = System.currentTimeMillis()
             VpnState.status.value = Status.Connected
@@ -103,7 +103,7 @@ class XrayVpnService : VpnService() {
         statsJob = scope.launch {
             fun read(): Pair<Long, Long> {
                 val s = runCatching { Tun2Socks.TProxyGetStats() }.getOrNull()
-                return if (s != null && s.size >= 4) s[1] to s[3] else 0L to 0L
+                return if (s != null && s.size >= 4) s[1] to s[3] else 0L to 0L   // tx bytes, rx bytes
             }
             var (lastUp, lastDown) = read()
             while (isActive) {

@@ -14,7 +14,22 @@ android {
         targetSdk = 34
         versionCode = 1
         versionName = "1.0"
-        ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64") }
+    }
+
+    // One APK per CPU type instead of one 100MB+ APK holding every Xray build.
+    // Most phones: install app-arm64-v8a-release.apk
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("arm64-v8a", "armeabi-v7a", "x86_64")
+            isUniversalApk = false
+        }
+    }
+
+    // Keep native libs compressed inside the APK (they are stored raw otherwise, which tripled the size)
+    packaging {
+        jniLibs { useLegacyPackaging = true }
     }
 
     buildTypes {

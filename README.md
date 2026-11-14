@@ -36,6 +36,6 @@ Android Studio (Koala+) and run. First connect asks for VPN + notification permi
 ## Status
 
 Not compiled or run by the author (no Android SDK/network where it was written), so the first CI run may need
-small fixes. Most likely spots: `XrayCore.kt` if the AAR's API differs from the version it targets, and the
-tun2socks JNI binding (`-DPKGNAME/-DCLSNAME` in `scripts/build-native.sh`). Split tunneling, ping tests and QR import
+small fixes. `XrayCore.kt` targets the current AAR API (`CoreController`); pin `XRAY_AAR_VERSION` once you have a
+working build. Another likely spot is the tun2socks JNI binding (`-DPKGNAME/-DCLSNAME` in `scripts/build-native.sh`). Split tunneling, ping tests and QR import
 are not implemented.
