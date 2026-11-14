@@ -53,6 +53,7 @@ fun WorldMap(
     dotColor: Color,
     pulseMs: Int,
     modifier: Modifier = Modifier,
+    halo: Boolean = true,          // false while connecting: plain dot, no glow / pulsing ring
     centerY: Float = 0.5f,
 ) {
     var from by remember { mutableStateOf(target) }
@@ -146,16 +147,18 @@ fun WorldMap(
     // dot layer: pulses continuously
     Canvas(Modifier.fillMaxSize()) {
         val c = Offset(size.width / 2f, size.height * centerY)
-        val glow = 46.dp.toPx()
-        drawCircle(
-            Brush.radialGradient(listOf(dot.copy(alpha = 0f), dot.copy(alpha = 0.12f), dot.copy(alpha = 0.55f)), c, glow),
-            glow, c,
-        )
-        // blinking ring + core
-        val ringR = 10.dp.toPx() + 36.dp.toPx() * pulse
-        drawCircle(dot.copy(alpha = 0.6f * (1f - pulse)), ringR, c, style = Stroke(2.dp.toPx()))
+        if (halo) {
+            val glow = 46.dp.toPx()
+            drawCircle(
+                Brush.radialGradient(listOf(dot.copy(alpha = 0f), dot.copy(alpha = 0.12f), dot.copy(alpha = 0.55f)), c, glow),
+                glow, c,
+            )
+            // blinking ring
+            val ringR = 10.dp.toPx() + 36.dp.toPx() * pulse
+            drawCircle(dot.copy(alpha = 0.6f * (1f - pulse)), ringR, c, style = Stroke(2.dp.toPx()))
+        }
         drawCircle(Color.White, 13.dp.toPx(), c)
-        drawCircle(dot.copy(alpha = 0.65f + 0.35f * (1f - pulse)), 8.dp.toPx(), c)
+        drawCircle(dot.copy(alpha = if (halo) 0.65f + 0.35f * (1f - pulse) else 1f), 8.dp.toPx(), c)
     }
     }
 }

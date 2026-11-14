@@ -78,6 +78,23 @@ object WorldGeo {
             out
         }
 
+    /**
+     * Rough visual centre of a country: the middle of its biggest landmass, so France points at Paris rather
+     * than the Atlantic and the USA at the lower 48. Null when the code is unknown or the map isn't loaded yet.
+     */
+    fun centerOf(code: String): GeoPoint? {
+        val c = cached?.firstOrNull { it.code == code.uppercase() } ?: return null
+        val ring = c.rings.maxByOrNull { it.size } ?: return null
+        var x0 = Float.MAX_VALUE; var x1 = -Float.MAX_VALUE; var y0 = Float.MAX_VALUE; var y1 = -Float.MAX_VALUE
+        var i = 0
+        while (i < ring.size) {
+            if (ring[i] < x0) x0 = ring[i]; if (ring[i] > x1) x1 = ring[i]
+            if (ring[i + 1] < y0) y0 = ring[i + 1]; if (ring[i + 1] > y1) y1 = ring[i + 1]
+            i += 2
+        }
+        return GeoPoint(((x0 + x1) / 2f).toDouble(), ((y0 + y1) / 2f).toDouble())
+    }
+
     /** ISO code of the country containing the point, or null (open sea / unknown). */
     fun codeAt(countries: List<Country>, lon: Double, lat: Double): String? {
         val y = mercY(lat)

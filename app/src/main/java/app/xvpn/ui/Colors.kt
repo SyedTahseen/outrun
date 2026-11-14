@@ -17,6 +17,7 @@ object C {
     val Green = Color(0xFF2DF5C0)
     val Red = Color(0xFFF0728C)
     val Amber = Color(0xFFFFB74D)
+    val Neutral = Color(0xFFA6A3B2)   // connecting state: wash, dot and spinner are grey, not amber
     // map colours sampled from the design: other countries / the country you are in / borders
     val Land = Color(0xFF292734)
     val LandActive = Color(0xFF4A4657)

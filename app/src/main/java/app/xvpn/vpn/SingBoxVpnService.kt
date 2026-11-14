@@ -16,10 +16,18 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
+import java.net.HttpURLConnection
+import java.net.InetSocketAddress
+import java.net.Proxy
+import java.net.URL
 
 class SingBoxVpnService : VpnService() {
 
@@ -28,6 +36,9 @@ class SingBoxVpnService : VpnService() {
         const val ACTION_STOP = "app.xvpn.STOP"
         const val EXTRA_LINK = "link"
         private const val MTU = 1500
+        /** How long we wait for traffic to actually flow through the server before giving up. */
+        private const val VERIFY_TIMEOUT_MS = 20_000L
+        private val PROBE_URLS = listOf("https://www.gstatic.com/generate_204", "https://cp.cloudflare.com/generate_204")
         private const val CHANNEL = "vpn"
 
         fun start(ctx: Context, link: String) = ctx.startForegroundService(
@@ -41,6 +52,7 @@ class SingBoxVpnService : VpnService() {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var statsJob: Job? = null
+    private var connectJob: Job? = null
     private var tun: ParcelFileDescriptor? = null
     private var core: SingBoxCore? = null
 
@@ -50,7 +62,9 @@ class SingBoxVpnService : VpnService() {
             ACTION_START -> {
                 val link = intent.getStringExtra(EXTRA_LINK) ?: return START_NOT_STICKY
                 startForeground(1, notification("Connecting…"))
-                scope.launch { connect(link) }
+                val prev = connectJob
+                // a new start first waits for the previous attempt to unwind, so two attempts never share the TUN
+                connectJob = scope.launch { prev?.cancelAndJoin(); connect(link) }
             }
         }
         return START_NOT_STICKY
@@ -59,18 +73,21 @@ class SingBoxVpnService : VpnService() {
     private suspend fun connect(link: String) {
         VpnState.error.value = null
         VpnState.status.value = Status.Connecting
+        var x: SingBoxCore? = null
+        var pfd: ParcelFileDescriptor? = null
+        var tunStarted = false
         try {
             val profile = LinkParser.parse(link) ?: error("Invalid link")
 
             // 1) Start sing-box (SOCKS inbound on a free 127.0.0.1 port)
             val port = SingBoxCore.freePort()
-            val x = SingBoxCore(this)
+            x = SingBoxCore(this)
             core = x
             x.start(ConfigBuilder.build(link, port), port)
-            VpnState.socksPort.value = port
+            currentCoroutineContext().ensureActive()
 
             // 2) Create the TUN interface
-            val pfd = Builder()
+            pfd = Builder()
                 .setSession(profile.name)
                 .setMtu(MTU)
                 .addAddress("10.10.14.1", 30)
@@ -82,22 +99,59 @@ class SingBoxVpnService : VpnService() {
                 .addDisallowedApplication(packageName)   // never loop our own traffic
                 .establish() ?: error("VPN permission was not granted")
             tun = pfd
+            currentCoroutineContext().ensureActive()
 
             // 3) tun2socks: TUN fd <-> sing-box SOCKS
             val cfg = File(filesDir, "tun2socks.yml").apply {
                 writeText(Tun2Socks.yaml(port, MTU))
             }
             if (!Tun2Socks.TProxyStartService(cfg.absolutePath, pfd.fd)) error("tun2socks failed to start")
+            tunStarted = true
 
+            // 4) The local pieces are up, but that does not mean the server works. Only report "Connected"
+            //    once a real request has gone through the proxy (this is the "Connecting…" phase in the UI).
+            if (!verifyProxy(port)) error("Server is not responding")
+
+            VpnState.socksPort.value = port
             VpnState.connectedAt.value = System.currentTimeMillis()
             VpnState.status.value = Status.Connected
             getSystemService(NotificationManager::class.java).notify(1, notification("Connected · ${profile.name}"))
             startStats()
         } catch (e: Throwable) {
-            VpnState.error.value = e.message ?: e.javaClass.simpleName
-            shutdown()
+            if (!currentCoroutineContext().isActive) {
+                // cancelled (user pressed Cancel, or a new start replaced us): shutdown() already reported the state,
+                // just release what this attempt created
+                if (tunStarted) runCatching { Tun2Socks.TProxyStopService() }
+                runCatching { x?.stop() }
+                runCatching { pfd?.close() }
+            } else {
+                VpnState.error.value = e.message ?: e.javaClass.simpleName
+                shutdown()
+            }
         }
     }
+
+    /** True once an HTTPS request through sing-box's SOCKS port succeeds. Retries for up to [VERIFY_TIMEOUT_MS]. */
+    private suspend fun verifyProxy(port: Int): Boolean {
+        val deadline = System.currentTimeMillis() + VERIFY_TIMEOUT_MS
+        var n = 0
+        while (System.currentTimeMillis() < deadline) {
+            currentCoroutineContext().ensureActive()
+            if (withContext(Dispatchers.IO) { probe(port, PROBE_URLS[n++ % PROBE_URLS.size]) }) return true
+            delay(600)
+        }
+        return false
+    }
+
+    private fun probe(port: Int, url: String): Boolean = runCatching {
+        val c = URL(url).openConnection(Proxy(Proxy.Type.SOCKS, InetSocketAddress("127.0.0.1", port))) as HttpURLConnection
+        try {
+            c.connectTimeout = 5000
+            c.readTimeout = 5000
+            c.instanceFollowRedirects = false
+            c.responseCode.let { it == 204 || it == 200 }
+        } finally { c.disconnect() }
+    }.getOrDefault(false)
 
     /** Speeds come from tun2socks counters: [txPackets, txBytes, rxPackets, rxBytes]. */
     private fun startStats() {
@@ -121,6 +175,7 @@ class SingBoxVpnService : VpnService() {
     }
 
     private fun shutdown() {
+        connectJob?.cancel()
         statsJob?.cancel()
         runCatching { Tun2Socks.TProxyStopService() }
         runCatching { core?.stop() }
