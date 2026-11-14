@@ -73,6 +73,11 @@ class SingBoxVpnService : VpnService() {
     private suspend fun connect(link: String) {
         VpnState.error.value = null
         VpnState.status.value = Status.Connecting
+        // Switching servers while connected: the previous session (tun2socks, sing-box, TUN) is still alive.
+        // tun2socks only runs one instance, so release everything first, otherwise it fails to start.
+        val hadSession = tun != null || core != null
+        teardownSession()
+        if (hadSession) delay(300)
         var x: SingBoxCore? = null
         var pfd: ParcelFileDescriptor? = null
         var tunStarted = false
@@ -105,7 +110,14 @@ class SingBoxVpnService : VpnService() {
             val cfg = File(filesDir, "tun2socks.yml").apply {
                 writeText(Tun2Socks.yaml(port, MTU))
             }
-            if (!Tun2Socks.TProxyStartService(cfg.absolutePath, pfd.fd)) error("tun2socks failed to start")
+            var started = Tun2Socks.TProxyStartService(cfg.absolutePath, pfd.fd)
+            if (!started) {
+                // a previous instance may still be winding down: stop it and try once more
+                runCatching { Tun2Socks.TProxyStopService() }
+                delay(400)
+                started = Tun2Socks.TProxyStartService(cfg.absolutePath, pfd.fd)
+            }
+            if (!started) error("tun2socks failed to start")
             tunStarted = true
 
             // 4) The local pieces are up, but that does not mean the server works. Only report "Connected"
@@ -172,6 +184,20 @@ class SingBoxVpnService : VpnService() {
                 lastUp = up; lastDown = down
             }
         }
+    }
+
+    /** Releases the running session's resources without touching the service itself (used when switching servers). */
+    private fun teardownSession() {
+        statsJob?.cancel(); statsJob = null
+        runCatching { Tun2Socks.TProxyStopService() }
+        runCatching { core?.stop() }
+        core = null
+        runCatching { tun?.close() }
+        tun = null
+        VpnState.upBytesPerSec.value = 0
+        VpnState.downBytesPerSec.value = 0
+        VpnState.speedHistory.value = emptyList()
+        VpnState.socksPort.value = 0
     }
 
     private fun shutdown() {
