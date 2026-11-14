@@ -17,6 +17,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -130,9 +133,13 @@ fun ServersScreen(
         ordered.sortedByDescending { it.link in favorites }   // favourites always first (stable)
     }
 
+    val listState = rememberLazyListState()
+    val scrolled by remember { derivedStateOf { listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 0 } }
+    val headerColor by animateColorAsState(if (scrolled) C.Card else C.Bg, label = "headerColor")
+
     Column(Modifier.fillMaxSize()) {
-        // header
-        Column(Modifier.fillMaxWidth().background(C.Card)) {
+        // header: background colour at rest, switches to the bottom-bar colour once the list is scrolled
+        Column(Modifier.fillMaxWidth().background(headerColor)) {
             Spacer(Modifier.height(20.dp))
             Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp).height(44.dp), verticalAlignment = Alignment.CenterVertically) {
                 if (searching) {
@@ -202,7 +209,6 @@ fun ServersScreen(
             }
             Spacer(Modifier.height(16.dp))
         }
-        Box(Modifier.fillMaxWidth().height(1.dp).background(C.CardBorder))
 
         if (shown.isEmpty()) {
             Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
@@ -213,7 +219,7 @@ fun ServersScreen(
                 )
             }
         } else {
-            LazyColumn(Modifier.fillMaxSize()) {
+            LazyColumn(Modifier.fillMaxSize(), state = listState) {
                 items(shown, key = { it.link }) { p ->
                     ServerRow(p, p.link == selectedLink, p.link in favorites, pings[p.link], testing, { onConnect(p) }, { onDelete(p) }, { onToggleFavorite(p) }, { onCopy(p) })
                 }
