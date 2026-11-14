@@ -22,7 +22,10 @@ android {
         abi {
             isEnable = true
             reset()
-            include("arm64-v8a", "armeabi-v7a", "x86_64")
+            // only ABIs that have a sing-box binary (scripts/fetch-singbox.sh skips ones upstream doesn't publish)
+            val all = listOf("arm64-v8a", "armeabi-v7a", "x86_64")
+            val have = all.filter { file("src/main/jniLibs/$it/libsingbox.so").exists() }
+            include(*(have.ifEmpty { all }).toTypedArray())
             isUniversalApk = false
         }
     }

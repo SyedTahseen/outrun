@@ -14,13 +14,19 @@ echo "sing-box version: $V"
 
 # jniLibs ABI  ->  sing-box asset arch
 fetch() {
-  local abi="$1" arch="$2"
+  local abi="$1" arch="$2" optional="${3:-}"
   local name="sing-box-${V}-android-${arch}"
   local url="https://github.com/SagerNet/sing-box/releases/download/v${V}/${name}.tar.gz"
   local tmp; tmp="$(mktemp -d)"
   echo "Downloading $url"
-  curl -fL --retry 4 --retry-delay 3 -o "$tmp/sb.tar.gz" "$url" \
-    || { echo "ERROR: could not download $url (check the version / asset name)"; exit 1; }
+  if ! curl -fL --retry 4 --retry-delay 3 -o "$tmp/sb.tar.gz" "$url"; then
+    rm -rf "$tmp"
+    if [ "$optional" = "optional" ]; then
+      echo "WARNING: no sing-box build for $abi in v$V - that ABI will be skipped"
+      return 0
+    fi
+    echo "ERROR: could not download $url (check the version / asset name)"; exit 1
+  fi
   tar -xzf "$tmp/sb.tar.gz" -C "$tmp"
   local bin; bin="$(find "$tmp" -type f -name sing-box | head -n1)"
   [ -n "$bin" ] || { echo "ERROR: no sing-box binary inside $name.tar.gz"; exit 1; }
@@ -33,7 +39,8 @@ fetch() {
 }
 
 fetch arm64-v8a   arm64
-fetch armeabi-v7a armv7
+fetch armeabi-v7a armv7 optional   # not published for every release
 fetch x86_64      amd64
 
 ls -l app/src/main/jniLibs/*/libsingbox.so
+# the Gradle ABI split only builds ABIs that got a sing-box binary

@@ -17,7 +17,8 @@ started as a child process by the VPN service (so there is no gomobile/AAR to bu
 4. Push a tag like `v1.0` to also attach the APKs to a GitHub Release.
 
 The workflow:
-- `scripts/fetch-singbox.sh` downloads sing-box (default **1.14.4**) for arm64-v8a, armeabi-v7a and x86_64
+- `scripts/fetch-singbox.sh` downloads sing-box (default **1.14.4**) for arm64-v8a and x86_64, plus armeabi-v7a when
+  upstream publishes it (1.14.4 has no 32-bit ARM build, so no armeabi-v7a APK is produced for it)
 - `scripts/build-native.sh` builds hev-socks5-tunnel (tun2socks) with the NDK, bound to `app.xvpn.vpn.Tun2Socks`
 - Gradle 8.9 builds `:app:assembleRelease` (signed with the debug key, for personal use)
 
