@@ -107,7 +107,7 @@ class MainActivity : ComponentActivity() {
  * 360dp wide (portrait) and ignore the system font scale: layout proportions then match the design everywhere.
  */
 @Composable
-private fun DesignScale(content: @Composable () -> Unit) {
+internal fun DesignScale(content: @Composable () -> Unit) {
     val d = LocalDensity.current
     val cfg = LocalConfiguration.current
     val scale = minOf(cfg.screenWidthDp, cfg.screenHeightDp) / 360f
@@ -138,6 +138,7 @@ private fun App() {
     var subs by remember { mutableStateOf(store.subscriptions) }
     var favs by remember { mutableStateOf(store.favorites) }
     var sources by remember { mutableStateOf(store.sources) }
+    var subInfo by remember { mutableStateOf(store.subInfo) }
     var message by remember { mutableStateOf<String?>(null) }
     val status by VpnState.status.collectAsState()
     val socks by VpnState.socksPort.collectAsState()
@@ -171,7 +172,7 @@ private fun App() {
     BackHandler(enabled = showStats) { showStats = false }
 
     fun reload() {
-        profiles = store.profiles(); subs = store.subscriptions; sources = store.sources; favs = store.favorites
+        profiles = store.profiles(); subs = store.subscriptions; sources = store.sources; favs = store.favorites; subInfo = store.subInfo
         if (selectedLink == null || profiles.none { it.link == selectedLink }) selectedLink = profiles.firstOrNull()?.link
     }
 
@@ -236,16 +237,36 @@ private fun App() {
         }
     }
 
-    fun refreshSubs(list: List<String>) {
-        message = "Updating…"
+    fun refreshSubs(list: List<String>, silent: Boolean = false) {
+        if (!silent) message = "Updating…"
         thread {
-            var added = 0; var failed = 0
-            list.forEach { runCatching { added += store.importSubscription(it) }.onFailure { failed++ } }
+            var added = 0; var removed = 0; var failed = 0; var err = ""
+            list.forEach {
+                runCatching { store.importSubscription(it) }
+                    .onSuccess { r -> added += r.added; removed += r.removed }
+                    .onFailure { e -> failed++; err = e.message ?: e.javaClass.simpleName }
+            }
             android.os.Handler(android.os.Looper.getMainLooper()).post {
-                message = "Added $added server(s)" + if (failed > 0) ", $failed failed" else ""
                 reload()
+                if (!silent) {
+                    message = when {
+                        failed > 0 && failed == list.size -> "Couldn't update: $err"
+                        else -> "Updated: $added new, $removed removed" + if (failed > 0) ", $failed failed" else ""
+                    }
+                    toast(message!!)
+                }
             }
         }
+    }
+
+    // Respect each subscription's profile-update-interval (default 24h): refresh stale ones when the app opens.
+    LaunchedEffect(Unit) {
+        val info = store.subInfo
+        val stale = store.subscriptions.filter {
+            val i = info[it]
+            i == null || System.currentTimeMillis() - i.fetchedAt > (i.intervalHours.takeIf { h -> h > 0 } ?: 24) * 3_600_000L
+        }
+        if (stale.isNotEmpty()) refreshSubs(stale, silent = true)
     }
 
     // Home draws its own map behind the status bar; every other screen sits below it.
@@ -319,6 +340,13 @@ private fun App() {
                     sort = sort, onSortChange = { sort = it; store.sortName = it.name },
                     filter = serverFilter, onFilterChange = { serverFilter = it },
                     onScrolledChange = { serversScrolled = it },
+                    subInfo = subInfo,
+                    onRefreshSubscription = { refreshSubs(listOf(it)) },
+                    onCopySubscription = { url ->
+                        (ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager)
+                            .setPrimaryClip(android.content.ClipData.newPlainText("subscription", url))
+                        toast("Subscription link copied")
+                    },
                 )
                 Tab.Menu -> MenuScreen(
                     subscriptions = subs,

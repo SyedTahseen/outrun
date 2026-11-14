@@ -1,6 +1,8 @@
 package app.xvpn.ui
 
 import androidx.compose.foundation.background
+import app.xvpn.data.SubInfo
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
@@ -101,6 +103,9 @@ fun ServersScreen(
     filter: String?,                      // selected chip: null = All, "fav", "default" or "sub:<url>"
     onFilterChange: (String?) -> Unit,
     onScrolledChange: (Boolean) -> Unit = {},
+    subInfo: Map<String, SubInfo> = emptyMap(),
+    onRefreshSubscription: (String) -> Unit = {},
+    onCopySubscription: (String) -> Unit = {},
 ) {
     var searching by remember { mutableStateOf(false) }
     var query by remember { mutableStateOf("") }
@@ -209,14 +214,14 @@ fun ServersScreen(
                 Chip("Default", f == "default") { onFilterChange("default") }
                 subscriptions.forEach { url ->
                     val n = sources.count { it.value == url }
-                    Chip("${subHost(url)} ($n)", f == "sub:$url", onLongClick = { delSub = url }) { onFilterChange("sub:$url") }
+                    Chip("${subInfo[url]?.title?.takeIf { it.isNotBlank() } ?: subHost(url)} ($n)", f == "sub:$url", onLongClick = { delSub = url }) { onFilterChange("sub:$url") }
                 }
             }
             Spacer(Modifier.height(16.dp))
         }
 
         if (shown.isEmpty()) {
-            Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
+            Box(Modifier.weight(1f).fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
                 Text(
                     if (profiles.isEmpty()) "No servers yet.\nTap + to scan a QR code, paste a link,\nimport a file or add one manually."
                     else "No servers match.",
@@ -224,12 +229,18 @@ fun ServersScreen(
                 )
             }
         } else {
-            LazyColumn(Modifier.fillMaxSize(), state = listState) {
+            LazyColumn(Modifier.weight(1f).fillMaxWidth(), state = listState) {
                 items(shown, key = { it.link }) { p ->
                     ServerRow(p, p.link == selectedLink, p.link in favorites, pings[p.link], testing, { onConnect(p) }, { onDelete(p) }, { onToggleFavorite(p) }, { onCopy(p) })
                 }
             }
         }
+        // minimal footer with the selected subscription's metadata: quota, expiry, message, link
+        val subUrl = f?.takeIf { it.startsWith("sub:") }?.removePrefix("sub:")
+        if (subUrl != null) SubscriptionBar(
+            url = subUrl, info = subInfo[subUrl], host = subHost(subUrl),
+            onRefresh = { onRefreshSubscription(subUrl) }, onCopy = { onCopySubscription(subUrl) },
+        )
     }
 
     delSub?.let { url ->
@@ -249,9 +260,86 @@ fun ServersScreen(
 }
 
 @Composable
-private fun HeaderIcon(icon: ImageVector, desc: String, tint: Color = C.Text, onClick: () -> Unit) {
+internal fun HeaderIcon(icon: ImageVector, desc: String, tint: Color = C.Text, onClick: () -> Unit) {
     Box(Modifier.size(44.dp).clip(RoundedCornerShape(22.dp)).clickable(onClick = onClick), contentAlignment = Alignment.Center) {
         Icon(icon, desc, tint = tint, modifier = Modifier.size(26.dp))
+    }
+}
+
+private fun fmtBytes(b: Long): String {
+    val units = arrayOf("B", "KB", "MB", "GB", "TB")
+    var v = b.toDouble(); var i = 0
+    while (v >= 1024 && i < units.lastIndex) { v /= 1024; i++ }
+    return if (i == 0) "$b B" else String.format(java.util.Locale.US, if (v >= 100) "%.0f %s" else "%.1f %s", v, units[i])
+}
+
+private fun fmtAgo(ms: Long): String {
+    val m = (System.currentTimeMillis() - ms) / 60000
+    return when { m < 1 -> "just now"; m < 60 -> "${m}m ago"; m < 1440 -> "${m / 60}h ago"; else -> "${m / 1440}d ago" }
+}
+
+/** Compact subscription info bar pinned above the bottom dock while a subscription pill is selected. */
+@Composable
+private fun SubscriptionBar(url: String, info: SubInfo?, host: String, onRefresh: () -> Unit, onCopy: () -> Unit) {
+    val now = System.currentTimeMillis()
+    val expMs = (info?.expire ?: 0L) * 1000
+    val left = expMs - now
+    val days = (left + 86_399_999L) / 86_400_000L
+    val expired = info != null && info.expire > 0 && left <= 0
+    val exhausted = info != null && info.total > 0 && info.used >= info.total
+    val expText = when {
+        info == null || info.expire <= 0 -> null
+        expired -> "Expired"
+        left < 86_400_000L -> "${maxOf(1L, left / 3_600_000L)}h left"
+        else -> "$days days left"
+    }
+    val expColor = when { expired -> C.Red; days <= 7 -> C.Amber; else -> C.Muted }
+    Box(Modifier.fillMaxWidth().background(C.Bg).padding(horizontal = 16.dp, vertical = 10.dp)) {
+        Row(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(Radius.Card)).background(C.Card).padding(start = 16.dp, top = 12.dp, bottom = 12.dp, end = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        info?.title?.takeIf { it.isNotBlank() } ?: host, color = C.Text, fontSize = 15.sp, fontWeight = FontWeight.SemiBold,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false),
+                    )
+                    if (expText != null) {
+                        Spacer(Modifier.width(8.dp))
+                        Text(expText, color = expColor, fontSize = 13.sp, fontWeight = FontWeight.Medium, maxLines = 1)
+                    }
+                }
+                if (info != null && (info.total > 0 || info.used > 0)) {
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        if (info.total > 0) "${fmtBytes(info.used)} of ${fmtBytes(info.total)} used" else "${fmtBytes(info.used)} used · Unlimited",
+                        color = if (exhausted) C.Red else C.Muted, fontSize = 13.sp, maxLines = 1,
+                    )
+                    if (info.total > 0) {
+                        val frac = (info.used.toFloat() / info.total).coerceIn(0f, 1f)
+                        Spacer(Modifier.height(6.dp))
+                        Box(Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)).background(C.ButtonGrey)) {
+                            Box(
+                                Modifier.fillMaxWidth(frac).height(4.dp).clip(RoundedCornerShape(2.dp))
+                                    .background(if (exhausted) C.Red else if (frac > 0.9f) C.Amber else C.Accent),
+                            )
+                        }
+                    }
+                }
+                if (info != null && info.announce.isNotBlank()) {
+                    Spacer(Modifier.height(4.dp))
+                    Text(info.announce.trim().replace("\n", " "), color = C.Text, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    host + if (info != null && info.fetchedAt > 0) " · updated ${fmtAgo(info.fetchedAt)}" else "",
+                    color = C.Muted, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                )
+            }
+            HeaderIcon(Icons.Outlined.ContentCopy, "Copy subscription link", tint = C.Muted, onClick = onCopy)
+            HeaderIcon(Icons.Outlined.Refresh, "Update subscription", tint = C.Muted, onClick = onRefresh)
+        }
     }
 }
 

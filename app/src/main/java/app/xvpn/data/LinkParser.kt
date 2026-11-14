@@ -28,12 +28,15 @@ object LinkParser {
         null
     }
 
-    /** Parse many links (one per line), or a base64 subscription body. */
-    fun parseMany(text: String): List<Profile> {
-        val body = text.trim()
-        val decoded = if (body.contains("://")) body else decodeB64(body) ?: body
-        return decoded.lines().mapNotNull { parse(it) }
+    /** The readable text of a subscription body: the body itself if it holds share links, else its base64 decoding. */
+    fun plainText(text: String): String {
+        val body = text.trim().trimStart('\uFEFF')
+        if (body.lines().any { parse(it) != null }) return body
+        return decodeB64(body) ?: body
     }
+
+    /** Parse many links (one per line), or a base64 subscription body. */
+    fun parseMany(text: String): List<Profile> = plainText(text).lines().mapNotNull { parse(it) }
 
     fun query(uri: URI): Map<String, String> =
         (uri.rawQuery ?: "").split("&").filter { it.contains("=") }.associate {
@@ -41,8 +44,11 @@ object LinkParser {
             k to URLDecoder.decode(v, "UTF-8")
         }
 
+    /** Decodes standard or URL-safe base64, with or without padding (subscriptions use all of them). */
     fun decodeB64(s: String): String? = try {
-        String(Base64.decode(s.trim(), Base64.DEFAULT or Base64.URL_SAFE))
+        var t = s.filter { !it.isWhitespace() }.replace('-', '+').replace('_', '/').trimEnd('=')
+        t += "=".repeat((4 - t.length % 4) % 4)
+        String(Base64.decode(t, Base64.DEFAULT), Charsets.UTF_8)
     } catch (e: Exception) {
         null
     }

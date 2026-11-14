@@ -38,7 +38,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.FlashOff
 import androidx.compose.material.icons.filled.FlashOn
-import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.QrCodeScanner
 import androidx.compose.material3.Icon
@@ -52,10 +51,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -64,6 +60,23 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import app.xvpn.ui.HeaderIcon
+import app.xvpn.ui.Radius
+import app.xvpn.ui.C
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.RoundRect
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.PathFillType
+import androidx.compose.ui.graphics.Path
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.foundation.layout.width
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.google.zxing.BarcodeFormat
@@ -89,12 +102,6 @@ class ScanContract : ActivityResultContract<Unit, String?>() {
 class ScanActivity : ComponentActivity() {
     companion object { const val EXTRA_TEXT = "text" }
 
-    private val bar = Color(0xFF0A0A0D)
-    private val idleBg = Color(0xFF151518)
-    private val orange = Color(0xFFFF6B1A)
-    private val orangeFrame = Color(0xFFFF8A3D)
-    private val muted = Color(0xFFA3A1AE)
-
     private fun finishWith(text: String) {
         setResult(Activity.RESULT_OK, Intent().putExtra(EXTRA_TEXT, text))
         finish()
@@ -104,10 +111,10 @@ class ScanActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
-            navigationBarStyle = SystemBarStyle.dark(0xFF0A0A0D.toInt()),
+            navigationBarStyle = SystemBarStyle.dark(C.Bg.toArgb()),
         )
-        window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(0xFF0A0A0D.toInt()))
-        setContent { ScanScreen() }
+        window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(C.Bg.toArgb()))
+        setContent { DesignScale { ScanScreen() } }
     }
 
     @Composable
@@ -118,54 +125,54 @@ class ScanActivity : ComponentActivity() {
         var scanning by remember { mutableStateOf(true) }
         var torch by remember { mutableStateOf(false) }
 
-        val permission = androidx.activity.compose.rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
+        val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
             granted = it; denied = !it; if (it) scanning = true
         }
-        val gallery = androidx.activity.compose.rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        val gallery = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
             if (uri != null) thread {
                 val text = decodeImage(uri)
                 runOnUiThread { if (text != null) finishWith(text) else Toast.makeText(ctx, "No QR code found in image", Toast.LENGTH_SHORT).show() }
             }
         }
-        androidx.compose.runtime.LaunchedEffect(Unit) { if (!granted) permission.launch(Manifest.permission.CAMERA) }
+        LaunchedEffect(Unit) { if (!granted) permission.launch(Manifest.permission.CAMERA) }
 
         val active = scanning && granted
-        Column(Modifier.fillMaxSize().background(bar)) {
-            // header
-            Row(
-                Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 8.dp).height(56.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                BarIcon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, "Back") { finish() }
-                Text(
-                    "Import from QR code", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold,
-                    maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center,
-                    modifier = Modifier.weight(1f),
-                )
-                if (active) {
-                    BarIcon(Icons.Filled.Stop, "Stop") { scanning = false; torch = false }
-                    BarIcon(if (torch) Icons.Filled.FlashOn else Icons.Filled.FlashOff, "Flash") { torch = !torch }
-                } else {
-                    BarIcon(Icons.Outlined.QrCodeScanner, "Scan") { startScan(granted, { permission.launch(it) }) { scanning = true } }
+        val start: () -> Unit = { if (granted) { scanning = true } else { permission.launch(Manifest.permission.CAMERA) } }
+
+        Column(Modifier.fillMaxSize().background(C.Bg)) {
+            // header: same layout as the Servers screen
+            Column(Modifier.fillMaxWidth().statusBarsPadding()) {
+                Spacer(Modifier.height(20.dp))
+                Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp).height(44.dp), verticalAlignment = Alignment.CenterVertically) {
+                    HeaderIcon(Icons.AutoMirrored.Filled.ArrowBack, "Back") { finish() }
+                    Spacer(Modifier.width(6.dp))
+                    Text("Scan QR code", color = C.Text, fontSize = 26.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f), maxLines = 1)
+                    if (active) HeaderIcon(if (torch) Icons.Filled.FlashOn else Icons.Filled.FlashOff, "Flash", tint = if (torch) C.Accent else C.Text) { torch = !torch }
+                    HeaderIcon(Icons.Filled.Image, "Pick from gallery") { gallery.launch("image/*") }
                 }
-                BarIcon(Icons.Outlined.Image, "Pick from gallery") { gallery.launch("image/*") }
+                Spacer(Modifier.height(18.dp))
             }
             Box(Modifier.weight(1f).fillMaxWidth()) {
                 if (active) {
                     CameraArea(torch)
+                    Box(Modifier.align(Alignment.BottomCenter).padding(bottom = 24.dp)) {
+                        PillButton("Stop", false) { scanning = false; torch = false }
+                    }
                 } else {
                     Column(
-                        Modifier.fillMaxSize().background(idleBg).clickable { startScan(granted, { permission.launch(it) }) { scanning = true } },
+                        Modifier.fillMaxSize().clickable { start() },
                         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center,
                     ) {
-                        Icon(Icons.Outlined.QrCodeScanner, null, tint = orange, modifier = Modifier.size(64.dp))
+                        Icon(Icons.Outlined.QrCodeScanner, null, tint = C.Accent, modifier = Modifier.size(56.dp))
                         Spacer(Modifier.height(16.dp))
-                        Text("Scan QR code", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                        Text("Scan a QR code", color = C.Text, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
                         Spacer(Modifier.height(6.dp))
                         Text(
-                            if (denied) "Camera permission is needed. Tap to allow." else "Tap the screen to open the camera and scan",
-                            color = muted, fontSize = 15.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 16.dp),
+                            if (denied) "Camera permission is needed to scan." else "Tap to open the camera and scan",
+                            color = C.Muted, fontSize = 14.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 24.dp),
                         )
+                        Spacer(Modifier.height(24.dp))
+                        PillButton(if (denied) "Allow camera" else "Start scanning", true) { start() }
                     }
                 }
             }
@@ -173,30 +180,27 @@ class ScanActivity : ComponentActivity() {
         }
     }
 
-    private fun startScan(granted: Boolean, request: (String) -> Unit, start: () -> Unit) {
-        if (granted) start() else request(Manifest.permission.CAMERA)
-    }
-
+    /** Same look as the filter chips on the Servers screen. */
     @Composable
-    private fun BarIcon(icon: ImageVector, desc: String, onClick: () -> Unit) {
-        Box(Modifier.size(44.dp).clip(RoundedCornerShape(22.dp)).clickable(onClick = onClick), contentAlignment = Alignment.Center) {
-            Icon(icon, desc, tint = Color.White, modifier = Modifier.size(26.dp))
-        }
+    private fun PillButton(label: String, primary: Boolean, onClick: () -> Unit) {
+        Box(
+            Modifier.height(44.dp).clip(RoundedCornerShape(Radius.Small))
+                .background(if (primary) C.Button else C.ButtonGrey)
+                .clickable(onClick = onClick).padding(horizontal = 22.dp),
+            contentAlignment = Alignment.Center,
+        ) { Text(label, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Medium) }
     }
 
     @Composable
     private fun CameraArea(torch: Boolean) {
         val ctx = LocalContext.current
         val view = remember {
-            BarcodeView(ctx).apply {
-                decoderFactory = DefaultDecoderFactory(listOf(BarcodeFormat.QR_CODE))
-            }
+            BarcodeView(ctx).apply { decoderFactory = DefaultDecoderFactory(listOf(BarcodeFormat.QR_CODE)) }
         }
         DisposableEffect(view) {
-            val callback = object : BarcodeCallback {
+            view.decodeSingle(object : BarcodeCallback {
                 override fun barcodeResult(result: BarcodeResult?) { result?.text?.let { finishWith(it) } }
-            }
-            view.decodeSingle(callback)
+            })
             val observer = LifecycleEventObserver { _, e ->
                 if (e == Lifecycle.Event.ON_RESUME) view.resume() else if (e == Lifecycle.Event.ON_PAUSE) view.pause()
             }
@@ -204,32 +208,35 @@ class ScanActivity : ComponentActivity() {
             if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) view.resume()
             onDispose { lifecycle.removeObserver(observer); view.pause() }
         }
-        androidx.compose.runtime.LaunchedEffect(torch) { runCatching { view.setTorch(torch) } }
+        LaunchedEffect(torch) { runCatching { view.setTorch(torch) } }
 
         BoxWithConstraints(Modifier.fillMaxSize()) {
-            val labelTop = (maxHeight + maxWidth * 0.69f) / 2 + 16.dp
+            val side = maxWidth * 0.69f
+            val labelTop = (maxHeight + side) / 2 + 16.dp
             AndroidView({ view }, Modifier.fillMaxSize())
             Canvas(Modifier.fillMaxSize()) {
-                val side = size.width * 0.69f
-                val left = (size.width - side) / 2f
-                val top = (size.height - side) / 2f
-                val scrim = Color(0x73000000)
-                // dim everything outside the square
-                drawRect(scrim, Offset.Zero, Size(size.width, top))
-                drawRect(scrim, Offset(0f, top + side), Size(size.width, size.height - top - side))
-                drawRect(scrim, Offset(0f, top), Size(left, side))
-                drawRect(scrim, Offset(left + side, top), Size(left, side))
-                // orange corner brackets
-                val len = 24.dp.toPx(); val w = 3.dp.toPx(); val h = w / 2
-                fun corner(x: Float, y: Float, dx: Float, dy: Float) {
-                    drawLine(orangeFrame, Offset(x - dx * h, y), Offset(x + dx * len, y), w)
-                    drawLine(orangeFrame, Offset(x, y - dy * h), Offset(x, y + dy * len), w)
+                val sd = side.toPx()
+                val l = (size.width - sd) / 2f; val t = (size.height - sd) / 2f
+                val rt = l + sd; val b = t + sd
+                val r = Radius.Card.toPx(); val len = 36.dp.toPx(); val w = 4.dp.toPx()
+                // dim everything outside the rounded scan window
+                val scrim = Path().apply {
+                    fillType = PathFillType.EvenOdd
+                    addRect(Rect(0f, 0f, size.width, size.height))
+                    addRoundRect(RoundRect(Rect(l, t, rt, b), CornerRadius(r)))
                 }
-                corner(left, top, 1f, 1f); corner(left + side, top, -1f, 1f)
-                corner(left, top + side, 1f, -1f); corner(left + side, top + side, -1f, -1f)
+                drawPath(scrim, C.Bg.copy(alpha = 0.6f))
+                // accent corner brackets with rounded corners
+                val corners = Path().apply {
+                    moveTo(l, t + len); lineTo(l, t + r); arcTo(Rect(l, t, l + 2 * r, t + 2 * r), 180f, 90f, false); lineTo(l + len, t)
+                    moveTo(rt - len, t); lineTo(rt - r, t); arcTo(Rect(rt - 2 * r, t, rt, t + 2 * r), 270f, 90f, false); lineTo(rt, t + len)
+                    moveTo(rt, b - len); lineTo(rt, b - r); arcTo(Rect(rt - 2 * r, b - 2 * r, rt, b), 0f, 90f, false); lineTo(rt - len, b)
+                    moveTo(l + len, b); lineTo(l + r, b); arcTo(Rect(l, b - 2 * r, l + 2 * r, b), 90f, 90f, false); lineTo(l, b - len)
+                }
+                drawPath(corners, C.Accent, style = Stroke(width = w, cap = StrokeCap.Round, join = StrokeJoin.Round))
             }
             Text(
-                "Scan QR code", color = Color.White, fontSize = 20.sp,
+                "Align the QR code within the frame", color = C.Muted, fontSize = 14.sp,
                 modifier = Modifier.align(Alignment.TopCenter).offset(y = labelTop),
             )
         }
