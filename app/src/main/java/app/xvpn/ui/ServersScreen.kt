@@ -131,13 +131,13 @@ fun ServersScreen(
         } &&
             (query.isBlank() || it.name.contains(query, true) || it.host.contains(query, true))
     }.let { list ->
-        val ordered = when (sort) {
+        // favourites keep their place; the Favorites pill is how you see them together
+        when (sort) {
             SortMode.Default -> list
             SortMode.Name -> list.sortedBy { it.name.lowercase() }
             SortMode.Protocol -> list.sortedBy { it.protocol }
             SortMode.Latency -> list.sortedBy { pings[it.link]?.takeIf { ms -> ms > 0 } ?: Int.MAX_VALUE }
         }
-        ordered.sortedByDescending { it.link in favorites }   // favourites always first (stable)
     }
 
     val listState = rememberLazyListState()
@@ -369,14 +369,10 @@ private fun ServerRow(
     onConnect: () -> Unit, onDelete: () -> Unit, onFavorite: () -> Unit, onCopy: () -> Unit,
 ) {
     var menu by remember { mutableStateOf(false) }
-    // the selected server gets a raised row (card colour) with an accent bar on its left edge
+    // the selected server gets a raised row (card colour)
     val rowBg by animateColorAsState(if (selected) C.Card else C.Bg, label = "rowBg")
     Column(Modifier.fillMaxWidth().background(rowBg)) {
       Box(Modifier.fillMaxWidth()) {
-        if (selected) Box(
-            Modifier.align(Alignment.CenterStart).width(4.dp).height(48.dp)
-                .clip(RoundedCornerShape(topEnd = 2.dp, bottomEnd = 2.dp)).background(C.Green),
-        )
         Row(
             Modifier.fillMaxWidth().clickable(onClick = onConnect).padding(start = 20.dp, end = 8.dp).height(84.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -400,9 +396,7 @@ private fun ServerRow(
             Box {
                 HeaderIcon(Icons.Filled.MoreVert, "Options") { menu = true }
                 DropdownMenu(menu, { menu = false }, shape = RoundedCornerShape(Radius.Card), containerColor = C.Card) {
-                    MenuRow(Icons.Outlined.PlayArrow, "Connect") { menu = false; onConnect() }
                     MenuRow(Icons.Outlined.ContentCopy, "Copy") { menu = false; onCopy() }
-                    MenuRow(if (fav) Icons.Filled.Star else Icons.Outlined.StarBorder, if (fav) "Remove favorite" else "Add to favorites") { menu = false; onFavorite() }
                     MenuRow(Icons.Outlined.DeleteOutline, "Delete") { menu = false; onDelete() }
                 }
             }
