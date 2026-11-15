@@ -85,6 +85,7 @@ fun Modifier.pressable(
     shape: Shape = RectangleShape,
     pressedScale: Float = 0.97f,
     enabled: Boolean = true,
+    ripple: Boolean = true,
     onLongClick: (() -> Unit)? = null,
     onClick: () -> Unit,
 ): Modifier = composed {
@@ -100,7 +101,7 @@ fun Modifier.pressable(
         .clip(shape)
         .combinedClickable(
             interactionSource = source,
-            indication = LocalIndication.current,
+            indication = if (ripple) LocalIndication.current else null,
             enabled = enabled,
             onLongClick = onLongClick,
             onClick = onClick,

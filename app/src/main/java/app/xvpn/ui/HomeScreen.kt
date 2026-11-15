@@ -350,12 +350,10 @@ private fun OutlineButton(label: String, onClick: () -> Unit) {
     ) { Text(label, color = C.Text, fontSize = 19.sp, fontWeight = FontWeight.Medium) }
 }
 
-/** Icon that springs in from 50% size when it first appears (lock closing / opening). */
+/** Static lock / unlock icon (no entrance animation). */
 @Composable
 private fun PopIcon(icon: ImageVector, tint: Color, size: Dp) {
-    val pop = remember { Animatable(0.5f) }
-    LaunchedEffect(Unit) { pop.animateTo(1f, spring(dampingRatio = 0.4f, stiffness = 260f)) }
-    Icon(icon, null, tint = tint, modifier = Modifier.size(size).graphicsLayer { scaleX = pop.value; scaleY = pop.value })
+    Icon(icon, null, tint = tint, modifier = Modifier.size(size))
 }
 
 /** Flag image (looked up from the country name in the proxy name) in a rounded tile; a globe when unknown. */

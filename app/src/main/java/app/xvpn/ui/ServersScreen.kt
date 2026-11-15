@@ -503,7 +503,7 @@ private fun FavStar(fav: Boolean, onClick: () -> Unit) {
         }
     }
     Box(
-        Modifier.size(44.dp).pressable(RoundedCornerShape(22.dp), 0.86f) { tick(); onClick() },
+        Modifier.size(44.dp).pressable(RoundedCornerShape(22.dp), 0.86f, ripple = false) { tick(); onClick() },
         contentAlignment = Alignment.Center,
     ) {
         Icon(
