@@ -264,8 +264,7 @@ fun ServersScreen(
             targetState = subUrl,
             modifier = Modifier.fillMaxWidth(),
             transitionSpec = {
-                (fadeIn(tween(250, delayMillis = 60)) + slideInVertically(tween(300, easing = Motion.Emphasized)) { it / 2 }) togetherWith
-                    (fadeOut(tween(150)) + slideOutVertically(tween(220)) { it / 2 }) using SizeTransform(clip = true)
+                fadeIn(tween(220, delayMillis = 60)) togetherWith fadeOut(tween(120)) using SizeTransform(clip = true)
             },
             label = "subBar",
         ) { u ->

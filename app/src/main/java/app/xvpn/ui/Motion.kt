@@ -82,8 +82,8 @@ fun Modifier.bounceClick(
         )
 }
 
-/** Fades + rises into place the first time it is composed. [delayMs] lets a column of blocks arrive one after another. */
-fun Modifier.enterRise(delayMs: Int = 0, distance: Dp = 14.dp, durationMs: Int = Motion.Slow): Modifier = composed {
+/** Fades in the first time it is composed (set [distance] > 0 for a small rise). [delayMs] lets a column of blocks arrive one after another. */
+fun Modifier.enterRise(delayMs: Int = 0, distance: Dp = 0.dp, durationMs: Int = Motion.Medium): Modifier = composed {
     val progress = remember { Animatable(0f) }
     LaunchedEffect(Unit) {
         if (delayMs > 0) delay(delayMs.toLong())

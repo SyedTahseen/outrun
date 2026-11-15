@@ -166,8 +166,7 @@ fun HomeScreen(
                 targetState = status,
                 modifier = Modifier.fillMaxWidth(),
                 transitionSpec = {
-                    (fadeIn(tween(320, delayMillis = 100)) + slideInVertically(tween(380, delayMillis = 100, easing = Motion.Emphasized)) { it / 8 }) togetherWith
-                        (fadeOut(tween(140)) + slideOutVertically(tween(200)) { -it / 12 }) using SizeTransform(clip = false)
+                    fadeIn(tween(240, delayMillis = 100)) togetherWith fadeOut(tween(120)) using SizeTransform(clip = false)
                 },
                 label = "header",
             ) { st ->
@@ -206,7 +205,7 @@ fun HomeScreen(
                     }
                     AnimatedVisibility(
                         visible = on,
-                        enter = fadeIn(tween(250)) + slideInHorizontally(tween(300, easing = Motion.Emphasized)) { -it },
+                        enter = fadeIn(tween(250)),
                         exit = fadeOut(tween(150)),
                     ) { Icon(Icons.Filled.ChevronRight, "Statistics", tint = C.Muted) }
                 }
@@ -298,7 +297,7 @@ private fun ProtectedHeader(time: String, up: Long, down: Long) {
         }
         Spacer(Modifier.height(18.dp))
         Row(
-            Modifier.fillMaxWidth().enterRise(delayMs = 220, distance = 10.dp).clip(RoundedCornerShape(Radius.Card)).background(C.Card.copy(alpha = 0.92f)).padding(16.dp),
+            Modifier.fillMaxWidth().enterFade(delayMs = 150).clip(RoundedCornerShape(Radius.Card)).background(C.Card.copy(alpha = 0.92f)).padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(Modifier.weight(1f)) {

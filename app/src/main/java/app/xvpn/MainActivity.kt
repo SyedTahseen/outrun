@@ -31,8 +31,7 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.scaleIn
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.navigationBars
@@ -344,13 +343,10 @@ private fun App() {
             AnimatedContent(
                 targetState = dest,
                 modifier = Modifier.fillMaxSize(),
+                // "fade through": the old screen fades out, the new one fades in with a barely-there scale. No sliding.
                 transitionSpec = {
-                    val dir = if (targetState.ordinal > initialState.ordinal) 1 else -1
-                    (fadeIn(tween(260, delayMillis = 70)) +
-                        slideInHorizontally(tween(Motion.Medium + 40, easing = Motion.Emphasized)) { dir * it / 9 }) togetherWith
-                        (fadeOut(tween(120)) +
-                            slideOutHorizontally(tween(Motion.Medium, easing = FastOutSlowInEasing)) { -dir * it / 12 }) using
-                        SizeTransform(clip = false)
+                    (fadeIn(tween(200, delayMillis = 90)) + scaleIn(tween(200, delayMillis = 90), initialScale = 0.985f)) togetherWith
+                        fadeOut(tween(90)) using SizeTransform(clip = false)
                 },
                 label = "screens",
             ) { d -> when (d) {

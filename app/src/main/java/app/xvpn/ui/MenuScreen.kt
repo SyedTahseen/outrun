@@ -17,8 +17,7 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.scaleIn
 import androidx.compose.animation.togetherWith
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.foundation.layout.heightIn
@@ -147,11 +146,7 @@ fun MenuScreen(
         targetState = page,
         modifier = Modifier.fillMaxSize(),
         transitionSpec = {
-            val from = pageDepth(initialState); val to = pageDepth(targetState)
-            val dir = if (to > from) 1 else if (to < from) -1 else 0
-            if (dir == 0) fadeIn(tween(200, delayMillis = 60)) togetherWith fadeOut(tween(120))
-            else (fadeIn(tween(240, delayMillis = 60)) + slideInHorizontally(tween(Motion.Medium + 20, easing = Motion.Emphasized)) { dir * it / 7 }) togetherWith
-                (fadeOut(tween(120)) + slideOutHorizontally(tween(Motion.Medium, easing = FastOutSlowInEasing)) { -dir * it / 10 })
+            (fadeIn(tween(200, delayMillis = 90)) + scaleIn(tween(200, delayMillis = 90), initialScale = 0.985f)) togetherWith fadeOut(tween(90))
         },
         label = "settingsPage",
     ) { pg ->
