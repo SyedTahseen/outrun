@@ -1,5 +1,19 @@
 package app.xvpn.ui
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+
 import android.content.Intent
 import android.graphics.Bitmap
 import android.provider.Settings
@@ -91,6 +105,13 @@ private class AppInfo(val label: String, val pkg: String)
  * Settings. Importing configs / subscriptions lives in the Servers screen; this screen holds the options that change
  * how the VPN behaves. Everything here is stored in [Store] and read by the VPN service when it connects.
  */
+/** Settings sub-pages form a small stack: main (0) -> feature pages (1) -> pages opened from those (2). */
+private fun pageDepth(page: String) = when (page) {
+    "main" -> 0
+    "mode", "apps", "ips", "dns_custom" -> 2
+    else -> 1
+}
+
 @Composable
 fun MenuScreen(
     store: Store,
@@ -98,10 +119,36 @@ fun MenuScreen(
     onDebugInfo: () -> Unit,
     onScrolledChange: (Boolean) -> Unit = {},
 ) {
-    val ctx = LocalContext.current
     var page by remember { mutableStateOf("main") }
     val scroll = rememberScrollState()   // hoisted so the position survives opening a sub page
+    // Opening a page slides it in from the right, going back slides it out to the right, always with a short fade.
+    AnimatedContent(
+        targetState = page,
+        transitionSpec = {
+            val dir = if (pageDepth(targetState) >= pageDepth(initialState)) 1 else -1
+            val enter = slideInHorizontally(tween(Motion.Long, easing = Motion.Enter)) { dir * it / Motion.SlideFraction } +
+                fadeIn(tween(Motion.Medium, delayMillis = 60))
+            val exit = slideOutHorizontally(tween(Motion.Medium, easing = Motion.Exit)) { -dir * it / Motion.SlideFraction } +
+                fadeOut(tween(Motion.Short))
+            (enter togetherWith exit).using(SizeTransform(clip = false))
+        },
+        label = "settingsPage",
+    ) { p ->
+        MenuPage(p, { page = it }, scroll, store, onExport, onDebugInfo, onScrolledChange)
+    }
+}
 
+@Composable
+private fun MenuPage(
+    page: String,
+    setPage: (String) -> Unit,
+    scroll: androidx.compose.foundation.ScrollState,
+    store: Store,
+    onExport: () -> Unit,
+    onDebugInfo: () -> Unit,
+    onScrolledChange: (Boolean) -> Unit,
+) {
+    val ctx = LocalContext.current
     var splitOn by remember { mutableStateOf(store.splitEnabled) }
     var splitApps by remember { mutableStateOf(store.splitApps) }
     var dns by remember { mutableStateOf(store.dnsChoice) }
@@ -117,7 +164,7 @@ fun MenuScreen(
     var incIps by remember { mutableStateOf(store.splitIncludeIps) }
     val including = splitMode == "include"
 
-    BackHandler(page == "split") { page = "main" }
+    BackHandler(page == "split") { setPage("main") }
 
     when (page) {
         "split" -> {
@@ -125,36 +172,36 @@ fun MenuScreen(
                 on = splitOn, including = including,
                 apps = if (including) incApps else excApps, ipCount = (if (including) incIps else excIps).size,
                 onOn = { splitOn = it; store.splitEnabled = it },
-                onMode = { page = "mode" },
-                onApps = { page = "apps" }, onIps = { page = "ips" },
-                onBack = { page = "main" },
+                onMode = { setPage("mode") },
+                onApps = { setPage("apps") }, onIps = { setPage("ips") },
+                onBack = { setPage("main") },
             )
             return
         }
         "mode" -> {
-            SubPage(null, { page = "split" }) {
+            SubPage(null, { setPage("split") }) {
                 Hero(Icons.Outlined.Tune)
                 PageHeading("Mode", "Choose how split tunneling treats the apps and IP addresses you select. Applies the next time you connect.")
                 Spacer(Modifier.height(8.dp))
                 ChoiceList {
                     ChoiceRow("Exclude", "Selected apps and IP addresses are excluded from the VPN connection.", !including) {
-                        splitMode = "exclude"; store.splitMode = "exclude"; page = "split"
+                        splitMode = "exclude"; store.splitMode = "exclude"; setPage("split")
                     }
                     ChoiceRow("Include", "Only selected apps and IP addresses connect through the VPN, all other traffic is unprotected.", including) {
-                        splitMode = "include"; store.splitMode = "include"; page = "split"
+                        splitMode = "include"; store.splitMode = "include"; setPage("split")
                     }
                 }
             }
             return
         }
         "dns" -> {
-            SubPage(null, { page = "main" }) {
+            SubPage(null, { setPage("main") }) {
                 Hero(Icons.Outlined.Dns)
                 PageHeading("DNS", "Choose the DNS servers used while connected. Applies the next time you connect.")
                 Spacer(Modifier.height(8.dp))
                 ChoiceList {
-                    Choices.dns.forEach { o -> ChoiceRow(o.name, o.note, dns == o.id) { dns = o.id; store.dnsChoice = o.id; page = "main" } }
-                    ChoiceRow("Custom", if (dnsCustom.isBlank()) "Your own IPv4 DNS servers" else dnsCustom, dns == "custom") { page = "dns_custom" }
+                    Choices.dns.forEach { o -> ChoiceRow(o.name, o.note, dns == o.id) { dns = o.id; store.dnsChoice = o.id; setPage("main") } }
+                    ChoiceRow("Custom", if (dnsCustom.isBlank()) "Your own IPv4 DNS servers" else dnsCustom, dns == "custom") { setPage("dns_custom") }
                 }
             }
             return
@@ -163,10 +210,10 @@ fun MenuScreen(
             var text by remember { mutableStateOf(dnsCustom) }
             var error by remember { mutableStateOf(false) }
             Column(Modifier.fillMaxSize()) {
-                EditorBar("Custom DNS", { page = "dns" }) {
+                EditorBar("Custom DNS", { setPage("dns") }) {
                     if (Choices.parseDns(text).isNotEmpty()) {
                         dnsCustom = text.trim(); store.dnsCustom = dnsCustom
-                        dns = "custom"; store.dnsChoice = "custom"; page = "main"
+                        dns = "custom"; store.dnsChoice = "custom"; setPage("main")
                     } else error = true
                 }
                 Column(Modifier.padding(horizontal = 20.dp)) {
@@ -189,18 +236,18 @@ fun MenuScreen(
             return
         }
         "test" -> {
-            SubPage(null, { page = "main" }) {
+            SubPage(null, { setPage("main") }) {
                 Hero(Icons.Outlined.Speed)
                 PageHeading("Latency test", "Each server is tested with a real request to this address, sent through the server. The time covers connecting to the server, the secure connection and the response.")
                 Spacer(Modifier.height(8.dp))
                 ChoiceList {
-                    Choices.testUrls.forEach { o -> ChoiceRow(o.name, o.url, testUrl == o.id) { testUrl = o.id; store.testUrlChoice = o.id; page = "main" } }
+                    Choices.testUrls.forEach { o -> ChoiceRow(o.name, o.url, testUrl == o.id) { testUrl = o.id; store.testUrlChoice = o.id; setPage("main") } }
                 }
             }
             return
         }
         "connect" -> {
-            SubPage(null, { page = "main" }) {
+            SubPage(null, { setPage("main") }) {
                 Hero(Icons.Outlined.PowerSettingsNew)
                 PageHeading("Connect on launch", "Connect to the selected server automatically when the app opens.")
                 ToggleCard("Connect on launch", autoConnect) { autoConnect = it; store.autoConnect = it }
@@ -208,7 +255,7 @@ fun MenuScreen(
             return
         }
         "autoupdate" -> {
-            SubPage(null, { page = "main" }) {
+            SubPage(null, { setPage("main") }) {
                 Hero(Icons.Outlined.Sync)
                 PageHeading("Auto-update subscriptions", "Refresh your subscriptions when the app opens, following each subscription's update interval.")
                 ToggleCard("Auto-update subscriptions", autoUpdate) { autoUpdate = it; store.autoUpdateSubs = it }
@@ -218,7 +265,7 @@ fun MenuScreen(
         "kill" -> {
             val bold = androidx.compose.ui.text.SpanStyle(fontWeight = FontWeight.Bold)
             SubPage(
-                "Kill switch", { page = "main" },
+                "Kill switch", { setPage("main") },
                 bottom = {
                     ActionButton("Settings", filled = true, trailing = Icons.AutoMirrored.Outlined.OpenInNew) {
                         runCatching { ctx.startActivity(Intent(Settings.ACTION_VPN_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
@@ -265,7 +312,7 @@ fun MenuScreen(
                 note = if (including) "Only these apps connect through the VPN." else "These apps connect directly, bypassing the VPN.",
                 initial = if (including) incApps else excApps,
                 onSave = { if (including) { incApps = it; store.splitIncludeApps = it } else { excApps = it; store.splitApps = it } },
-                onBack = { page = "split" },
+                onBack = { setPage("split") },
             )
             return
         }
@@ -274,7 +321,7 @@ fun MenuScreen(
                 title = if (including) "Included IP addresses" else "Excluded IP addresses",
                 initial = if (including) incIps else excIps,
                 onSave = { if (including) { incIps = it; store.splitIncludeIps = it } else { excIps = it; store.splitExcludeIps = it } },
-                onBack = { page = "split" },
+                onBack = { setPage("split") },
             )
             return
         }
@@ -304,14 +351,14 @@ fun MenuScreen(
             SettingRow(
                 Icons.Outlined.AltRoute, "Split tunneling",
                 if (!splitOn) "Off" else "On",
-            ) { page = "split" }
-            SettingRow(Icons.Outlined.Shield, "Kill switch") { page = "kill" }
+            ) { setPage("split") }
+            SettingRow(Icons.Outlined.Shield, "Kill switch") { setPage("kill") }
 
             Section("Connection")
-            SettingRow(Icons.Outlined.Dns, "DNS", dnsLabel) { page = "dns" }
-            SettingRow(Icons.Outlined.Speed, "Latency test", testLabel) { page = "test" }
-            SettingRow(Icons.Outlined.PowerSettingsNew, "Connect on launch", if (autoConnect) "On" else "Off") { page = "connect" }
-            SettingRow(Icons.Outlined.Sync, "Auto-update subscriptions", if (autoUpdate) "On" else "Off") { page = "autoupdate" }
+            SettingRow(Icons.Outlined.Dns, "DNS", dnsLabel) { setPage("dns") }
+            SettingRow(Icons.Outlined.Speed, "Latency test", testLabel) { setPage("test") }
+            SettingRow(Icons.Outlined.PowerSettingsNew, "Connect on launch", if (autoConnect) "On" else "Off") { setPage("connect") }
+            SettingRow(Icons.Outlined.Sync, "Auto-update subscriptions", if (autoUpdate) "On" else "Off") { setPage("autoupdate") }
 
             Section("Servers")
             SettingRow(Icons.Outlined.ContentCopy, "Export servers") { onExport() }
@@ -384,8 +431,10 @@ private fun ChoiceRow(label: String, note: String, selected: Boolean, onClick: (
         Modifier.fillMaxWidth().clip(RoundedCornerShape(Radius.Small)).clickable(onClick = onClick).padding(vertical = 10.dp, horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(Modifier.size(22.dp).border(2.dp, if (selected) C.Accent else C.Muted, CircleShape), contentAlignment = Alignment.Center) {
-            if (selected) Box(Modifier.size(10.dp).clip(CircleShape).background(C.Accent))
+        val ring by animateColorAsState(if (selected) C.Accent else C.Muted, tween(Motion.Medium), label = "radioRing")
+        val dot by animateFloatAsState(if (selected) 1f else 0f, spring(dampingRatio = 0.45f, stiffness = Spring.StiffnessMedium), label = "radioDot")
+        Box(Modifier.size(22.dp).border(2.dp, ring, CircleShape), contentAlignment = Alignment.Center) {
+            Box(Modifier.size(10.dp).graphicsLayer { scaleX = dot; scaleY = dot }.clip(CircleShape).background(C.Accent))
         }
         Spacer(Modifier.width(14.dp))
         Column(Modifier.weight(1f)) {
@@ -713,8 +762,9 @@ private fun PageHeading(title: String, text: String) {
 @Composable
 private fun ToggleCard(label: String, on: Boolean, onOn: (Boolean) -> Unit) {
     Row(
-        Modifier.fillMaxWidth().padding(horizontal = 20.dp).clip(RoundedCornerShape(Radius.Card)).background(C.Card)
-            .clickable { onOn(!on) }.padding(start = 16.dp, end = 12.dp, top = 10.dp, bottom = 10.dp),
+        Modifier.fillMaxWidth().padding(horizontal = 20.dp)
+            .bounceClick(RoundedCornerShape(Radius.Card), scaleTo = 0.985f, haptic = HapticFeedbackType.TextHandleMove) { onOn(!on) }
+            .background(C.Card).padding(start = 16.dp, end = 12.dp, top = 10.dp, bottom = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(label, color = C.Text, fontSize = 17.sp, modifier = Modifier.weight(1f))
@@ -733,9 +783,10 @@ private fun ActionButton(
 ) {
     val shape = RoundedCornerShape(Radius.Card)
     Box(
-        Modifier.fillMaxWidth().height(56.dp).clip(shape)
+        Modifier.fillMaxWidth().height(56.dp)
+            .bounceClick(shape, scaleTo = 0.97f, haptic = HapticFeedbackType.TextHandleMove, onClick = onClick)
             .then(if (filled) Modifier.background(color) else Modifier.border(1.5.dp, C.Accent, shape))
-            .clickable(onClick = onClick).padding(horizontal = 16.dp),
+            .padding(horizontal = 16.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(label, color = if (filled) Color.White else C.Accent, fontSize = 18.sp, fontWeight = FontWeight.Medium)

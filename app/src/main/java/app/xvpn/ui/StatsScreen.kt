@@ -1,5 +1,9 @@
 package app.xvpn.ui
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.layout.offset
+
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -59,13 +63,15 @@ fun StatsScreen(profile: Profile?, real: IpInfo?, proxy: IpInfo?, onBack: () -> 
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(Unit) { while (true) { now = System.currentTimeMillis(); delay(1000) } }
 
+    // speeds glide to each new reading instead of jumping once a second
+    val downShown by animateFloatAsState(down.toFloat(), tween(700), label = "down")
+    val upShown by animateFloatAsState(up.toFloat(), tween(700), label = "up")
+
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
-        Spacer(Modifier.height(16.dp))
-        Icon(
-            Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = C.Text,
-            modifier = Modifier.size(28.dp).clickable(onClick = onBack),
-        )
-        Spacer(Modifier.height(18.dp))
+        Spacer(Modifier.height(8.dp))
+        // 44dp touch target with press feedback; offset so the arrow stays where the old 28dp icon was
+        HeaderIcon(Icons.AutoMirrored.Filled.ArrowBack, "Back", modifier = Modifier.offset(x = (-8).dp), onClick = onBack)
+        Spacer(Modifier.height(10.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             FlagBadge(profile?.name)
             Spacer(Modifier.width(14.dp))
@@ -101,14 +107,14 @@ fun StatsScreen(profile: Profile?, real: IpInfo?, proxy: IpInfo?, onBack: () -> 
                     Text("Download", color = C.Green, fontSize = 15.sp); Spacer(Modifier.width(4.dp))
                     Icon(Icons.Filled.ArrowDownward, null, tint = C.Green, modifier = Modifier.size(16.dp))
                 }
-                Text(fmtKb(down), color = C.Text, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
+                Text(fmtKb(downShown.toLong()), color = C.Text, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
             }
             Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("Upload", color = C.Red, fontSize = 15.sp); Spacer(Modifier.width(4.dp))
                     Icon(Icons.Filled.ArrowUpward, null, tint = C.Red, modifier = Modifier.size(16.dp))
                 }
-                Text(fmtKb(up), color = C.Text, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
+                Text(fmtKb(upShown.toLong()), color = C.Text, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
             }
         }
         Spacer(Modifier.height(8.dp))

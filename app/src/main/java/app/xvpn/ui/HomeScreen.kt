@@ -1,6 +1,20 @@
 package app.xvpn.ui
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
@@ -100,9 +114,23 @@ fun HomeScreen(
 
     val on = status == Status.Connected
     val connecting = status == Status.Connecting
+
+    // a firm tap when protection switches on, a light one when it stops
+    val haptic = LocalHapticFeedback.current
+    var prevStatus by remember { mutableStateOf(status) }
+    LaunchedEffect(status) {
+        if (status != prevStatus) {
+            when (status) {
+                Status.Connected -> haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                Status.Disconnected -> haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                else -> {}
+            }
+            prevStatus = status
+        }
+    }
     val tone by animateColorAsState(
         when (status) { Status.Connected -> C.Green; Status.Connecting -> C.Neutral; Status.Disconnected -> C.Red },
-        label = "tone",
+        animationSpec = tween(Motion.Long + 120), label = "tone",
     )
 
     // where the dot should be: the chosen server's country while connecting, the proxy's once connected,
@@ -146,50 +174,81 @@ fun HomeScreen(
 
         Column(Modifier.fillMaxSize().statusBarsPadding().padding(horizontal = 16.dp)) {
             Spacer(Modifier.height(40.dp))
-            if (on) ProtectedHeader(fmtDuration(now - connectedAt), up, down)
-            else if (connecting) ConnectingHeader(real)
-            else UnprotectedHeader(real, error)
+            // each state fades/scales in after the previous one has faded out; the box animates to the new height
+            AnimatedContent(
+                targetState = status,
+                transitionSpec = {
+                    (fadeIn(tween(Motion.Medium, delayMillis = 90)) + scaleIn(tween(Motion.Medium, delayMillis = 90, easing = Motion.Enter), initialScale = 0.92f))
+                        .togetherWith(fadeOut(tween(90)))
+                        .using(SizeTransform(clip = false))
+                },
+                modifier = Modifier.fillMaxWidth(),
+                label = "header",
+            ) { s ->
+                when (s) {
+                    Status.Connected -> ProtectedHeader(fmtDuration(now - connectedAt), up, down)
+                    Status.Connecting -> ConnectingHeader(real)
+                    else -> UnprotectedHeader(real, error)
+                }
+            }
 
             Spacer(Modifier.weight(1f))
 
-            Text(
-                when { on -> "Browsing safely from"; connecting -> "Connecting to..."; else -> "Selected server" },
-                color = C.Text, fontSize = 17.sp, modifier = Modifier.padding(start = 4.dp, bottom = 10.dp),
-            )
+            Crossfade(status, Modifier.padding(start = 4.dp, bottom = 10.dp), animationSpec = tween(Motion.Medium), label = "caption") { s ->
+                Text(
+                    when (s) { Status.Connected -> "Browsing safely from"; Status.Connecting -> "Connecting to..."; else -> "Selected server" },
+                    color = C.Text, fontSize = 17.sp,
+                )
+            }
             Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(Radius.Card)).background(C.Card).border(1.dp, C.CardBorder, RoundedCornerShape(Radius.Card)).padding(16.dp)) {
                 Row(
                     Modifier.fillMaxWidth().then(if (on) Modifier.clickable(onClick = onOpenStats) else Modifier),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    FlagBadge(selected?.name)
-                    Spacer(Modifier.width(14.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text(selected?.let { Flags.clean(it.name) } ?: "No server selected", color = C.Text, fontSize = 19.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
-                        Text(
-                            when {
-                                on && proxy != null -> listOf(proxy.city, proxy.country).filter { it.isNotBlank() }.joinToString(", ")
-                                selected != null -> "${selected.host}:${selected.port}"
-                                else -> "Add one in Servers"
-                            },
-                            color = C.Muted, fontSize = 14.sp, maxLines = 1,
-                        )
+                    // picking another server cross-fades flag + name instead of swapping them in place
+                    AnimatedContent(
+                        targetState = selected,
+                        transitionSpec = { fadeIn(tween(Motion.Medium, delayMillis = 60)) togetherWith fadeOut(tween(Motion.Short)) },
+                        modifier = Modifier.weight(1f),
+                        contentKey = { it?.link },
+                        label = "server",
+                    ) { sel ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            FlagBadge(sel?.name)
+                            Spacer(Modifier.width(14.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(sel?.let { Flags.clean(it.name) } ?: "No server selected", color = C.Text, fontSize = 19.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                                val sub = when {
+                                    on && proxy != null -> listOf(proxy.city, proxy.country).filter { it.isNotBlank() }.joinToString(", ")
+                                    sel != null -> "${sel.host}:${sel.port}"
+                                    else -> "Add one in Servers"
+                                }
+                                Crossfade(sub, animationSpec = tween(Motion.Medium), label = "sub") { t ->
+                                    Text(t, color = C.Muted, fontSize = 14.sp, maxLines = 1)
+                                }
+                            }
+                        }
                     }
-                    if (on) Icon(Icons.Filled.ChevronRight, "Statistics", tint = C.Muted)
+                    AnimatedVisibility(
+                        visible = on,
+                        enter = fadeIn(tween(Motion.Medium)) + slideInHorizontally(tween(Motion.Medium, easing = Motion.Enter)) { it },
+                        exit = fadeOut(tween(Motion.Short)),
+                    ) { Icon(Icons.Filled.ChevronRight, "Statistics", tint = C.Muted) }
                 }
                 Spacer(Modifier.height(16.dp))
-                if (connecting) {
-                    BigButton("Cancel", C.ButtonGrey, onToggle)
-                    AnimatedVisibility(slow) {
-                        Column { Spacer(Modifier.height(10.dp)); OutlineButton("Change server", onChangeServer) }
-                    }
-                } else if (on) {
-                    BigButton("Disconnect", C.ButtonGrey, onToggle)
-                    Spacer(Modifier.height(10.dp))
-                    OutlineButton("Change server", onChangeServer)
-                } else {
-                    BigButton("Connect", C.Button, onToggle)
-                    Spacer(Modifier.height(10.dp))
-                    OutlineButton("Change server", onChangeServer)
+                // One primary button whose label and colour morph with the state, instead of three separate buttons
+                BigButton(
+                    label = when { on -> "Disconnect"; connecting -> "Cancel"; else -> "Connect" },
+                    bg = if (on || connecting) C.ButtonGrey else C.Button,
+                    onClick = onToggle,
+                )
+                // while connecting, "Change server" only appears if it's taking a while
+                AnimatedVisibility(
+                    visible = !connecting || slow,
+                    enter = fadeIn(tween(Motion.Medium)) + androidx.compose.animation.expandVertically(tween(Motion.Medium, easing = Motion.Enter)),
+                    exit = fadeOut(tween(Motion.Short)) + androidx.compose.animation.shrinkVertically(tween(Motion.Medium, easing = Motion.Exit)),
+                ) {
+                    Column { Spacer(Modifier.height(10.dp)); OutlineButton("Change server", onChangeServer) }
                 }
             }
             Spacer(Modifier.height(16.dp))
@@ -258,8 +317,11 @@ private fun ScrambleText(text: String, color: Color, fontSize: TextUnit) {
 @Composable
 private fun ProtectedHeader(time: String, up: Long, down: Long) {
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+        // the lock "snaps shut": starts small and overshoots slightly before settling
+        val pop = remember { Animatable(0.4f) }
+        LaunchedEffect(Unit) { pop.animateTo(1f, spring(dampingRatio = 0.4f, stiffness = Spring.StiffnessLow)) }
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Filled.Lock, null, tint = C.Green, modifier = Modifier.size(34.dp))
+            Icon(Icons.Filled.Lock, null, tint = C.Green, modifier = Modifier.size(34.dp).graphicsLayer { scaleX = pop.value; scaleY = pop.value })
             Spacer(Modifier.width(12.dp))
             Text("Protected", color = C.Green, fontSize = 30.sp, fontWeight = FontWeight.Bold)
         }
@@ -272,9 +334,12 @@ private fun ProtectedHeader(time: String, up: Long, down: Long) {
                 Text("Connected for", color = C.Muted, fontSize = 13.sp)
                 Text(time, color = C.Text, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
             }
-            Speed(Icons.Filled.ArrowDownward, C.Green, fmtKb(down))
+            // numbers glide to each new reading instead of jumping once a second
+            val downShown by animateFloatAsState(down.toFloat(), tween(700), label = "down")
+            val upShown by animateFloatAsState(up.toFloat(), tween(700), label = "up")
+            Speed(Icons.Filled.ArrowDownward, C.Green, fmtKb(downShown.toLong()))
             Spacer(Modifier.width(16.dp))
-            Speed(Icons.Filled.ArrowUpward, C.Red, fmtKb(up))
+            Speed(Icons.Filled.ArrowUpward, C.Red, fmtKb(upShown.toLong()))
         }
     }
 }
@@ -290,17 +355,26 @@ private fun Speed(icon: ImageVector, tint: Color, text: String) {
 
 @Composable
 private fun BigButton(label: String, bg: Color, onClick: () -> Unit) {
+    val fill by animateColorAsState(bg, tween(Motion.Long), label = "bigButton")
     Box(
-        Modifier.fillMaxWidth().height(54.dp).clip(RoundedCornerShape(Radius.Small)).background(bg).clickable(onClick = onClick),
+        Modifier.fillMaxWidth().height(54.dp)
+            .bounceClick(RoundedCornerShape(Radius.Small), scaleTo = 0.97f, haptic = HapticFeedbackType.TextHandleMove, onClick = onClick)
+            .background(fill),
         contentAlignment = Alignment.Center,
-    ) { Text(label, color = Color.White, fontSize = 19.sp, fontWeight = FontWeight.Medium) }
+    ) {
+        Crossfade(label, animationSpec = tween(Motion.Medium), label = "bigButtonLabel") { l ->
+            Text(l, color = Color.White, fontSize = 19.sp, fontWeight = FontWeight.Medium)
+        }
+    }
 }
 
 @Composable
 private fun OutlineButton(label: String, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(Radius.Small)
     Box(
-        Modifier.fillMaxWidth().height(54.dp).clip(RoundedCornerShape(Radius.Small))
-            .border(1.dp, Color(0xFF4F4D5C), RoundedCornerShape(Radius.Small)).clickable(onClick = onClick),
+        Modifier.fillMaxWidth().height(54.dp)
+            .bounceClick(shape, scaleTo = 0.97f, onClick = onClick)
+            .border(1.dp, Color(0xFF4F4D5C), shape),
         contentAlignment = Alignment.Center,
     ) { Text(label, color = C.Text, fontSize = 19.sp, fontWeight = FontWeight.Medium) }
 }

@@ -17,7 +17,26 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import app.xvpn.ui.Motion
+import app.xvpn.ui.WithRipple
+import app.xvpn.ui.bounceClick
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -40,7 +59,9 @@ import app.xvpn.ui.StatsScreen
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -97,7 +118,7 @@ class MainActivity : ComponentActivity() {
             navigationBarStyle = SystemBarStyle.dark(C.Card.toArgb()),
         )
         window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(C.Bg.toArgb()))
-        setContent { DesignScale { App() } }
+        setContent { DesignScale { WithRipple { App() } } }
     }
 }
 
@@ -299,18 +320,37 @@ private fun App() {
     Column(Modifier.fillMaxSize().background(C.Bg).imePadding()) {
         // Home draws its map behind the status bar. Other screens get a solid strip there: the Servers header
         // colour (Bg, fading to Card on scroll) so header and status bar read as one bar, Bg elsewhere.
-        if (!homeVisible) Spacer(
-            Modifier.fillMaxWidth().windowInsetsTopHeight(WindowInsets.statusBars)
+        // The strip grows/shrinks with the screen change instead of popping in, so content doesn't jump.
+        val density = LocalDensity.current
+        val statusTop = WindowInsets.statusBars.getTop(density)
+        val stripFrac by animateFloatAsState(if (homeVisible) 0f else 1f, tween(Motion.Medium, easing = FastOutSlowInEasing), label = "strip")
+        if (stripFrac > 0f) Spacer(
+            Modifier.fillMaxWidth().height(with(density) { (statusTop * stripFrac).toDp() })
                 .background(statusStripColor),
         )
         Box(
             Modifier.weight(1f)
                 .then(if (dockHidden) Modifier.navigationBarsPadding() else Modifier),
         ) {
-            if (showStats && status == Status.Connected) StatsScreen(
+            // Direction-aware transition: moving to a tab on the right slides content in from the right, and vice
+            // versa. Statistics counts as one step deeper than Home.
+            val screenIdx = if (showStats && status == Status.Connected) 3 else tab.ordinal
+            AnimatedContent(
+                targetState = screenIdx,
+                transitionSpec = {
+                    val dir = if (targetState > initialState) 1 else -1
+                    val enter = slideInHorizontally(tween(Motion.Long, easing = Motion.Enter)) { dir * it / Motion.SlideFraction } +
+                        fadeIn(tween(Motion.Medium, delayMillis = 60))
+                    val exit = slideOutHorizontally(tween(Motion.Medium, easing = Motion.Exit)) { -dir * it / Motion.SlideFraction } +
+                        fadeOut(tween(Motion.Short))
+                    (enter togetherWith exit).using(SizeTransform(clip = false))
+                },
+                label = "screen",
+            ) { idx ->
+            if (idx == 3) StatsScreen(
                 profile = profiles.firstOrNull { it.link == selectedLink },
                 real = real, proxy = proxy, onBack = { showStats = false },
-            ) else when (tab) {
+            ) else when (Tab.values()[idx]) {
                 Tab.Home -> HomeScreen(
                     selected = profiles.firstOrNull { it.link == selectedLink },
                     real = real, proxy = proxy,
@@ -379,27 +419,42 @@ private fun App() {
                     onScrolledChange = { serversScrolled = it },
                 )
             }
+            }
         }
-        if (!(showStats && status == Status.Connected)) Row(
+        // the dock slides away for the statistics screen and back again
+        AnimatedVisibility(
+            visible = !dockHidden,
+            enter = fadeIn(tween(Motion.Medium)) + androidx.compose.animation.expandVertically(tween(Motion.Medium, easing = Motion.Enter)),
+            exit = fadeOut(tween(Motion.Short)) + androidx.compose.animation.shrinkVertically(tween(Motion.Medium, easing = Motion.Exit)),
+        ) { Row(
             // fixed content height so the dock is exactly the same on every tab and device
             Modifier.fillMaxWidth().background(C.Card).navigationBarsPadding().height(72.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Tab.values().forEach { t ->
+                val sel = t == tab
+                val c by animateColorAsState(if (sel) C.Accent else C.Muted, tween(Motion.Medium), label = "navTint")
+                val pill by animateFloatAsState(if (sel) 1f else 0f, spring(dampingRatio = 0.7f, stiffness = Spring.StiffnessMediumLow), label = "navPill")
+                val pop by animateFloatAsState(if (sel) 1.1f else 1f, spring(dampingRatio = 0.35f, stiffness = Spring.StiffnessMedium), label = "navPop")
                 Column(
-                    Modifier.weight(1f).clickable { tab = t },
+                    // no ripple here (it would paint a rectangle over the label); the pill and icon are the feedback
+                    Modifier.weight(1f).fillMaxHeight()
+                        .bounceClick(scaleTo = 0.9f, haptic = HapticFeedbackType.TextHandleMove, ripple = false) { if (t != tab) tab = t },
                     horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
                 ) {
-                    val sel = t == tab
-                    val c = if (sel) C.Accent else C.Muted
-                    Box(
-                        Modifier.width(56.dp).height(32.dp).clip(RoundedCornerShape(Radius.Pill))
-                            .background(if (sel) C.NavPill else Color.Transparent),
-                        contentAlignment = Alignment.Center,
-                    ) { Icon(t.icon, t.label, tint = c, modifier = Modifier.size(22.dp)) }
+                    Box(Modifier.width(56.dp).height(32.dp), contentAlignment = Alignment.Center) {
+                        // the highlight pill grows out of the centre and fades in
+                        Box(
+                            Modifier.fillMaxSize()
+                                .graphicsLayer { scaleX = 0.4f + 0.6f * pill; alpha = pill.coerceIn(0f, 1f) }
+                                .clip(RoundedCornerShape(Radius.Pill)).background(C.NavPill),
+                        )
+                        Icon(t.icon, t.label, tint = c, modifier = Modifier.size(22.dp).graphicsLayer { scaleX = pop; scaleY = pop })
+                    }
                     Text(t.label, color = c, fontSize = 13.sp)
                 }
             }
-        }
+        } }
     }
 }
