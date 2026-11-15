@@ -9,6 +9,8 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -440,11 +442,16 @@ private fun ChoiceRow(label: String, note: String, selected: Boolean, onClick: (
     ) {
         val ring by animateColorAsState(if (selected) C.Accent else C.Muted, tween(Motion.Short + 50), label = "radioRing")
         Box(Modifier.size(22.dp).border(2.dp, ring, CircleShape), contentAlignment = Alignment.Center) {
-            AnimatedVisibility(
-                visible = selected,
-                enter = scaleIn(spring(dampingRatio = 0.45f, stiffness = 420f)) + fadeIn(tween(Motion.Short - 30)),
-                exit = scaleOut(tween(Motion.Short - 30)) + fadeOut(tween(Motion.Short - 30)),
-            ) { Box(Modifier.size(10.dp).clip(CircleShape).background(C.Accent)) }
+            val dot by animateFloatAsState(
+                targetValue = if (selected) 1f else 0f,
+                animationSpec = if (selected) spring<Float>(dampingRatio = 0.45f, stiffness = 420f) else tween<Float>(Motion.Short - 30),
+                label = "radioDot",
+            )
+            Box(
+                Modifier.size(10.dp)
+                    .graphicsLayer { scaleX = dot; scaleY = dot; alpha = dot.coerceIn(0f, 1f) }
+                    .clip(CircleShape).background(C.Accent),
+            )
         }
         Spacer(Modifier.width(14.dp))
         Column(Modifier.weight(1f)) {
