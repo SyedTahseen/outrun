@@ -63,7 +63,7 @@ fun StatsScreen(profile: Profile?, real: IpInfo?, proxy: IpInfo?, onBack: () -> 
         Spacer(Modifier.height(8.dp))
         HeaderIcon(Icons.AutoMirrored.Filled.ArrowBack, "Back") { onBack() }
         Spacer(Modifier.height(10.dp))
-        Reveal(0) {
+        Column(Modifier.fillMaxWidth()) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 FlagBadge(profile?.name)
                 Spacer(Modifier.width(14.dp))
@@ -77,7 +77,7 @@ fun StatsScreen(profile: Profile?, real: IpInfo?, proxy: IpInfo?, onBack: () -> 
             }
         }
 
-        Reveal(1) {
+        Column(Modifier.fillMaxWidth()) {
             Label("IP address")
             Row(
                 Modifier.fillMaxWidth().clip(RoundedCornerShape(Radius.Card)).background(C.Card).padding(horizontal = 20.dp, vertical = 18.dp),
@@ -95,7 +95,7 @@ fun StatsScreen(profile: Profile?, real: IpInfo?, proxy: IpInfo?, onBack: () -> 
             }
         }
 
-        Reveal(2) {
+        Column(Modifier.fillMaxWidth()) {
             Label("VPN speed")
             Row(Modifier.fillMaxWidth()) {
                 Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -117,7 +117,7 @@ fun StatsScreen(profile: Profile?, real: IpInfo?, proxy: IpInfo?, onBack: () -> 
             SpeedChart(history, Modifier.fillMaxWidth().height(150.dp))
         }
 
-        Reveal(3) {
+        Column(Modifier.fillMaxWidth()) {
             Label("Connection details")
             Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(Radius.Card)).background(C.Card)) {
                 Row2("Connected for", fmtDuration(now - connectedAt))
