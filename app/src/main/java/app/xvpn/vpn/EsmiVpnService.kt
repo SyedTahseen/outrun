@@ -35,13 +35,13 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.net.InetAddress
 
-class SingBoxVpnService : VpnService() {
+class EsmiVpnService : VpnService() {
     companion object {
         const val ACTION_START = "app.xvpn.START"
         const val ACTION_STOP = "app.xvpn.STOP"
         const val ACTION_NEXT = "app.xvpn.NEXT"
         const val EXTRA_LINK = "link"
-        private const val TAG = "SingBoxVpnService"
+        private const val TAG = "EsmiVpnService"
         private const val MTU = 1500
         private const val VERIFY_TIMEOUT_MS = 20_000L
         private val PROBE_URLS = Choices.testUrls.take(2).map { it.url }
@@ -49,11 +49,11 @@ class SingBoxVpnService : VpnService() {
         private const val NOTIFICATION_ID = 1
 
         fun start(ctx: Context, link: String) = ctx.startForegroundService(
-            Intent(ctx, SingBoxVpnService::class.java).setAction(ACTION_START).putExtra(EXTRA_LINK, link)
+            Intent(ctx, EsmiVpnService::class.java).setAction(ACTION_START).putExtra(EXTRA_LINK, link)
         )
 
         fun stop(ctx: Context) = ctx.startService(
-            Intent(ctx, SingBoxVpnService::class.java).setAction(ACTION_STOP)
+            Intent(ctx, EsmiVpnService::class.java).setAction(ACTION_STOP)
         )
     }
 
@@ -86,7 +86,7 @@ class SingBoxVpnService : VpnService() {
             ACTION_NEXT -> switchNext()
             ACTION_START -> {
                 val link = intent.getStringExtra(EXTRA_LINK) ?: return START_NOT_STICKY
-                startForeground(NOTIFICATION_ID, notification("SingBox VPN", "Connecting…"))
+                startForeground(NOTIFICATION_ID, notification("ESMI VPN", "Connecting…"))
                 val prev = connectJob
 
                 connectJob = scope.launch { prev?.cancelAndJoin(); connect(link) }
@@ -107,7 +107,7 @@ class SingBoxVpnService : VpnService() {
     private fun switchNext() {
         val next = nextLink() ?: return
         val name = LinkParser.parse(next)?.name ?: ""
-        notificationManager.notify(NOTIFICATION_ID, notification("SingBox VPN", "Switching to $name…"))
+        notificationManager.notify(NOTIFICATION_ID, notification("ESMI VPN", "Switching to $name…"))
         val prev = connectJob
         connectJob = scope.launch { prev?.cancelAndJoin(); connect(next) }
     }
@@ -268,7 +268,7 @@ class SingBoxVpnService : VpnService() {
                     (VpnState.speedHistory.value + (VpnState.upBytesPerSec.value to VpnState.downBytesPerSec.value)).takeLast(60)
                 val dUp = (up - lastUp).coerceAtLeast(0); val dDown = (down - lastDown).coerceAtLeast(0)
                 lastUp = up; lastDown = down
-                synchronized(this@SingBoxVpnService) {
+                synchronized(this@EsmiVpnService) {
                     sessUp += dUp; sessDown += dDown; pendUp += dUp; pendDown += dDown
                     VpnState.sessionUp.value = sessUp; VpnState.sessionDown.value = sessDown
                 }
@@ -317,7 +317,7 @@ class SingBoxVpnService : VpnService() {
 
     private fun action(title: String, act: String, req: Int, icon: Int): Notification.Action {
         val pi = PendingIntent.getService(
-            this, req, Intent(this, SingBoxVpnService::class.java).setAction(act),
+            this, req, Intent(this, EsmiVpnService::class.java).setAction(act),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
         return Notification.Action.Builder(Icon.createWithResource(this, icon), title, pi).build()

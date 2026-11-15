@@ -90,7 +90,7 @@ import app.xvpn.ui.StatsScreen
 import app.xvpn.ui.axisTransition
 import app.xvpn.ui.rememberTick
 import app.xvpn.ui.setUpEdgeToEdge
-import app.xvpn.vpn.SingBoxVpnService
+import app.xvpn.vpn.EsmiVpnService
 import app.xvpn.vpn.Status
 import app.xvpn.vpn.VpnState
 import kotlinx.coroutines.Dispatchers
@@ -224,21 +224,21 @@ private fun App() {
     }
 
     val vpnPermission = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { r ->
-        if (r.resultCode == Activity.RESULT_OK) selectedLink?.let { SingBoxVpnService.start(ctx, it) }
+        if (r.resultCode == Activity.RESULT_OK) selectedLink?.let { EsmiVpnService.start(ctx, it) }
     }
     val notifPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
 
     fun connect(link: String) {
         selectedLink = link; store.selected = link
         val intent = VpnService.prepare(ctx)
-        if (intent != null) vpnPermission.launch(intent) else SingBoxVpnService.start(ctx, link)
+        if (intent != null) vpnPermission.launch(intent) else EsmiVpnService.start(ctx, link)
     }
 
     fun toggle() {
         if (Build.VERSION.SDK_INT >= 33) notifPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
         when (status) {
             Status.Disconnected -> selectedLink?.let { connect(it) } ?: run { tab = Tab.Servers }
-            else -> SingBoxVpnService.stop(ctx)
+            else -> EsmiVpnService.stop(ctx)
         }
     }
 

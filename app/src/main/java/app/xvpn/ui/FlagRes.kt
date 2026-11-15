@@ -209,6 +209,7 @@ internal val FLAG_RES: Map<String, Int> = mapOf(
     "VN" to R.drawable.flag_vn,
     "VU" to R.drawable.flag_vu,
     "WS" to R.drawable.flag_ws,
+    "XK" to R.drawable.flag_xk,
     "YE" to R.drawable.flag_ye,
     "ZA" to R.drawable.flag_za,
     "ZM" to R.drawable.flag_zm,

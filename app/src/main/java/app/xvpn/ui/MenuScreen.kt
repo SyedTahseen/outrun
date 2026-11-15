@@ -299,7 +299,7 @@ private fun MenuPage(
                 Spacer(Modifier.height(14.dp))
                 Column(Modifier.padding(horizontal = 20.dp)) {
                     Text("1. Open your device settings", color = C.Text, fontSize = 17.sp)
-                    Text("2. Find SingBox VPN and tap the gear icon", color = C.Text, fontSize = 17.sp)
+                    Text("2. Find ESMI VPN and tap the gear icon", color = C.Text, fontSize = 17.sp)
                     Text(
                         buildAnnotatedString {
                             append("3. Enable \""); pushStyle(bold); append("Always-on VPN"); pop(); append("\" and \"")

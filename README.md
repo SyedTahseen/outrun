@@ -1,4 +1,6 @@
-# SingBox VPN (Android)
+# ESMI VPN (Android)
+
+ESMI = Easy Secure My Internet.
 
 Compose UI (Home / Servers / Settings) + **sing-box** core, for your own vless / trojan / shadowsocks / vmess /
 hysteria2 / tuic / wireguard proxies. Config import via clipboard and subscription URLs.
@@ -12,7 +14,7 @@ started as a child process by the VPN service (so there is no gomobile/AAR to bu
 
 1. Push this folder to a GitHub repo (branch `main`).
 2. Open the **Actions** tab -> **Build APK** runs automatically (or press *Run workflow*).
-3. In the run's Artifacts, click an APK directly (`SingBoxVpn-<ref>-arm64-v8a.apk` etc.) - no zip.
+3. In the run's Artifacts, click an APK directly (`EsmiVpn-<ref>-arm64-v8a.apk` etc.) - no zip.
    Most phones need `arm64-v8a`.
 4. Push a tag like `v1.0` to also attach the APKs to a GitHub Release.
 
