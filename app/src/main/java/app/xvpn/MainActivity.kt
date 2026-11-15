@@ -186,8 +186,8 @@ private fun App() {
         testing = true; pings = emptyMap()
         val list = profiles.map { it.link }
         scope.launch {
-            // real delay: an HTTPS request through each server (not just a TCP connect to its port)
-            runCatching { RealDelay.test(ctx, list, store.testUrls()) { link, ms -> pings = pings + (link to ms) } }
+            // real delay: an HTTPS request through each server (client -> server -> internet), same method as v2rayNG
+            runCatching { RealDelay.test(ctx, list, store.testUrl()) { link, ms -> pings = pings + (link to ms) } }
             testing = false
         }
     }

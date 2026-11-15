@@ -181,10 +181,8 @@ class Store(context: Context) {
     }
 
     /** Latency test URLs: the chosen one first, the others as fallback. */
-    fun testUrls(): List<String> {
-        val first = Choices.testUrls.firstOrNull { it.id == testUrlChoice } ?: Choices.testUrls.first()
-        return listOf(first.url) + Choices.testUrls.filter { it !== first }.map { it.url }
-    }
+    /** The URL chosen in Settings. The latency test uses only this one (no fallback), so every number means the same thing. */
+    fun testUrl(): String = (Choices.testUrls.firstOrNull { it.id == testUrlChoice } ?: Choices.testUrls.first()).url
 
     fun clear() {
         prefs.edit().putString("links", "").putString("src", "{}").putString("favs", "").putString("selected", null).apply()

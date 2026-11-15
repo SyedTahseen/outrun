@@ -191,7 +191,7 @@ fun MenuScreen(
         "test" -> {
             SubPage(null, { page = "main" }) {
                 Hero(Icons.Outlined.Speed)
-                PageHeading("Latency test", "Servers are tested with a real request through each one. The other addresses are used as fallback if this one is unreachable.")
+                PageHeading("Latency test", "Each server is tested with a real request to this address, sent through the server. The time covers connecting to the server, the secure connection and the response.")
                 Spacer(Modifier.height(8.dp))
                 ChoiceList {
                     Choices.testUrls.forEach { o -> ChoiceRow(o.name, o.url, testUrl == o.id) { testUrl = o.id; store.testUrlChoice = o.id; page = "main" } }
