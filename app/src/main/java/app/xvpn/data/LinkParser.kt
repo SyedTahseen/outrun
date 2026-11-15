@@ -65,8 +65,35 @@ object LinkParser {
 
     fun plainText(text: String): String {
         val body = text.trim().trimStart('\uFEFF')
+        fromWgConf(body)?.let { return it }
         if (body.lines().any { parse(it) != null }) return body
         return decodeB64(body) ?: body
+    }
+
+    fun fromWgConf(text: String): String? {
+        if (!text.contains("[Interface]", ignoreCase = true)) return null
+        val iface = HashMap<String, String>()
+        val peer = HashMap<String, String>()
+        var cur: HashMap<String, String>? = null
+        var peers = 0
+        for (raw in text.lines()) {
+            val l = raw.substringBefore('#').trim()
+            if (l.isEmpty()) continue
+            if (l.equals("[Interface]", ignoreCase = true)) cur = iface
+            else if (l.equals("[Peer]", ignoreCase = true)) { peers++; cur = if (peers == 1) peer else null }
+            else if ('=' in l) cur?.put(l.substringBefore('=').trim().lowercase(), l.substringAfter('=').trim())
+        }
+        val key = iface["privatekey"] ?: return null
+        val addr = iface["address"] ?: return null
+        val pub = peer["publickey"] ?: return null
+        val ep = peer["endpoint"] ?: return null
+        val host = ep.substringBeforeLast(':')
+        val port = ep.substringAfterLast(':').toIntOrNull() ?: return null
+        fun e(v: String) = java.net.URLEncoder.encode(v, "UTF-8").replace("+", "%20")
+        val q = StringBuilder("publickey=${e(pub)}&address=${e(addr.replace(" ", ""))}")
+        iface["mtu"]?.let { q.append("&mtu=").append(e(it)) }
+        peer["presharedkey"]?.let { q.append("&presharedkey=").append(e(it)) }
+        return "wireguard://${e(key)}@$host:$port?$q#${e("WireGuard $host")}"
     }
 
     fun parseMany(text: String): List<Profile> = plainText(text).lines().mapNotNull { parse(it) }

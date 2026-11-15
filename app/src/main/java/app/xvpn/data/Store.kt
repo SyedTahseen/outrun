@@ -111,6 +111,16 @@ class Store(context: Context) {
         if (selected == link) selected = null
     }
 
+    fun removeMany(gone: Collection<String>): Int {
+        val set = gone.toSet()
+        val before = links()
+        prefs.edit().putString("links", before.filter { it !in set }.joinToString("\n")).apply()
+        saveSources(sources.filterKeys { it !in set })
+        favorites = favorites - set
+        if (selected in set) selected = null
+        return before.count { it in set }
+    }
+
     fun removeSubscription(url: String): Int {
         val gone = sources.filterValues { it == url }.keys
         prefs.edit().putString("links", links().filter { it !in gone }.joinToString("\n")).apply()

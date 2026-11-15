@@ -158,6 +158,7 @@ private fun App() {
     var sources by remember { mutableStateOf(store.sources) }
     var subInfo by remember { mutableStateOf(store.subInfo) }
     var message by remember { mutableStateOf<String?>(null) }
+    var pendingSub by remember { mutableStateOf<String?>(null) }
     val status by VpnState.status.collectAsState()
     val socks by VpnState.socksPort.collectAsState()
     val real by NetInfo.real.collectAsState()
@@ -219,6 +220,11 @@ private fun App() {
     fun toast(m: String) = android.widget.Toast.makeText(ctx, m, android.widget.Toast.LENGTH_SHORT).show()
 
     fun importText(text: String): Boolean {
+        val t = text.trim()
+        if (Regex("^https?://\\S+$").matches(t) && LinkParser.parseMany(t).isEmpty()) {
+            pendingSub = t
+            return true
+        }
         val found = LinkParser.parseMany(text)
         val n = store.add(found)
         message = if (found.isEmpty()) "No valid links found" else "Added $n server(s)"
@@ -285,6 +291,10 @@ private fun App() {
                 }
             }
         }
+    }
+
+    LaunchedEffect(pendingSub) {
+        pendingSub?.let { pendingSub = null; refreshSubs(listOf(it)) }
     }
 
     LaunchedEffect(Unit) {
@@ -365,6 +375,10 @@ private fun App() {
                                 toast("Copied ${p.name}")
                             },
                             onAddSubscription = { refreshSubs(listOf(it)) },
+                            onDeleteMany = { links ->
+                                val n = store.removeMany(links)
+                                favs = store.favorites; reload(); toast("Deleted $n server${if (n == 1) "" else "s"}")
+                            },
                             onDeleteAll = { store.clear(); favs = emptySet(); reload(); toast("All servers deleted") },
                             sort = sort, onSortChange = { sort = it; store.sortName = it.name },
                             filter = serverFilter, onFilterChange = { serverFilter = it },

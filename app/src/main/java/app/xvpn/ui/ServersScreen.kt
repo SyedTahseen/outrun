@@ -58,6 +58,12 @@ import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material.icons.outlined.ContentPaste
 import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.outlined.ErrorOutline
+import androidx.compose.material.icons.outlined.WifiOff
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.foundation.layout.widthIn
+import app.xvpn.data.ConfigBuilder
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.InsertDriveFile
 import androidx.compose.material.icons.outlined.QrCodeScanner
@@ -106,6 +112,7 @@ fun ServersScreen(
     onAddManual: (String) -> Boolean,
     onRefreshSubscriptions: () -> Unit,
     onDeleteAll: () -> Unit,
+    onDeleteMany: (List<String>) -> Unit = {},
     favorites: Set<String>,
     onToggleFavorite: (Profile) -> Unit,
     onCopy: (Profile) -> Unit,
@@ -132,7 +139,8 @@ fun ServersScreen(
     var manual by remember { mutableStateOf(false) }
     var delSub by remember { mutableStateOf<String?>(null) }
     var subDialog by remember { mutableStateOf(false) }
-    var sortMenu by remember { mutableStateOf(false) }
+    var menuPage by remember { mutableStateOf("main") }
+    var confirmDel by remember { mutableStateOf<DelAction?>(null) }
     val focus = remember { FocusRequester() }
     LaunchedEffect(searching) { if (searching) runCatching { focus.requestFocus() } }
 
@@ -215,20 +223,52 @@ fun ServersScreen(
                                 }
                             }
                             Box {
-                                HeaderIcon(Icons.Filled.MoreVert, "More") { moreMenu = true }
-                                DropdownMenu(moreMenu, { moreMenu = false }, shape = RoundedCornerShape(Radius.Card), containerColor = C.Card) {
-                                    MenuRow(Icons.Outlined.Speed, if (testing) "Testing…" else "Test latency") { moreMenu = false; if (!testing) onTestLatency() }
-                                    MenuRow(Icons.AutoMirrored.Outlined.Sort, "Sort by: ${sort.label}") { moreMenu = false; sortMenu = true }
-                                    MenuRow(Icons.Outlined.Refresh, "Update subscriptions") { moreMenu = false; onRefreshSubscriptions() }
-                                    MenuRow(Icons.Outlined.DeleteOutline, "Delete all servers") { moreMenu = false; onDeleteAll() }
-                                }
-                                DropdownMenu(sortMenu, { sortMenu = false }, shape = RoundedCornerShape(Radius.Card), containerColor = C.Card) {
-                                    SortMode.values().forEach { m ->
-                                        DropdownMenuItem(
-                                            text = { Text(m.label, color = if (m == sort) C.Accent else C.Text, fontSize = 17.sp) },
-                                            trailingIcon = { if (m == sort) Icon(Icons.Filled.Check, null, tint = C.Accent, modifier = Modifier.size(20.dp)) },
-                                            onClick = { onSortChange(m); sortMenu = false },
-                                        )
+                                HeaderIcon(Icons.Filled.MoreVert, "More") { menuPage = "main"; moreMenu = true }
+                                DropdownMenu(
+                                    moreMenu, { moreMenu = false }, shape = RoundedCornerShape(Radius.Card), containerColor = C.Card,
+                                    modifier = Modifier.widthIn(min = 220.dp),
+                                ) {
+                                    when (menuPage) {
+                                        "sort" -> {
+                                            MenuBack("Sort") { menuPage = "main" }
+                                            SortMode.values().forEach { m ->
+                                                DropdownMenuItem(
+                                                    text = { Text(m.label, color = if (m == sort) C.Accent else C.Text, fontSize = 17.sp) },
+                                                    trailingIcon = { if (m == sort) Icon(Icons.Filled.Check, null, tint = C.Accent, modifier = Modifier.size(20.dp)) },
+                                                    onClick = { onSortChange(m); moreMenu = false },
+                                                )
+                                            }
+                                        }
+                                        "delete" -> {
+                                            MenuBack("Delete") { menuPage = "main" }
+                                            val invalid = remember(profiles) { invalidLinks(profiles) }
+                                            val dupes = remember(profiles, favorites, selectedLink) {
+                                                duplicateLinks(profiles, favorites + listOfNotNull(selectedLink))
+                                            }
+                                            val dead = remember(profiles, pings) { profiles.filter { pings[it.link] == -1 }.map { it.link } }
+                                            MenuRow(Icons.Outlined.ErrorOutline, "Invalid", C.Red, invalid.isNotEmpty(), { CountText(invalid.size) }) {
+                                                moreMenu = false
+                                                confirmDel = DelAction("Delete ${invalid.size} invalid server(s)?", "These links can't be turned into a working configuration.", invalid)
+                                            }
+                                            MenuRow(Icons.Outlined.ContentCopy, "Duplicates", C.Red, dupes.isNotEmpty(), { CountText(dupes.size) }) {
+                                                moreMenu = false
+                                                confirmDel = DelAction("Delete ${dupes.size} duplicate(s)?", "One copy of each server is kept. Favorites and the selected server are kept first.", dupes)
+                                            }
+                                            MenuRow(Icons.Outlined.WifiOff, "Unreachable", C.Red, dead.isNotEmpty(), { CountText(dead.size) }) {
+                                                moreMenu = false
+                                                confirmDel = DelAction("Delete ${dead.size} unreachable server(s)?", "These failed the last latency test.", dead)
+                                            }
+                                            MenuRow(Icons.Outlined.DeleteOutline, "All servers", C.Red) {
+                                                moreMenu = false
+                                                confirmDel = DelAction("Delete all servers?", "All ${profiles.size} server(s) will be removed.", null)
+                                            }
+                                        }
+                                        else -> {
+                                            MenuRow(Icons.Outlined.Speed, if (testing) "Testing…" else "Test latency") { moreMenu = false; if (!testing) onTestLatency() }
+                                            MenuRow(Icons.AutoMirrored.Outlined.Sort, "Sort", trailing = { Chevron() }) { menuPage = "sort" }
+                                            MenuRow(Icons.Outlined.Refresh, "Update subs") { moreMenu = false; onRefreshSubscriptions() }
+                                            MenuRow(Icons.Outlined.DeleteOutline, "Delete", trailing = { Chevron() }) { menuPage = "delete" }
+                                        }
                                     }
                                 }
                             }
@@ -301,6 +341,22 @@ fun ServersScreen(
         }
     }
 
+    confirmDel?.let { d ->
+        AlertDialog(
+            onDismissRequest = { confirmDel = null },
+            containerColor = C.Card,
+            shape = RoundedCornerShape(Radius.Card),
+            title = { Text(d.title, color = C.Text, fontSize = 20.sp) },
+            text = { Text(d.text, color = C.Muted, fontSize = 14.sp) },
+            confirmButton = {
+                TextButton({
+                    if (d.links == null) onDeleteAll() else onDeleteMany(d.links)
+                    confirmDel = null
+                }) { Text("Delete", color = C.Red) }
+            },
+            dismissButton = { TextButton({ confirmDel = null }) { Text("Cancel", color = C.Muted) } },
+        )
+    }
     delSub?.let { url ->
         val n = sources.count { it.value == url }
         AlertDialog(
@@ -401,14 +457,55 @@ private fun SubscriptionBar(url: String, info: SubInfo?, host: String, onRefresh
     }
 }
 
+private class DelAction(val title: String, val text: String, val links: List<String>?)
+
+private fun invalidLinks(profiles: List<Profile>): List<String> =
+    profiles.filter { runCatching { ConfigBuilder.outbound(it.link) }.isFailure }.map { it.link }
+
+private fun duplicateLinks(profiles: List<Profile>, keep: Set<String>): List<String> {
+    val groups = LinkedHashMap<String, MutableList<String>>()
+    for (p in profiles) {
+        val key = runCatching { ConfigBuilder.outbound(p.link).apply { remove("tag") }.toString() }
+            .getOrDefault(p.link.substringBefore('#'))
+        groups.getOrPut(key) { ArrayList() } += p.link
+    }
+    val out = ArrayList<String>()
+    for (g in groups.values) {
+        if (g.size < 2) continue
+        val keeper = g.firstOrNull { it in keep } ?: g.first()
+        g.filterTo(out) { it != keeper }
+    }
+    return out
+}
+
 @Composable
-private fun MenuRow(icon: ImageVector, label: String, onClick: () -> Unit) {
+private fun MenuRow(
+    icon: ImageVector, label: String, tint: Color = C.Accent, enabled: Boolean = true,
+    trailing: (@Composable () -> Unit)? = null, onClick: () -> Unit,
+) {
     DropdownMenuItem(
-        text = { Text(label, color = C.Text, fontSize = 17.sp) },
-        leadingIcon = { Icon(icon, null, tint = C.Text, modifier = Modifier.size(22.dp)) },
+        text = { Text(label, color = if (!enabled) C.Muted else if (tint == C.Red) C.Red else C.Text, fontSize = 17.sp, maxLines = 1) },
+        leadingIcon = { Icon(icon, null, tint = if (enabled) tint else C.Muted, modifier = Modifier.size(22.dp)) },
+        trailingIcon = trailing,
+        enabled = enabled,
         onClick = onClick,
     )
 }
+
+@Composable
+private fun MenuBack(title: String, onClick: () -> Unit) {
+    DropdownMenuItem(
+        text = { Text(title, color = C.Text, fontSize = 17.sp, fontWeight = FontWeight.SemiBold) },
+        leadingIcon = { Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = C.Text, modifier = Modifier.size(22.dp)) },
+        onClick = onClick,
+    )
+}
+
+@Composable
+private fun Chevron() { Icon(Icons.Filled.ChevronRight, null, tint = C.Muted, modifier = Modifier.size(20.dp)) }
+
+@Composable
+private fun CountText(n: Int) { Text("$n", color = C.Muted, fontSize = 15.sp) }
 
 @Composable
 private fun Chip(label: String, selected: Boolean, onLongClick: (() -> Unit)? = null, onClick: () -> Unit) {
@@ -508,7 +605,7 @@ private fun ManualDialog(onDismiss: () -> Unit, onAdd: (String) -> Boolean) {
         title = { Text("Add manually", color = C.Text, fontSize = 20.sp) },
         text = {
             Column {
-                Text("Paste a vless://, trojan://, ss://, vmess://, hysteria2://, tuic:// or wireguard:// link (one per line).", color = C.Muted, fontSize = 13.sp)
+                Text("Paste a WireGuard .conf or a vless://, trojan://, ss://, vmess://, hysteria2://, tuic:// or wireguard:// link (one per line).", color = C.Muted, fontSize = 13.sp)
                 Spacer(Modifier.height(12.dp))
                 BasicTextField(
                     value = text, onValueChange = { text = it; bad = false },
