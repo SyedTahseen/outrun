@@ -1,14 +1,13 @@
 package app.xvpn.ui
 
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.layout.offset
-
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -63,16 +62,14 @@ fun StatsScreen(profile: Profile?, real: IpInfo?, proxy: IpInfo?, onBack: () -> 
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(Unit) { while (true) { now = System.currentTimeMillis(); delay(1000) } }
 
-    // speeds glide to each new reading instead of jumping once a second
-    val downShown by animateFloatAsState(down.toFloat(), tween(700), label = "down")
-    val upShown by animateFloatAsState(up.toFloat(), tween(700), label = "up")
-
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
-        Spacer(Modifier.height(8.dp))
-        // 44dp touch target with press feedback; offset so the arrow stays where the old 28dp icon was
-        HeaderIcon(Icons.AutoMirrored.Filled.ArrowBack, "Back", modifier = Modifier.offset(x = (-8).dp), onClick = onBack)
-        Spacer(Modifier.height(10.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Spacer(Modifier.height(16.dp))
+        Box(
+            Modifier.size(44.dp).bounceClick(pressedScale = 0.82f, shape = CircleShape, onClick = onBack),
+            contentAlignment = Alignment.CenterStart,
+        ) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = C.Text, modifier = Modifier.size(28.dp)) }
+        Spacer(Modifier.height(18.dp))
+        Row(Modifier.enterRise(0), verticalAlignment = Alignment.CenterVertically) {
             FlagBadge(profile?.name)
             Spacer(Modifier.width(14.dp))
             Column {
@@ -86,7 +83,7 @@ fun StatsScreen(profile: Profile?, real: IpInfo?, proxy: IpInfo?, onBack: () -> 
 
         Label("IP address")
         Row(
-            Modifier.fillMaxWidth().clip(RoundedCornerShape(Radius.Card)).background(C.Card).padding(horizontal = 20.dp, vertical = 18.dp),
+            Modifier.fillMaxWidth().enterRise(60).clip(RoundedCornerShape(Radius.Card)).background(C.Card).padding(horizontal = 20.dp, vertical = 18.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -101,27 +98,27 @@ fun StatsScreen(profile: Profile?, real: IpInfo?, proxy: IpInfo?, onBack: () -> 
         }
 
         Label("VPN speed")
-        Row(Modifier.fillMaxWidth()) {
+        Row(Modifier.fillMaxWidth().enterRise(120)) {
             Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("Download", color = C.Green, fontSize = 15.sp); Spacer(Modifier.width(4.dp))
                     Icon(Icons.Filled.ArrowDownward, null, tint = C.Green, modifier = Modifier.size(16.dp))
                 }
-                Text(fmtKb(downShown.toLong()), color = C.Text, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
+                Text(fmtKb(down), color = C.Text, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
             }
             Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("Upload", color = C.Red, fontSize = 15.sp); Spacer(Modifier.width(4.dp))
                     Icon(Icons.Filled.ArrowUpward, null, tint = C.Red, modifier = Modifier.size(16.dp))
                 }
-                Text(fmtKb(upShown.toLong()), color = C.Text, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
+                Text(fmtKb(up), color = C.Text, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
             }
         }
         Spacer(Modifier.height(8.dp))
-        SpeedChart(history, Modifier.fillMaxWidth().height(150.dp))
+        SpeedChart(history, Modifier.fillMaxWidth().height(150.dp).enterRise(180))
 
         Label("Connection details")
-        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(Radius.Card)).background(C.Card)) {
+        Column(Modifier.fillMaxWidth().enterRise(240).clip(RoundedCornerShape(Radius.Card)).background(C.Card)) {
             Row2("Connected for", fmtDuration(now - connectedAt))
             Row2("Country", proxy?.country?.ifBlank { "—" } ?: "—")
             Row2("City", proxy?.city?.ifBlank { "—" } ?: "—")
@@ -153,8 +150,11 @@ private fun SpeedChart(history: List<Pair<Long, Long>>, modifier: Modifier) {
     val ups = List(n) { i -> if (i < pad) 0L else history[i - pad].first }
     val downs = List(n) { i -> if (i < pad) 0L else history[i - pad].second }
     val peak = maxOf(ups.max(), downs.max())
-    var top = 4000.0
-    while (top < peak) top *= 2
+    var topTarget = 4000.0
+    while (topTarget < peak) topTarget *= 2
+    // the axis rescales smoothly when a speed spike pushes the peak up (or it relaxes again)
+    val topAnim by animateFloatAsState(topTarget.toFloat(), tween(450), label = "chartTop")
+    val top = topAnim.toDouble()
 
     Row(modifier) {
         Canvas(Modifier.weight(1f).fillMaxHeight()) {

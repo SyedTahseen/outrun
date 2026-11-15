@@ -19,7 +19,6 @@
 
     <application
         android:allowBackup="false"
-        android:enableOnBackInvokedCallback="true"
         android:label="SingBox VPN"
         android:supportsRtl="true"
         android:usesCleartextTraffic="true"

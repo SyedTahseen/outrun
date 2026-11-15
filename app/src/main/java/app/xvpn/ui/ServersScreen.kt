@@ -1,23 +1,5 @@
 package app.xvpn.ui
 
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.Crossfade
-import androidx.compose.animation.SizeTransform
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.slideOutVertically
-import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-
 import androidx.compose.foundation.background
 import app.xvpn.data.SubInfo
 import androidx.compose.ui.text.style.TextOverflow
@@ -38,7 +20,23 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.foundation.rememberScrollState
@@ -134,7 +132,7 @@ fun ServersScreen(
     var subDialog by remember { mutableStateOf(false) }
     var sortMenu by remember { mutableStateOf(false) }
     val focus = remember { FocusRequester() }
-    LaunchedEffect(searching) { if (searching) runCatching { focus.requestFocus() } }
+    LaunchedEffect(searching) { if (searching) focus.requestFocus() }
 
     val hasFav = profiles.any { it.link in favorites }
     val f = filter?.takeIf {
@@ -172,14 +170,10 @@ fun ServersScreen(
             AnimatedContent(
                 targetState = searching,
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp).height(44.dp),
-                transitionSpec = {
-                    val dir = if (targetState) 1 else -1
-                    (fadeIn(tween(Motion.Medium, delayMillis = 60)) + slideInHorizontally(tween(Motion.Medium, easing = Motion.Enter)) { dir * it / 10 })
-                        .togetherWith(fadeOut(tween(Motion.Short)) + slideOutHorizontally(tween(Motion.Short)) { -dir * it / 10 })
-                },
-                label = "searchBar",
+                transitionSpec = { fadeIn(tween(220, delayMillis = 80)) togetherWith fadeOut(tween(100)) },
+                label = "searchSwap",
             ) { isSearching ->
-            Row(Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.fillMaxWidth().height(44.dp), verticalAlignment = Alignment.CenterVertically) {
                 if (isSearching) {
                     BasicTextField(
                         value = query, onValueChange = { query = it }, singleLine = true,
@@ -249,25 +243,18 @@ fun ServersScreen(
             Spacer(Modifier.height(16.dp))
         }
 
-        Crossfade(shown.isEmpty(), Modifier.weight(1f).fillMaxWidth(), animationSpec = tween(Motion.Medium), label = "list") { empty ->
-            if (empty) {
-                Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
-                    Text(
-                        if (profiles.isEmpty()) "No servers yet.\nTap + to scan a QR code, paste a link,\nimport a file or add one manually."
-                        else "No servers match.",
-                        color = C.Muted, fontSize = 14.sp,
-                    )
-                }
-            } else {
-                LazyColumn(Modifier.fillMaxSize(), state = listState) {
-                    items(shown, key = { it.link }) { p ->
-                        // animateItem: rows slide to their new place when sorting/filtering and fade in/out when added/removed
-                        ServerRow(
-                            p, p.link == selectedLink, p.link in favorites, pings[p.link], testing,
-                            { onConnect(p) }, { onDelete(p) }, { onToggleFavorite(p) }, { onCopy(p) },
-                            modifier = Modifier.animateItem(),
-                        )
-                    }
+        if (shown.isEmpty()) {
+            Box(Modifier.weight(1f).fillMaxWidth().enterFade().padding(24.dp), contentAlignment = Alignment.Center) {
+                Text(
+                    if (profiles.isEmpty()) "No servers yet.\nTap + to scan a QR code, paste a link,\nimport a file or add one manually."
+                    else "No servers match.",
+                    color = C.Muted, fontSize = 14.sp,
+                )
+            }
+        } else {
+            LazyColumn(Modifier.weight(1f).fillMaxWidth(), state = listState) {
+                items(shown, key = { it.link }) { p ->
+                    ServerRow(p, p.link == selectedLink, p.link in favorites, pings[p.link], testing, { onConnect(p) }, { onDelete(p) }, { onToggleFavorite(p) }, { onCopy(p) }, Modifier.animateItem())
                 }
             }
         }
@@ -275,16 +262,16 @@ fun ServersScreen(
         val subUrl = f?.takeIf { it.startsWith("sub:") }?.removePrefix("sub:")
         AnimatedContent(
             targetState = subUrl,
+            modifier = Modifier.fillMaxWidth(),
             transitionSpec = {
-                (slideInVertically(tween(Motion.Medium, easing = Motion.Enter)) { it / 2 } + fadeIn(tween(Motion.Medium)))
-                    .togetherWith(slideOutVertically(tween(Motion.Short)) { it / 2 } + fadeOut(tween(Motion.Short)))
-                    .using(SizeTransform(clip = true))
+                (fadeIn(tween(250, delayMillis = 60)) + slideInVertically(tween(300, easing = Motion.Emphasized)) { it / 2 }) togetherWith
+                    (fadeOut(tween(150)) + slideOutVertically(tween(220)) { it / 2 }) using SizeTransform(clip = true)
             },
             label = "subBar",
-        ) { url ->
-            if (url != null) SubscriptionBar(
-                url = url, info = subInfo[url], host = subHost(url),
-                onRefresh = { onRefreshSubscription(url) }, onCopy = { onCopySubscription(url) },
+        ) { u ->
+            if (u != null) SubscriptionBar(
+                url = u, info = subInfo[u], host = subHost(u),
+                onRefresh = { onRefreshSubscription(u) }, onCopy = { onCopySubscription(u) },
             ) else Spacer(Modifier.fillMaxWidth())
         }
     }
@@ -292,6 +279,7 @@ fun ServersScreen(
     delSub?.let { url ->
         val n = sources.count { it.value == url }
         AlertDialog(
+            modifier = Modifier.popIn(),
             onDismissRequest = { delSub = null },
             containerColor = C.Card,
             shape = RoundedCornerShape(Radius.Card),
@@ -306,9 +294,21 @@ fun ServersScreen(
 }
 
 @Composable
-internal fun HeaderIcon(icon: ImageVector, desc: String, tint: Color = C.Text, modifier: Modifier = Modifier, onClick: () -> Unit) {
-    Box(modifier.size(44.dp).bounceClick(CircleShape, scaleTo = 0.82f, onClick = onClick), contentAlignment = Alignment.Center) {
-        Icon(icon, desc, tint = tint, modifier = Modifier.size(26.dp))
+internal fun HeaderIcon(icon: ImageVector, desc: String, tint: Color = C.Text, onClick: () -> Unit) {
+    val color by animateColorAsState(tint, tween(250), label = "iconTint")
+    Box(
+        Modifier.size(44.dp).bounceClick(pressedScale = 0.82f, shape = RoundedCornerShape(22.dp), onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        // icons that change (star filled / outlined, search / close) pop between each other
+        AnimatedContent(
+            targetState = icon,
+            transitionSpec = {
+                (fadeIn(tween(160, delayMillis = 40)) + scaleIn(spring(dampingRatio = 0.5f, stiffness = 500f), initialScale = 0.5f)) togetherWith
+                    (fadeOut(tween(90)) + scaleOut(tween(90), targetScale = 0.6f))
+            },
+            label = "headerIcon",
+        ) { ic -> Icon(ic, desc, tint = color, modifier = Modifier.size(26.dp)) }
     }
 }
 
@@ -363,7 +363,8 @@ private fun SubscriptionBar(url: String, info: SubInfo?, host: String, onRefresh
                         color = if (exhausted) C.Red else C.Muted, fontSize = 13.sp, maxLines = 1,
                     )
                     if (info.total > 0) {
-                        val frac = (info.used.toFloat() / info.total).coerceIn(0f, 1f)
+                        val target = (info.used.toFloat() / info.total).coerceIn(0f, 1f)
+                        val frac by animateFloatAsState(target, tween(600, easing = Motion.Emphasized), label = "quota")
                         Spacer(Modifier.height(6.dp))
                         Box(Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)).background(C.ButtonGrey)) {
                             Box(
@@ -399,11 +400,12 @@ private fun MenuRow(icon: ImageVector, label: String, onClick: () -> Unit) {
 }
 
 @Composable
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 private fun Chip(label: String, selected: Boolean, onLongClick: (() -> Unit)? = null, onClick: () -> Unit) {
-    val bg by animateColorAsState(if (selected) C.Button else C.ButtonGrey, tween(Motion.Medium), label = "chip")
+    val bg by animateColorAsState(if (selected) C.Button else C.ButtonGrey, tween(250), label = "chipBg")
     Box(
         Modifier.height(44.dp)
-            .bounceClick(RoundedCornerShape(Radius.Small), scaleTo = 0.94f, haptic = HapticFeedbackType.TextHandleMove, onLongClick = onLongClick, onClick = onClick)
+            .bounceClick(pressedScale = 0.94f, shape = RoundedCornerShape(Radius.Small), haptic = true, onLongClick = onLongClick, onClick = onClick)
             .background(bg).padding(horizontal = 22.dp),
         contentAlignment = Alignment.Center,
     ) { Text(label, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Medium) }
@@ -417,12 +419,12 @@ private fun ServerRow(
 ) {
     var menu by remember { mutableStateOf(false) }
     // the selected server gets a raised row (card colour)
-    val rowBg by animateColorAsState(if (selected) C.Card else C.Bg, tween(Motion.Medium), label = "rowBg")
-    val nameColor by animateColorAsState(if (selected) C.Green else C.Text, tween(Motion.Medium), label = "rowName")
+    val rowBg by animateColorAsState(if (selected) C.Card else C.Bg, label = "rowBg")
+    val nameColor by animateColorAsState(if (selected) C.Green else C.Text, tween(300), label = "rowName")
     Column(modifier.fillMaxWidth().background(rowBg)) {
       Box(Modifier.fillMaxWidth()) {
         Row(
-            Modifier.fillMaxWidth().clickable(onClick = onConnect).padding(start = 20.dp, end = 8.dp).height(84.dp),
+            Modifier.fillMaxWidth().bounceClick(pressedScale = 0.985f, onClick = onConnect).padding(start = 20.dp, end = 8.dp).height(84.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             FlagBadge(p.name)
@@ -432,15 +434,18 @@ private fun ServerRow(
                 Text("${p.host}:${p.port}", color = C.Muted, fontSize = 13.sp, maxLines = 1)
                 Text(app.xvpn.data.LinkParser.describe(p.link), color = C.Muted.copy(alpha = 0.8f), fontSize = 12.sp, maxLines = 1)
             }
-            // latency result cross-fades in (…  ->  123 ms) rather than snapping
-            Crossfade(ping to testing, animationSpec = tween(Motion.Medium), label = "ping") { (pg, t) ->
+            // "…" -> result cross-fades in as each latency test finishes
+            FadeSwap(ping) { pg ->
                 when {
-                    pg == null -> if (t) Text("…", color = C.Muted, fontSize = 14.sp)
+                    pg == null -> if (testing) Text("…", color = C.Muted, fontSize = 14.sp)
                     pg < 0 -> Text("Timeout", color = C.Red, fontSize = 13.sp)
                     else -> Text("$pg ms", color = if (pg < 500) C.Green else if (pg < 1200) C.Amber else C.Red, fontSize = 14.sp, fontWeight = FontWeight.Medium)
                 }
             }
-            FavoriteStar(fav, onFavorite)
+            HeaderIcon(
+                if (fav) Icons.Filled.Star else Icons.Outlined.StarBorder, "Favorite",
+                tint = if (fav) C.Amber else C.Muted, onClick = onFavorite,
+            )
             Box {
                 HeaderIcon(Icons.Filled.MoreVert, "Options") { menu = true }
                 DropdownMenu(menu, { menu = false }, shape = RoundedCornerShape(Radius.Card), containerColor = C.Card) {
@@ -454,29 +459,13 @@ private fun ServerRow(
     }
 }
 
-/** Star that pops with a springy overshoot when you favourite something, and fades its colour either way. */
-@Composable
-private fun FavoriteStar(fav: Boolean, onClick: () -> Unit) {
-    val scale = remember { Animatable(1f) }
-    var first by remember { mutableStateOf(true) }
-    LaunchedEffect(fav) {
-        if (first) { first = false; return@LaunchedEffect }
-        if (fav) { scale.snapTo(0.5f); scale.animateTo(1f, spring(dampingRatio = 0.3f, stiffness = Spring.StiffnessMedium)) }
-        else scale.animateTo(1f)
-    }
-    val tint by animateColorAsState(if (fav) C.Amber else C.Muted, tween(Motion.Medium), label = "star")
-    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
-    HeaderIcon(
-        if (fav) Icons.Filled.Star else Icons.Outlined.StarBorder, "Favorite", tint = tint,
-        modifier = Modifier.graphicsLayer { scaleX = scale.value; scaleY = scale.value },
-    ) { haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove); onClick() }
-}
-
 @Composable
 private fun ManualDialog(onDismiss: () -> Unit, onAdd: (String) -> Boolean) {
     var text by remember { mutableStateOf("") }
     var bad by remember { mutableStateOf(false) }
+    var shakes by remember { mutableIntStateOf(0) }
     AlertDialog(
+        modifier = Modifier.popIn(),
         onDismissRequest = onDismiss,
         containerColor = C.Card,
         shape = RoundedCornerShape(Radius.Card),
@@ -489,12 +478,14 @@ private fun ManualDialog(onDismiss: () -> Unit, onAdd: (String) -> Boolean) {
                     value = text, onValueChange = { text = it; bad = false },
                     textStyle = TextStyle(color = C.Text, fontSize = 13.sp),
                     cursorBrush = SolidColor(C.Accent),
-                    modifier = Modifier.fillMaxWidth().height(120.dp).clip(RoundedCornerShape(Radius.Small)).background(C.Bg).padding(12.dp),
+                    modifier = Modifier.fillMaxWidth().shake(shakes).height(120.dp).clip(RoundedCornerShape(Radius.Small)).background(C.Bg).padding(12.dp),
                 )
-                if (bad) Text("No valid link found", color = C.Red, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
+                AnimatedVisibility(bad, enter = fadeIn(tween(200)) + expandVertically(), exit = fadeOut(tween(120)) + shrinkVertically()) {
+                    Text("No valid link found", color = C.Red, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
+                }
             }
         },
-        confirmButton = { TextButton({ if (!onAdd(text)) bad = true }) { Text("Add", color = C.Accent) } },
+        confirmButton = { TextButton({ if (!onAdd(text)) { bad = true; shakes++ } }) { Text("Add", color = C.Accent) } },
         dismissButton = { TextButton(onDismiss) { Text("Cancel", color = C.Muted) } },
     )
 }
@@ -503,6 +494,7 @@ private fun ManualDialog(onDismiss: () -> Unit, onAdd: (String) -> Boolean) {
 private fun SubscriptionDialog(onDismiss: () -> Unit, onAdd: (String) -> Unit) {
     var url by remember { mutableStateOf("") }
     AlertDialog(
+        modifier = Modifier.popIn(),
         onDismissRequest = onDismiss,
         containerColor = C.Card,
         shape = RoundedCornerShape(Radius.Card),
