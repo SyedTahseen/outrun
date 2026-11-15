@@ -114,7 +114,7 @@ class MainActivity : ComponentActivity() {
         // the navigation bar, which gets the same colour as our bottom dock instead of system black.
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),   // light icons over the map
-            navigationBarStyle = SystemBarStyle.dark(C.Card.toArgb()),
+            navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
         )
         window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(C.Bg.toArgb()))
         setContent { DesignScale { AppIndication { App() } } }
@@ -317,16 +317,8 @@ private fun App() {
     )
     // the strip fades in/out instead of popping when you enter or leave Home (which draws behind the status bar)
     val stripAlpha by animateFloatAsState(if (homeVisible) 0f else 1f, tween(Motion.Medium), label = "stripAlpha")
-    // System navigation bar follows the bottom dock: Card with the dock, Bg when the dock is hidden (stats screen).
-    val navBarColor = animateColorAsState(if (dockHidden) C.Bg else C.Card, tween(Motion.Medium), label = "navBar")
-    LaunchedEffect(Unit) {
-        snapshotFlow { navBarColor.value }.collect { c ->
-            (ctx as? ComponentActivity)?.enableEdgeToEdge(
-                statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
-                navigationBarStyle = SystemBarStyle.dark(c.toArgb()),
-            )
-        }
-    }
+    // The system nav bar is transparent (set once in onCreate); the dock / stats screen paint behind it themselves.
+    // Re-applying enableEdgeToEdge on every animation frame made the window insets jump while stats opened / closed.
     Column(Modifier.fillMaxSize().background(C.Bg).imePadding()) {
         Box(Modifier.weight(1f)) {
             AnimatedContent(
