@@ -29,12 +29,14 @@ object LinkParser {
 
     fun parse(raw: String): Profile? = try {
         val link = sanitize(raw.trim())
-        when (val protocol = protocolOf(link)) {
-            "vless", "trojan" -> uriProfile(link, protocol)
+        when (protocolOf(link)) {
+            "vless" -> uriProfile(link, "vless")
+            "trojan" -> uriProfile(link, "trojan")
             "ss" -> ssProfile(link)
             "vmess" -> vmessProfile(link)
-            "hysteria2" -> authProfile(link, protocol, defaultPort = 443)
-            "tuic", "wireguard" -> authProfile(link, protocol)
+            "hysteria2" -> authProfile(link, "hysteria2", defaultPort = 443)
+            "tuic" -> authProfile(link, "tuic")
+            "wireguard" -> authProfile(link, "wireguard")
             else -> null
         }
     } catch (e: Exception) {
