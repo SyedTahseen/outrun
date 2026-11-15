@@ -485,30 +485,18 @@ private fun PingLabel(ping: Int?, testing: Boolean) {
     }
 }
 
-/** Favourite star: colour fades, and the star pops (spring) when added / dips when removed, with a haptic tick. */
+/** Favourite star: colour fades with a haptic tick and a ripple; no scale / jump effects. */
 @Composable
 private fun FavStar(fav: Boolean, onClick: () -> Unit) {
     val tick = rememberTick()
     val tint by animateColorAsState(if (fav) C.Amber else C.Muted, tween(Motion.Medium), label = "favTint")
-    val scale = remember { Animatable(1f) }
-    var first by remember { mutableStateOf(true) }
-    LaunchedEffect(fav) {
-        if (first) { first = false; return@LaunchedEffect }
-        if (fav) {
-            scale.snapTo(0.55f)
-            scale.animateTo(1f, spring(dampingRatio = 0.35f, stiffness = 380f))
-        } else {
-            scale.animateTo(0.8f, tween(80))
-            scale.animateTo(1f, spring(dampingRatio = 0.6f, stiffness = 400f))
-        }
-    }
     Box(
-        Modifier.size(44.dp).pressable(RoundedCornerShape(22.dp), 0.86f, ripple = false) { tick(); onClick() },
+        Modifier.size(44.dp).pressable(RoundedCornerShape(22.dp), 1f) { tick(); onClick() },
         contentAlignment = Alignment.Center,
     ) {
         Icon(
             if (fav) Icons.Filled.Star else Icons.Outlined.StarBorder, "Favorite", tint = tint,
-            modifier = Modifier.size(26.dp).graphicsLayer { scaleX = scale.value; scaleY = scale.value },
+            modifier = Modifier.size(26.dp),
         )
     }
 }
