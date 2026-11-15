@@ -12,44 +12,55 @@ object ConfigBuilder {
             link.startsWith("trojan://") -> trojan(link)
             link.startsWith("ss://") -> shadowsocks(link)
             link.startsWith("vmess://") -> vmess(link)
+            link.startsWith("hysteria2://") || link.startsWith("hy2://") -> hysteria2(link)
+            link.startsWith("tuic://") -> tuic(link)
+            link.startsWith("wireguard://") || link.startsWith("wg://") -> wireguard(link)
             else -> error("Unsupported link")
         }
         proxy.put("tag", "proxy")
         return proxy
     }
 
-    private fun dnsBlock(dns: String = "1.1.1.1") = JSONObject()
-        .put(
-            "servers", JSONArray().put(
-                JSONObject().put("type", "udp").put("tag", "dns-direct").put("server", dns)
-            )
+    private fun isEndpoint(o: JSONObject) = o.optString("type") == "wireguard"
+
+    private fun dnsBlock(dns: String = "1.1.1.1", viaProxy: Boolean = false): JSONObject {
+        val servers = JSONArray().put(JSONObject().put("type", "udp").put("tag", "dns-direct").put("server", dns))
+        if (viaProxy) servers.put(
+            JSONObject().put("type", "udp").put("tag", "dns-proxy").put("server", dns).put("detour", "proxy")
         )
-        .put("final", "dns-direct")
+        return JSONObject().put("servers", servers).put("final", if (viaProxy) "dns-proxy" else "dns-direct")
+    }
 
     fun buildMulti(outs: List<JSONObject>, ports: List<Int>): String {
-        val inbounds = JSONArray(); val outbounds = JSONArray(); val rules = JSONArray()
+        val inbounds = JSONArray(); val outbounds = JSONArray(); val rules = JSONArray(); val endpoints = JSONArray()
         outs.forEachIndexed { i, o ->
-            outbounds.put(o.put("tag", "p$i"))
+            (if (isEndpoint(o)) endpoints else outbounds).put(o.put("tag", "p$i"))
             inbounds.put(JSONObject().put("type", "socks").put("tag", "in$i").put("listen", "127.0.0.1").put("listen_port", ports[i]))
             rules.put(JSONObject().put("inbound", JSONArray().put("in$i")).put("action", "route").put("outbound", "p$i"))
         }
         outbounds.put(JSONObject().put("type", "direct").put("tag", "direct"))
-        return JSONObject()
+        val root = JSONObject()
             .put("log", JSONObject().put("level", "error"))
             .put("dns", dnsBlock())
             .put("inbounds", inbounds)
             .put("outbounds", outbounds)
             .put("route", JSONObject().put("rules", rules).put("final", "direct").put("default_domain_resolver", "dns-direct"))
-            .toString()
+        if (endpoints.length() > 0) root.put("endpoints", endpoints)
+        return root.toString()
     }
 
     fun build(link: String, socksPort: Int, dns: String = "1.1.1.1"): String {
         val proxy = outbound(link)
+        val endpoint = isEndpoint(proxy)
+
+        val outs = JSONArray()
+        if (!endpoint) outs.put(proxy)
+        outs.put(JSONObject().put("type", "direct").put("tag", "direct"))
 
         val root = JSONObject()
             .put("log", JSONObject().put("level", "warn"))
 
-            .put("dns", dnsBlock(dns))
+            .put("dns", dnsBlock(dns, viaProxy = endpoint))
             .put(
                 "inbounds", JSONArray().put(
                     JSONObject()
@@ -59,16 +70,13 @@ object ConfigBuilder {
                         .put("listen_port", socksPort)
                 )
             )
-            .put(
-                "outbounds", JSONArray()
-                    .put(proxy)
-                    .put(JSONObject().put("type", "direct").put("tag", "direct"))
-            )
+            .put("outbounds", outs)
             .put(
                 "route", JSONObject()
                     .put("final", "proxy")
                     .put("default_domain_resolver", "dns-direct")
             )
+        if (endpoint) root.put("endpoints", JSONArray().put(proxy))
         return root.toString()
     }
 
@@ -140,6 +148,84 @@ object ConfigBuilder {
         tls(q, host)?.let { o.put("tls", it) }
         transport(q)?.let { o.put("transport", it) }
         return o
+    }
+
+    private fun truthy(v: String?) = v == "1" || v.equals("true", ignoreCase = true)
+
+    private fun quicTls(q: Map<String, String>, host: String, defaultAlpn: String): JSONObject {
+        val sni = q["sni"]?.takeIf { it.isNotEmpty() } ?: q["peer"]?.takeIf { it.isNotEmpty() } ?: host
+        val t = JSONObject().put("enabled", true).put("server_name", sni)
+        if (truthy(q["insecure"]) || truthy(q["allowInsecure"]) || truthy(q["allow_insecure"])) t.put("insecure", true)
+        val alpn = q["alpn"]?.takeIf { it.isNotEmpty() } ?: defaultAlpn
+        t.put("alpn", JSONArray(alpn.split(",").map { it.trim() }.filter { it.isNotEmpty() }))
+        return t
+    }
+
+    private fun hysteria2(link: String): JSONObject {
+        val a = LinkParser.authority(link, defaultPort = 443)
+        val q = a.query
+        val o = JSONObject()
+            .put("type", "hysteria2")
+            .put("server", a.host)
+            .put("server_port", a.port)
+            .put("password", a.userinfo)
+            .put("tls", quicTls(q, a.host, "h3"))
+
+        val ranges = ArrayList<String>()
+        a.portSpec.split(',').drop(1).map { it.trim() }.filter { it.isNotEmpty() }.forEach { ranges += it.replace('-', ':') }
+        q["mport"]?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() }?.forEach { ranges += it.replace('-', ':') }
+        if (ranges.isNotEmpty()) {
+            val all = JSONArray().put("${a.port}:${a.port}")
+            ranges.forEach { all.put(if (':' in it) it else "$it:$it") }
+            o.put("server_ports", all)
+        }
+        val obfs = q["obfs"].orEmpty()
+        if (obfs.isNotEmpty() && obfs != "none") {
+            o.put("obfs", JSONObject().put("type", obfs).put("password", q["obfs-password"] ?: q["obfs_password"] ?: ""))
+        }
+        return o
+    }
+
+    private fun tuic(link: String): JSONObject {
+        val a = LinkParser.authority(link)
+        val q = a.query
+        val o = JSONObject()
+            .put("type", "tuic")
+            .put("server", a.host)
+            .put("server_port", a.port)
+            .put("uuid", a.user)
+            .put("tls", quicTls(q, a.host, "h3"))
+        a.pass?.let { o.put("password", it) }
+        (q["congestion_control"] ?: q["congestion-control"])?.takeIf { it.isNotEmpty() }?.let { o.put("congestion_control", it) }
+        (q["udp_relay_mode"] ?: q["udp-relay-mode"])?.takeIf { it == "native" || it == "quic" }?.let { o.put("udp_relay_mode", it) }
+        return o
+    }
+
+    private fun wireguard(link: String): JSONObject {
+        val a = LinkParser.authority(link)
+        val q = a.query
+        fun pick(vararg keys: String) = keys.firstNotNullOfOrNull { k -> q[k]?.takeIf { it.isNotEmpty() } }
+        val pub = pick("publickey", "public_key", "peer_public_key", "pbk") ?: error("WireGuard link has no public key")
+        val addrs = (pick("address", "ip") ?: error("WireGuard link has no local address"))
+            .split(',').map { it.trim() }.filter { it.isNotEmpty() }
+            .map { if ('/' in it) it else if (':' in it) "$it/128" else "$it/32" }
+
+        val peer = JSONObject()
+            .put("address", a.host)
+            .put("port", a.port)
+            .put("public_key", pub)
+            .put("allowed_ips", JSONArray().put("0.0.0.0/0").put("::/0"))
+        pick("presharedkey", "psk", "preshared_key", "pre_shared_key")?.let { peer.put("pre_shared_key", it) }
+        pick("reserved")?.split(',')?.mapNotNull { it.trim().toIntOrNull() }?.takeIf { it.size == 3 }
+            ?.let { peer.put("reserved", JSONArray(it)) }
+
+        return JSONObject()
+            .put("type", "wireguard")
+            .put("system", false)
+            .put("mtu", pick("mtu")?.toIntOrNull() ?: 1408)
+            .put("address", JSONArray(addrs))
+            .put("private_key", a.userinfo)
+            .put("peers", JSONArray().put(peer))
     }
 
     private fun tls(q: Map<String, String>, host: String): JSONObject? {

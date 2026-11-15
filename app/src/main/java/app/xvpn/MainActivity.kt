@@ -163,6 +163,10 @@ private fun App() {
     val real by NetInfo.real.collectAsState()
     val proxy by NetInfo.proxy.collectAsState()
     var showStats by remember { mutableStateOf(false) }
+    val active by VpnState.activeLink.collectAsState()
+    LaunchedEffect(active) {
+        active?.let { a -> if (a != selectedLink && profiles.any { it.link == a }) selectedLink = a }
+    }
     LaunchedEffect(real) { real?.let { store.lastReal = it } }
 
     LaunchedEffect(status, socks) {

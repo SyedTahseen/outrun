@@ -508,7 +508,7 @@ private fun ManualDialog(onDismiss: () -> Unit, onAdd: (String) -> Boolean) {
         title = { Text("Add manually", color = C.Text, fontSize = 20.sp) },
         text = {
             Column {
-                Text("Paste a vless://, trojan://, ss:// or vmess:// link (one per line).", color = C.Muted, fontSize = 13.sp)
+                Text("Paste a vless://, trojan://, ss://, vmess://, hysteria2://, tuic:// or wireguard:// link (one per line).", color = C.Muted, fontSize = 13.sp)
                 Spacer(Modifier.height(12.dp))
                 BasicTextField(
                     value = text, onValueChange = { text = it; bad = false },

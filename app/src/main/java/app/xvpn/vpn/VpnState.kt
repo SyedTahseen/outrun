@@ -12,4 +12,12 @@ object VpnState {
     val error = MutableStateFlow<String?>(null)
     val socksPort = MutableStateFlow(0)
     val speedHistory = MutableStateFlow<List<Pair<Long, Long>>>(emptyList())
+
+    val sessionUp = MutableStateFlow(0L)
+    val sessionDown = MutableStateFlow(0L)
+
+    val activeLink = MutableStateFlow<String?>(null)
+
+    val alwaysOn = MutableStateFlow(false)
+    val lockdown = MutableStateFlow(false)
 }

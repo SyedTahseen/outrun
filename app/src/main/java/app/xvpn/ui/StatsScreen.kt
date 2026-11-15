@@ -27,6 +27,15 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalContext
+import app.xvpn.data.LeakCheck
+import app.xvpn.data.LeakTest
+import app.xvpn.data.Level
+import app.xvpn.data.Store
+import app.xvpn.data.Usage
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
@@ -58,6 +67,10 @@ fun StatsScreen(profile: Profile?, real: IpInfo?, proxy: IpInfo?, onBack: () -> 
     val connectedAt by VpnState.connectedAt.collectAsState()
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(Unit) { while (true) { now = System.currentTimeMillis(); delay(1000) } }
+    val ctx = LocalContext.current
+    val sessUp by VpnState.sessionUp.collectAsState()
+    val sessDown by VpnState.sessionDown.collectAsState()
+    val today = remember(now / 5000) { Usage.total(ctx, 1) }
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
         Spacer(Modifier.height(8.dp))
@@ -121,13 +134,62 @@ fun StatsScreen(profile: Profile?, real: IpInfo?, proxy: IpInfo?, onBack: () -> 
             Label("Connection details")
             Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(Radius.Card)).background(C.Card)) {
                 Row2("Connected for", fmtDuration(now - connectedAt))
+                Row2("This session", "↓ ${fmtSize(sessDown)}  ↑ ${fmtSize(sessUp)}")
+                Row2("Today", "↓ ${fmtSize(today.second)}  ↑ ${fmtSize(today.first)}")
                 Row2("Country", proxy?.country?.ifBlank { "—" } ?: "—")
                 Row2("City", proxy?.city?.ifBlank { "—" } ?: "—")
                 Row2("Server", profile?.let { Flags.clean(it.name) } ?: "—")
                 Row2("Protocol", profile?.let { app.xvpn.data.LinkParser.describe(it.link) }?.ifBlank { null } ?: "—", last = true)
             }
         }
+
+        LeakSection()
         Spacer(Modifier.height(24.dp))
+    }
+}
+
+@Composable
+private fun LeakSection() {
+    val ctx = LocalContext.current
+    val socks by VpnState.socksPort.collectAsState()
+    var results by remember { mutableStateOf<List<LeakCheck>?>(null) }
+    var running by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+
+    Label("Leak protection")
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(Radius.Card)).background(C.Card)) {
+        val list = results
+        if (list == null) {
+            Text(
+                if (running) "Testing…" else "Checks your IP address, routing, DNS, IPv6 and kill switch while connected.",
+                color = C.Muted, fontSize = 14.sp, modifier = Modifier.padding(18.dp),
+            )
+        } else list.forEachIndexed { i, c ->
+            Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 13.dp), verticalAlignment = Alignment.Top) {
+                val tone = when (c.level) { Level.Ok -> C.Green; Level.Fail -> C.Red; Level.Warn -> C.Amber; Level.Info -> C.Muted }
+                Box(Modifier.padding(top = 6.dp).size(10.dp).clip(RoundedCornerShape(5.dp)).background(tone))
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(c.title, color = C.Text, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+                    Text(c.detail, color = C.Muted, fontSize = 14.sp)
+                }
+            }
+            if (i < list.size - 1) Box(Modifier.fillMaxWidth().height(1.dp).background(C.CardBorder))
+        }
+        Box(Modifier.fillMaxWidth().height(1.dp).background(C.CardBorder))
+        Text(
+            if (running) "Running…" else if (results == null) "Run test" else "Run again",
+            color = if (running) C.Muted else C.Accent, fontSize = 16.sp, fontWeight = FontWeight.Medium,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth().clickable(enabled = !running && socks > 0) {
+                running = true
+                scope.launch {
+                    val store = Store(ctx)
+                    results = runCatching { LeakTest.run(ctx, socks, store.ipv6Mode, store.dnsServers()) }.getOrNull()
+                    running = false
+                }
+            }.padding(16.dp),
+        )
     }
 }
 

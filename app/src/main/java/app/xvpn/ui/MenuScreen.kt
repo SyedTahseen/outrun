@@ -60,6 +60,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.outlined.AltRoute
+import androidx.compose.material.icons.outlined.BarChart
+import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.BugReport
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.DeleteOutline
@@ -150,6 +152,7 @@ private fun MenuPage(
     var testUrl by remember { mutableStateOf(store.testUrlChoice) }
     var autoConnect by remember { mutableStateOf(store.autoConnect) }
     var autoUpdate by remember { mutableStateOf(store.autoUpdateSubs) }
+    var ipv6 by remember { mutableStateOf(store.ipv6Mode) }
 
     var splitMode by remember { mutableStateOf(store.splitMode) }
     var excApps by remember { mutableStateOf(store.splitApps) }
@@ -227,6 +230,26 @@ private fun MenuPage(
                     )
                 }
             }
+            return
+        }
+        "ipv6" -> {
+            SubPage(null, { page = "main" }) {
+                Hero(Icons.Outlined.Language)
+                PageHeading("IPv6", "Choose how IPv6 traffic is handled while connected. Applies the next time you connect.")
+                Spacer(Modifier.height(8.dp))
+                ChoiceList {
+                    ChoiceRow("Tunnel IPv6", "Send IPv6 through the VPN. If the server has no IPv6, apps fall back to IPv4.", ipv6 == "tunnel") {
+                        ipv6 = "tunnel"; store.ipv6Mode = "tunnel"; page = "main"
+                    }
+                    ChoiceRow("Block IPv6", "Apps can only use IPv4. Stops IPv6 from bypassing servers that don't support it.", ipv6 == "block") {
+                        ipv6 = "block"; store.ipv6Mode = "block"; page = "main"
+                    }
+                }
+            }
+            return
+        }
+        "usage" -> {
+            UsagePage { page = "main" }
             return
         }
         "test" -> {
@@ -345,9 +368,11 @@ private fun MenuPage(
                 if (!splitOn) "Off" else "On",
             ) { page = "split" }
             SettingRow(Icons.Outlined.Shield, "Kill switch") { page = "kill" }
+            SettingRow(Icons.Outlined.BarChart, "Usage & history", "Data use, connection log and app usage") { page = "usage" }
 
             Section("Connection")
             SettingRow(Icons.Outlined.Dns, "DNS", dnsLabel) { page = "dns" }
+            SettingRow(Icons.Outlined.Language, "IPv6", if (ipv6 == "block") "Blocked" else "Tunneled") { page = "ipv6" }
             SettingRow(Icons.Outlined.Speed, "Latency test", testLabel) { page = "test" }
             SettingRow(Icons.Outlined.PowerSettingsNew, "Connect on launch", if (autoConnect) "On" else "Off") { page = "connect" }
             SettingRow(Icons.Outlined.Sync, "Auto-update subscriptions", if (autoUpdate) "On" else "Off") { page = "autoupdate" }

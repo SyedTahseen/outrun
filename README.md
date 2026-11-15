@@ -1,7 +1,7 @@
 # SingBox VPN (Android)
 
-Compose UI (Home / Servers / Menu) + **sing-box** core, for your own vless / trojan / shadowsocks / vmess
-proxies. Config import via clipboard and subscription URLs.
+Compose UI (Home / Servers / Menu) + **sing-box** core, for your own vless / trojan / shadowsocks / vmess /
+hysteria2 / tuic / wireguard proxies. Config import via clipboard and subscription URLs.
 
 Data path: apps -> VpnService TUN -> hev-socks5-tunnel -> sing-box SOCKS (127.0.0.1:<free port>) -> your server.
 
@@ -32,9 +32,29 @@ Android Studio (Koala+) and run. First connect asks for VPN + notification permi
 
 ## Using it
 
-- Servers tab -> "+ Paste link" after copying a `vless://`, `trojan://`, `ss://` or `vmess://` link
+- Servers tab -> "+ Paste link" after copying a `vless://`, `trojan://`, `ss://`, `vmess://`, `hysteria2://` (`hy2://`),
+  `tuic://` or `wireguard://` (`wg://`) link
 - Menu tab -> "Import from clipboard" (multi-line lists / base64 subscriptions) or add a subscription URL
 - Home tab -> tap the power button
+
+## Protocols
+
+- **Hysteria2**: `hysteria2://auth@host:port/?sni=&insecure=1&obfs=salamander&obfs-password=&mport=20000-30000#name`
+- **TUIC v5**: `tuic://uuid:password@host:port?sni=&alpn=h3&congestion_control=bbr&udp_relay_mode=native#name`
+- **WireGuard**: `wireguard://<private-key>@host:port?publickey=&address=10.0.0.2/32,fd00::2/128&mtu=1420&reserved=1,2,3&presharedkey=#name`
+  (built as a sing-box *endpoint*; needs a sing-box build with the `with_wireguard` tag, which the official releases have;
+  DNS is sent through the tunnel for WireGuard servers)
+
+## Leak protection, usage and notification
+
+- **Stats screen -> Leak protection -> Run test**: compares your real IP with the VPN exit, checks that routes and DNS
+  point into the VPN, IPv6 handling and whether Android's Always-on / lockdown (kill switch) is on.
+  The app itself is excluded from the tunnel, so the test reads the device's VPN network settings plus requests sent
+  through the proxy, it can't observe other apps' packets.
+- **Settings -> IPv6**: tunnel (default) or block.
+- **Settings -> Usage & history**: per-day totals, 14-day chart, last connections, and per-app usage (needs Usage access).
+  Per-app numbers come from Android's NetworkStatsManager and are approximate (hourly buckets).
+- **Notification**: live speed, Disconnect, and Switch server (cycles through favorites, or all servers if you have fewer than 2 favorites).
 
 ## sing-box limitations
 
@@ -46,4 +66,4 @@ Stock sing-box does not support these, so such links fail with a clear error ins
 
 Not compiled or run by the author (no Android SDK/network where it was written), so the first CI run may need
 small fixes. Likely spots: the tun2socks JNI binding (`-DPKGNAME/-DCLSNAME` in `scripts/build-native.sh`) and the
-sing-box asset names in `scripts/fetch-singbox.sh`. Split tunneling, ping tests and QR import are not implemented.
+sing-box asset names in `scripts/fetch-singbox.sh`. The newer features (Hysteria2/TUIC/WireGuard, leak test, usage history, notification actions) were also written without a compiler, so expect to fix a few small compile errors on the first build.

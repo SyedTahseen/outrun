@@ -8,11 +8,12 @@ object Tun2Socks {
     @JvmStatic external fun TProxyIsRunning(): Boolean
     @JvmStatic external fun TProxyGetStats(): LongArray
 
-    fun yaml(socksPort: Int, mtu: Int) = """
+    fun yaml(socksPort: Int, mtu: Int, ipv6: Boolean = true): String {
+        val v6 = if (ipv6) "\n          ipv6: 'fd00:10:10:14::1'" else ""
+        return """
         tunnel:
           mtu: $mtu
-          ipv4: 10.10.14.1
-          ipv6: 'fd00:10:10:14::1'
+          ipv4: 10.10.14.1$v6
         socks5:
           port: $socksPort
           address: 127.0.0.1
@@ -23,4 +24,5 @@ object Tun2Socks {
           read-write-timeout: 60000
           log-level: warn
     """.trimIndent()
+    }
 }

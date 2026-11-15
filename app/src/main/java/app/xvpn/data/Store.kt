@@ -158,6 +158,9 @@ class Store(context: Context) {
     var autoConnect: Boolean
         get() = prefs.getBoolean("auto_connect", false)
         set(v) = prefs.edit().putBoolean("auto_connect", v).apply()
+    var ipv6Mode: String
+        get() = prefs.getString("ipv6_mode", "tunnel") ?: "tunnel"
+        set(v) = prefs.edit().putString("ipv6_mode", v).apply()
     var autoUpdateSubs: Boolean
         get() = prefs.getBoolean("auto_update_subs", true)
         set(v) = prefs.edit().putBoolean("auto_update_subs", v).apply()

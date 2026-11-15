@@ -21,6 +21,9 @@ object LinkParser {
             link.startsWith("trojan://") -> uriProfile(link, "trojan")
             link.startsWith("ss://") -> ssProfile(link)
             link.startsWith("vmess://") -> vmessProfile(link)
+            link.startsWith("hysteria2://") || link.startsWith("hy2://") -> authProfile(link, "hysteria2", defaultPort = 443)
+            link.startsWith("tuic://") -> authProfile(link, "tuic")
+            link.startsWith("wireguard://") || link.startsWith("wg://") -> authProfile(link, "wireguard")
             else -> null
         }
     } catch (e: Exception) {
@@ -80,6 +83,38 @@ object LinkParser {
         String(Base64.decode(t, Base64.DEFAULT), Charsets.UTF_8)
     } catch (e: Exception) {
         null
+    }
+
+    class Auth(
+        val user: String, val pass: String?, val host: String, val port: Int, val portSpec: String,
+        val query: Map<String, String>, val name: String,
+    ) {
+        val userinfo: String get() = if (pass != null) "$user:$pass" else user
+    }
+
+    private val authorityRe = Regex("^[A-Za-z0-9]+://(?:([^@/?#]*)@)?(\\[[^\\]]+\\]|[^:/?#,]+)(?::([^/?#]*))?")
+
+    private fun dec(s: String) = URLDecoder.decode(s.replace("+", "%2B"), "UTF-8")
+
+    fun authority(link: String, defaultPort: Int = -1): Auth {
+        val m = authorityRe.find(link) ?: error("Invalid link")
+        val rawUser = m.groupValues[1]
+        val user = dec(rawUser.substringBefore(':'))
+        val pass = if (':' in rawUser) dec(rawUser.substringAfter(':')) else null
+        val host = m.groupValues[2].trim('[', ']')
+        val spec = m.groupValues[3]
+        val port = Regex("\\d+").find(spec)?.value?.toIntOrNull() ?: defaultPort
+        if (host.isEmpty() || port !in 1..65535) error("Invalid server address")
+        val q = link.substringAfter('?', "").substringBefore('#').split("&").filter { it.contains("=") }.associate {
+            val (k, v) = it.split("=", limit = 2); k to dec(v)
+        }
+        val name = link.substringAfter('#', "").takeIf { it.isNotEmpty() }?.let { dec(it) } ?: "$host:$port"
+        return Auth(user, pass, host, port, spec, q, name)
+    }
+
+    private fun authProfile(link: String, proto: String, defaultPort: Int = -1): Profile {
+        val a = authority(link, defaultPort)
+        return Profile(a.name, proto, a.host, a.port, link)
     }
 
     private fun uriProfile(link: String, proto: String): Profile {
@@ -151,6 +186,9 @@ object LinkParser {
                     if (j.optString("tls").lowercase() == "tls") parts += "TLS"
                 }
                 link.startsWith("ss://") -> parts += "Shadowsocks"
+                link.startsWith("hysteria2://") || link.startsWith("hy2://") -> parts += "Hysteria2"
+                link.startsWith("tuic://") -> parts += "TUIC"
+                link.startsWith("wireguard://") || link.startsWith("wg://") -> parts += "WireGuard"
             }
             parts.joinToString(" / ")
         }.getOrDefault("")
