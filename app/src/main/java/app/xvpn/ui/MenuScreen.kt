@@ -125,12 +125,9 @@ fun MenuScreen(
     AnimatedContent(
         targetState = page,
         transitionSpec = {
-            val dir = if (pageDepth(targetState) >= pageDepth(initialState)) 1 else -1
-            val enter = slideInHorizontally(tween(Motion.Long, easing = Motion.Enter)) { dir * it / Motion.SlideFraction } +
-                fadeIn(tween(Motion.Medium, delayMillis = 60))
-            val exit = slideOutHorizontally(tween(Motion.Medium, easing = Motion.Exit)) { -dir * it / Motion.SlideFraction } +
-                fadeOut(tween(Motion.Short))
-            (enter togetherWith exit).using(SizeTransform(clip = false))
+            // opening a page and going back are mirror images (scale + fade, see openCloseTransition)
+            openCloseTransition(forward = pageDepth(targetState) >= pageDepth(initialState))
+                .using(SizeTransform(clip = false))
         },
         label = "settingsPage",
     ) { p ->

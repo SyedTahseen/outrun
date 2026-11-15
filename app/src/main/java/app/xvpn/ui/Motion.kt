@@ -1,6 +1,13 @@
 package app.xvpn.ui
 
+import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -83,3 +90,18 @@ internal fun Modifier.bounceClick(
             onClick = { haptic?.let { feedback.performHapticFeedback(it) }; onClick() },
         )
 }
+
+/**
+ * "Open / close" transition for screens that go one level deeper (Settings sub-pages, Statistics).
+ * Values read from Proton VPN's resources (androidx fragment open/close animators): the incoming screen scales
+ * 0.85 -> 1 over 300 ms on the fast-out-extra-slow-in curve with a 50 ms fade, the outgoing one just fades.
+ * Going back is the mirror image: the leaving screen shrinks to 0.85 while fading out.
+ */
+internal fun openCloseTransition(forward: Boolean): ContentTransform =
+    if (forward) {
+        (fadeIn(tween(Motion.Medium, delayMillis = 50)) + scaleIn(tween(300, easing = Motion.Enter), initialScale = 0.85f))
+            .togetherWith(fadeOut(tween(100)))
+    } else {
+        fadeIn(tween(Motion.Medium, delayMillis = 50))
+            .togetherWith(fadeOut(tween(200)) + scaleOut(tween(300, easing = Motion.Enter), targetScale = 0.85f))
+    }

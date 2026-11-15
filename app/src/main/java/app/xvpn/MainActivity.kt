@@ -37,6 +37,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import app.xvpn.ui.Motion
 import app.xvpn.ui.WithRipple
 import app.xvpn.ui.bounceClick
+import app.xvpn.ui.openCloseTransition
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -338,6 +339,10 @@ private fun App() {
             AnimatedContent(
                 targetState = screenIdx,
                 transitionSpec = {
+                    // Statistics is a level deeper than the tabs: open/close instead of a sideways slide
+                    if (targetState == 3 || initialState == 3) {
+                        return@AnimatedContent openCloseTransition(forward = targetState == 3).using(SizeTransform(clip = false))
+                    }
                     val dir = if (targetState > initialState) 1 else -1
                     val enter = slideInHorizontally(tween(Motion.Long, easing = Motion.Enter)) { dir * it / Motion.SlideFraction } +
                         fadeIn(tween(Motion.Medium, delayMillis = 60))
