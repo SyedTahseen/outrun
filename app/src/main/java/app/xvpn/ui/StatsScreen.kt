@@ -27,19 +27,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.ui.platform.LocalContext
-import app.xvpn.data.LeakCheck
-import app.xvpn.data.LeakTest
-import app.xvpn.data.Level
-import app.xvpn.data.Store
-import app.xvpn.data.Usage
-import kotlinx.coroutines.launch
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -50,14 +43,22 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.xvpn.data.IpInfo
+import app.xvpn.data.LeakCheck
+import app.xvpn.data.LeakTest
+import app.xvpn.data.LinkParser
+import app.xvpn.data.Level
 import app.xvpn.data.Profile
+import app.xvpn.data.Store
+import app.xvpn.data.Usage
 import app.xvpn.vpn.VpnState
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @Composable
 fun StatsScreen(profile: Profile?, real: IpInfo?, proxy: IpInfo?, onBack: () -> Unit) {
@@ -133,13 +134,13 @@ fun StatsScreen(profile: Profile?, real: IpInfo?, proxy: IpInfo?, onBack: () -> 
         Column(Modifier.fillMaxWidth()) {
             Label("Connection details")
             Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(Radius.Card)).background(C.Card)) {
-                Row2("Connected for", fmtDuration(now - connectedAt))
-                Row2("This session", "↓ ${fmtSize(sessDown)}  ↑ ${fmtSize(sessUp)}")
-                Row2("Today", "↓ ${fmtSize(today.second)}  ↑ ${fmtSize(today.first)}")
-                Row2("Country", proxy?.country?.ifBlank { "—" } ?: "—")
-                Row2("City", proxy?.city?.ifBlank { "—" } ?: "—")
-                Row2("Server", profile?.let { Flags.clean(it.name) } ?: "—")
-                Row2("Protocol", profile?.let { app.xvpn.data.LinkParser.describe(it.link) }?.ifBlank { null } ?: "—", last = true)
+                DetailRow("Connected for", fmtDuration(now - connectedAt))
+                DetailRow("This session", "↓ ${fmtSize(sessDown)}  ↑ ${fmtSize(sessUp)}")
+                DetailRow("Today", "↓ ${fmtSize(today.second)}  ↑ ${fmtSize(today.first)}")
+                DetailRow("Country", proxy?.country?.ifBlank { "—" } ?: "—")
+                DetailRow("City", proxy?.city?.ifBlank { "—" } ?: "—")
+                DetailRow("Server", profile?.let { Flags.clean(it.name) } ?: "—")
+                DetailRow("Protocol", profile?.let { LinkParser.describe(it.link) }?.ifBlank { null } ?: "—", last = true)
             }
         }
 
@@ -199,7 +200,7 @@ private fun Label(text: String) {
 }
 
 @Composable
-private fun Row2(k: String, v: String, last: Boolean = false) {
+private fun DetailRow(k: String, v: String, last: Boolean = false) {
     Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 15.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(k, color = C.Muted, fontSize = 16.sp, modifier = Modifier.weight(1f))
         Text(v, color = C.Text, fontSize = 16.sp, fontWeight = FontWeight.Medium, maxLines = 1)

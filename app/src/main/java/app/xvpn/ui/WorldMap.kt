@@ -5,49 +5,49 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animate
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.core.animateFloat
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.lerp
-import androidx.compose.ui.graphics.StrokeJoin
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.withTransform
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp
-import androidx.compose.animation.core.animate
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.detectTransformGestures
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathFillType
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import java.util.Random
+import kotlin.math.PI
+import kotlin.math.abs
 import kotlin.math.acos
 import kotlin.math.asin
 import kotlin.math.atan2
 import kotlin.math.ceil
 import kotlin.math.cos
-import kotlin.math.max
-import kotlin.math.PI
-import kotlin.math.abs
 import kotlin.math.hypot
+import kotlin.math.max
 import kotlin.math.sin
 
 data class GeoPoint(val lon: Double, val lat: Double)
@@ -122,7 +122,6 @@ private fun addRing(
         if (visP && visJ) {
             if (k < m) sc.add(cx + r * rr[j], cy - r * uu[j])
         } else if (visP || visJ) {
-
             val t = dd[p] / (dd[p] - dd[j])
             var xr = rr[p] + t * (rr[j] - rr[p])
             var xu = uu[p] + t * (uu[j] - uu[p])
@@ -218,7 +217,7 @@ fun WorldMap(
     }
 
     val stars = remember {
-        val rnd = java.util.Random(11)
+        val rnd = Random(11)
         List(70) { floatArrayOf(rnd.nextFloat(), rnd.nextFloat(), 0.5f + rnd.nextFloat() * 1.1f, 0.25f + rnd.nextFloat() * 0.55f) }
     }
     val pool = remember { ArrayList<Path>() }
@@ -252,7 +251,6 @@ fun WorldMap(
                 })
             },
     ) {
-
         Canvas(Modifier.fillMaxSize()) {
             val cam = camera(size.width)
             val cx = size.width / 2f
@@ -324,7 +322,6 @@ fun WorldMap(
             }
 
             if (space > 0f) {
-
                 drawCircle(
                     Brush.radialGradient(
                         0f to Color.Transparent, 0.65f to Color.Transparent, 1f to C.Bg.copy(alpha = 0.55f * space),

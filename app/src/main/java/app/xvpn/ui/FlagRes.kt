@@ -105,7 +105,6 @@ internal val FLAG_RES: Map<String, Int> = mapOf(
     "KI" to R.drawable.flag_ki,
     "KM" to R.drawable.flag_km,
     "KN" to R.drawable.flag_kn,
-    "KO" to R.drawable.flag_ko,
     "KP" to R.drawable.flag_kp,
     "KR" to R.drawable.flag_kr,
     "KW" to R.drawable.flag_kw,

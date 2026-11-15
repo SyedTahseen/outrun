@@ -2,7 +2,10 @@ package app.xvpn.data
 
 import android.content.Context
 import org.json.JSONObject
+import java.io.IOException
 import java.net.HttpURLConnection
+import java.net.Inet6Address
+import java.net.InetAddress
 import java.net.URL
 import java.net.URLDecoder
 
@@ -11,8 +14,6 @@ data class SubInfo(
     val upload: Long = 0, val download: Long = 0, val total: Long = 0,
     val expire: Long = 0,
     val intervalHours: Int = 0,
-    val webPage: String = "",
-    val support: String = "",
     val announce: String = "",
     val fetchedAt: Long = 0,
     val count: Int = 0,
@@ -47,7 +48,7 @@ object Choices {
         val max = if (v6) 128 else 32
         val prefix = if ('/' in t) t.substringAfter('/').toIntOrNull()?.takeIf { it in 0..max } ?: return null else max
         val ok = if (v6) addr.all { it.isDigit() || it in 'a'..'f' || it in 'A'..'F' || it == ':' || it == '.' } &&
-            runCatching { java.net.InetAddress.getByName(addr) is java.net.Inet6Address }.getOrDefault(false)
+            runCatching { InetAddress.getByName(addr) is Inet6Address }.getOrDefault(false)
         else ipv4.matches(addr)
         if (!ok) return null
         return if (prefix == max) addr else "$addr/$prefix"
@@ -58,6 +59,10 @@ object Choices {
 
 class Store(context: Context) {
     private val prefs = context.getSharedPreferences("xvpn", Context.MODE_PRIVATE)
+
+    private fun lines(key: String): List<String> = (prefs.getString(key, "") ?: "").split("\n").filter { it.isNotBlank() }
+
+    private fun putLines(key: String, items: Collection<String>) = prefs.edit().putString(key, items.joinToString("\n")).apply()
 
     var sortName: String
         get() = prefs.getString("sort", "Default") ?: "Default"
@@ -78,8 +83,7 @@ class Store(context: Context) {
                 .put("lat", v.lat).put("lon", v.lon).put("code", v.code).toString()).apply()
         }
 
-    fun links(): List<String> =
-        (prefs.getString("links", "") ?: "").split("\n").filter { it.isNotBlank() }
+    fun links(): List<String> = lines("links")
 
     fun profiles(): List<Profile> = links().mapNotNull { LinkParser.parse(it) }
 
@@ -99,13 +103,13 @@ class Store(context: Context) {
             existing += p.link; n++
             if (source != null) src[p.link] = source
         }
-        prefs.edit().putString("links", existing.joinToString("\n")).apply()
+        putLines("links", existing)
         saveSources(src)
         return n
     }
 
     fun remove(link: String) {
-        prefs.edit().putString("links", links().filter { it != link }.joinToString("\n")).apply()
+        putLines("links", links().filter { it != link })
         saveSources(sources - link)
         favorites = favorites - link
         if (selected == link) selected = null
@@ -114,7 +118,7 @@ class Store(context: Context) {
     fun removeMany(gone: Collection<String>): Int {
         val set = gone.toSet()
         val before = links()
-        prefs.edit().putString("links", before.filter { it !in set }.joinToString("\n")).apply()
+        putLines("links", before.filter { it !in set })
         saveSources(sources.filterKeys { it !in set })
         favorites = favorites - set
         if (selected in set) selected = null
@@ -123,7 +127,7 @@ class Store(context: Context) {
 
     fun removeSubscription(url: String): Int {
         val gone = sources.filterValues { it == url }.keys
-        prefs.edit().putString("links", links().filter { it !in gone }.joinToString("\n")).apply()
+        putLines("links", links().filter { it !in gone })
         saveSources(sources.filterValues { it != url })
         favorites = favorites - gone
         if (selected in gone) selected = null
@@ -133,29 +137,29 @@ class Store(context: Context) {
     }
 
     var favorites: Set<String>
-        get() = (prefs.getString("favs", "") ?: "").split("\n").filter { it.isNotBlank() }.toSet()
-        set(v) = prefs.edit().putString("favs", v.joinToString("\n")).apply()
+        get() = lines("favs").toSet()
+        set(v) = putLines("favs", v)
 
     var splitEnabled: Boolean
         get() = prefs.getBoolean("split_on", false)
         set(v) = prefs.edit().putBoolean("split_on", v).apply()
 
     var splitApps: Set<String>
-        get() = (prefs.getString("split_apps", "") ?: "").split("\n").filter { it.isNotBlank() }.toSet()
-        set(v) = prefs.edit().putString("split_apps", v.joinToString("\n")).apply()
+        get() = lines("split_apps").toSet()
+        set(v) = putLines("split_apps", v)
 
     var splitMode: String
         get() = prefs.getString("split_mode", "exclude") ?: "exclude"
         set(v) = prefs.edit().putString("split_mode", v).apply()
     var splitIncludeApps: Set<String>
-        get() = (prefs.getString("split_inc_apps", "") ?: "").split("\n").filter { it.isNotBlank() }.toSet()
-        set(v) = prefs.edit().putString("split_inc_apps", v.joinToString("\n")).apply()
+        get() = lines("split_inc_apps").toSet()
+        set(v) = putLines("split_inc_apps", v)
     var splitExcludeIps: List<String>
-        get() = (prefs.getString("split_exc_ips", "") ?: "").split("\n").filter { it.isNotBlank() }
-        set(v) = prefs.edit().putString("split_exc_ips", v.joinToString("\n")).apply()
+        get() = lines("split_exc_ips")
+        set(v) = putLines("split_exc_ips", v)
     var splitIncludeIps: List<String>
-        get() = (prefs.getString("split_inc_ips", "") ?: "").split("\n").filter { it.isNotBlank() }
-        set(v) = prefs.edit().putString("split_inc_ips", v.joinToString("\n")).apply()
+        get() = lines("split_inc_ips")
+        set(v) = putLines("split_inc_ips", v)
     var dnsChoice: String
         get() = prefs.getString("dns", "cloudflare") ?: "cloudflare"
         set(v) = prefs.edit().putString("dns", v).apply()
@@ -191,8 +195,8 @@ class Store(context: Context) {
         set(v) = prefs.edit().putString("selected", v).apply()
 
     var subscriptions: List<String>
-        get() = (prefs.getString("subs", "") ?: "").split("\n").filter { it.isNotBlank() }
-        set(v) = prefs.edit().putString("subs", v.joinToString("\n")).apply()
+        get() = lines("subs")
+        set(v) = putLines("subs", v)
 
     var subInfo: Map<String, SubInfo>
         get() = runCatching {
@@ -201,8 +205,7 @@ class Store(context: Context) {
                 val o = j.getJSONObject(k)
                 SubInfo(
                     o.optString("title"), o.optLong("up"), o.optLong("down"), o.optLong("total"), o.optLong("expire"),
-                    o.optInt("interval"), o.optString("web"), o.optString("support"), o.optString("announce"),
-                    o.optLong("fetched"), o.optInt("count"),
+                    o.optInt("interval"), o.optString("announce"), o.optLong("fetched"), o.optInt("count"),
                 )
             }
         }.getOrDefault(emptyMap())
@@ -210,7 +213,7 @@ class Store(context: Context) {
             val j = JSONObject()
             v.forEach { (k, i) ->
                 j.put(k, JSONObject().put("title", i.title).put("up", i.upload).put("down", i.download).put("total", i.total)
-                    .put("expire", i.expire).put("interval", i.intervalHours).put("web", i.webPage).put("support", i.support)
+                    .put("expire", i.expire).put("interval", i.intervalHours)
                     .put("announce", i.announce).put("fetched", i.fetchedAt).put("count", i.count))
             }
             prefs.edit().putString("subinfo", j.toString()).apply()
@@ -231,11 +234,11 @@ class Store(context: Context) {
                 c.setRequestProperty("Accept", "*/*")
                 val code = c.responseCode
                 if (code in 300..399) {
-                    val loc = c.getHeaderField("Location") ?: throw java.io.IOException("Redirect without location")
+                    val loc = c.getHeaderField("Location") ?: throw IOException("Redirect without location")
                     u = URL(URL(u), loc).toString()
                     return@repeat
                 }
-                if (code !in 200..299) throw java.io.IOException("Server answered HTTP $code")
+                if (code !in 200..299) throw IOException("Server answered HTTP $code")
                 val headers = HashMap<String, String>()
                 c.headerFields.forEach { (k, v) -> if (k != null && v.isNotEmpty()) headers[k.lowercase()] = v.first() }
                 return Fetched(c.inputStream.bufferedReader().use { it.readText() }, headers)
@@ -243,7 +246,7 @@ class Store(context: Context) {
                 c.disconnect()
             }
         }
-        throw java.io.IOException("Too many redirects")
+        throw IOException("Too many redirects")
     }
 
     private fun decodeValue(v: String): String {
@@ -275,8 +278,6 @@ class Store(context: Context) {
         return SubInfo(
             title = title.trim(), upload = up, download = down, total = total, expire = expire,
             intervalHours = h["profile-update-interval"]?.trim()?.toDoubleOrNull()?.toInt() ?: 0,
-            webPage = h["profile-web-page-url"]?.trim().orEmpty(),
-            support = h["support-url"]?.trim().orEmpty(),
             announce = h["announce"]?.let { decodeValue(it) }.orEmpty(),
             fetchedAt = System.currentTimeMillis(), count = count,
         )
@@ -287,7 +288,7 @@ class Store(context: Context) {
         val f = fetch(url)
         val text = LinkParser.plainText(f.body)
         val found = text.lines().mapNotNull { LinkParser.parse(it) }.distinctBy { it.link }
-        if (found.isEmpty()) throw java.io.IOException("No supported servers found in this subscription")
+        if (found.isEmpty()) throw IOException("No supported servers found in this subscription")
 
         if (url !in subscriptions) subscriptions = subscriptions + url
         val src = sources.toMutableMap()
@@ -297,7 +298,7 @@ class Store(context: Context) {
         gone.forEach { src.remove(it) }
         var added = 0
         for (p in found) if (p.link !in list) { list += p.link; src[p.link] = url; added++ }
-        prefs.edit().putString("links", list.joinToString("\n")).apply()
+        putLines("links", list)
         saveSources(src)
         if (gone.isNotEmpty()) favorites = favorites - gone
         if (selected in gone) selected = null

@@ -1,6 +1,6 @@
 # SingBox VPN (Android)
 
-Compose UI (Home / Servers / Menu) + **sing-box** core, for your own vless / trojan / shadowsocks / vmess /
+Compose UI (Home / Servers / Settings) + **sing-box** core, for your own vless / trojan / shadowsocks / vmess /
 hysteria2 / tuic / wireguard proxies. Config import via clipboard and subscription URLs.
 
 Data path: apps -> VpnService TUN -> hev-socks5-tunnel -> sing-box SOCKS (127.0.0.1:<free port>) -> your server.
@@ -32,10 +32,11 @@ Android Studio (Koala+) and run. First connect asks for VPN + notification permi
 
 ## Using it
 
-- Servers tab -> "+ Paste link" after copying a `vless://`, `trojan://`, `ss://`, `vmess://`, `hysteria2://` (`hy2://`),
-  `tuic://` or `wireguard://` (`wg://`) link
-- Menu tab -> "Import from clipboard" (multi-line lists / base64 subscriptions) or add a subscription URL
-- Home tab -> tap the power button
+- Servers tab -> "+" menu: scan a QR code, paste from clipboard, import a file, add manually, or add a subscription link.
+  Supported links: `vless://`, `trojan://`, `ss://`, `vmess://`, `hysteria2://` (`hy2://`), `tuic://`, `wireguard://` (`wg://`),
+  plus WireGuard `.conf` files, multi-line lists and base64 subscriptions
+- Home tab -> tap Connect (tap the server card while connected for statistics and the leak test)
+- Settings tab -> split tunneling, kill switch help, DNS, IPv6, latency test URL, connect on launch, usage & history
 
 ## Protocols
 
@@ -47,7 +48,7 @@ Android Studio (Koala+) and run. First connect asks for VPN + notification permi
 
 ## Leak protection, usage and notification
 
-- **Stats screen -> Leak protection -> Run test**: compares your real IP with the VPN exit, checks that routes and DNS
+- **Home -> tap the server card while connected -> Leak protection -> Run test**: compares your real IP with the VPN exit, checks that routes and DNS
   point into the VPN, IPv6 handling and whether Android's Always-on / lockdown (kill switch) is on.
   The app itself is excluded from the tunnel, so the test reads the device's VPN network settings plus requests sent
   through the proxy, it can't observe other apps' packets.
