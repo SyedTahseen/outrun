@@ -286,7 +286,7 @@ private fun App() {
     // Servers header colour is reported by ServersScreen: Bg at rest, Card once the list is scrolled.
     var serversScrolled by remember { mutableStateOf(false) }
     val statusStripColor by animateColorAsState(
-        if (tab == Tab.Servers && serversScrolled) C.Card else C.Bg, label = "statusStrip",
+        if ((tab == Tab.Servers || tab == Tab.Menu) && serversScrolled) C.Card else C.Bg, label = "statusStrip",
     )
     // System navigation bar follows the bottom dock: Card with the dock, Bg when the dock is hidden (stats screen).
     val navBarColor = if (dockHidden) C.Bg else C.Card
@@ -366,11 +366,6 @@ private fun App() {
                             .setPrimaryClip(android.content.ClipData.newPlainText("servers", profiles.joinToString("\n") { it.link }))
                         toast("Copied ${profiles.size} server link${if (profiles.size == 1) "" else "s"}")
                     },
-                    onRemoveAll = {
-                        if (status != Status.Disconnected) SingBoxVpnService.stop(ctx)
-                        store.clear(); store.subscriptions = emptyList(); store.subInfo = emptyMap()
-                        reload(); toast("All servers removed")
-                    },
                     onDebugInfo = {
                         val info = "App ${runCatching { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName }.getOrNull()}\n" +
                             "Android ${android.os.Build.VERSION.RELEASE} (API ${android.os.Build.VERSION.SDK_INT})\n" +
@@ -381,11 +376,14 @@ private fun App() {
                             .setPrimaryClip(android.content.ClipData.newPlainText("debug", info))
                         toast("Debug info copied")
                     },
+                    onScrolledChange = { serversScrolled = it },
                 )
             }
         }
         if (!(showStats && status == Status.Connected)) Row(
-            Modifier.fillMaxWidth().background(C.Card).navigationBarsPadding().padding(vertical = 10.dp),
+            // fixed content height so the dock is exactly the same on every tab and device
+            Modifier.fillMaxWidth().background(C.Card).navigationBarsPadding().height(72.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Tab.values().forEach { t ->
                 Column(
@@ -395,11 +393,11 @@ private fun App() {
                     val sel = t == tab
                     val c = if (sel) C.Accent else C.Muted
                     Box(
-                        Modifier.width(64.dp).height(32.dp).clip(RoundedCornerShape(Radius.Pill))
+                        Modifier.width(56.dp).height(32.dp).clip(RoundedCornerShape(Radius.Pill))
                             .background(if (sel) C.NavPill else Color.Transparent),
                         contentAlignment = Alignment.Center,
                     ) { Icon(t.icon, t.label, tint = c, modifier = Modifier.size(22.dp)) }
-                    Text(t.label, color = c, fontSize = 12.sp)
+                    Text(t.label, color = c, fontSize = 13.sp)
                 }
             }
         }

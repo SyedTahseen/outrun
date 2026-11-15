@@ -7,6 +7,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.net.VpnService
+import android.os.Build
 import android.os.ParcelFileDescriptor
 import app.xvpn.MainActivity
 import app.xvpn.data.ConfigBuilder
@@ -100,15 +101,35 @@ class SingBoxVpnService : VpnService() {
                 .setMtu(MTU)
                 .addAddress("10.10.14.1", 30)
                 .addAddress("fd00:10:10:14::1", 126)
-                .addRoute("0.0.0.0", 0)
-                .addRoute("::", 0)
             dns.forEach { b.addDnsServer(it) }
-            // split tunneling: the chosen apps bypass the VPN (a VPN may only use allowed OR disallowed apps)
-            if (settings.splitEnabled) settings.splitApps.forEach { pkg ->
-                if (pkg != packageName) runCatching { b.addDisallowedApplication(pkg) }
+
+            // Split tunneling. Exclude: chosen apps / IPs bypass the VPN. Include: only chosen apps / IPs use it.
+            // (An empty include list means nothing to restrict, so everything is tunneled.)
+            val include = settings.splitEnabled && settings.splitMode == "include"
+            val exclude = settings.splitEnabled && !include
+            val incApps = if (include) settings.splitIncludeApps.filter { it != packageName } else emptyList()
+            val incIps = if (include) settings.splitIncludeIps else emptyList()
+            if (incIps.isEmpty()) { b.addRoute("0.0.0.0", 0); b.addRoute("::", 0) }
+            else incIps.forEach { ip ->
+                runCatching { b.addRoute(ip.substringBefore('/'), ip.substringAfter('/', if (':' in ip) "128" else "32").toInt()) }
             }
-            pfd = b.addDisallowedApplication(packageName)   // never loop our own traffic
-                .establish() ?: error("VPN permission was not granted")
+            if (exclude && Build.VERSION.SDK_INT >= 33) settings.splitExcludeIps.forEach { ip ->
+                runCatching {
+                    b.excludeRoute(android.net.IpPrefix(
+                        java.net.InetAddress.getByName(ip.substringBefore('/')),
+                        ip.substringAfter('/', if (':' in ip) "128" else "32").toInt(),
+                    ))
+                }
+            }
+            // a VPN may only use allowed OR disallowed apps, never both
+            if (incApps.isNotEmpty()) incApps.forEach { pkg -> runCatching { b.addAllowedApplication(pkg) } }
+            else {
+                if (exclude) settings.splitApps.forEach { pkg ->
+                    if (pkg != packageName) runCatching { b.addDisallowedApplication(pkg) }
+                }
+                b.addDisallowedApplication(packageName)   // never loop our own traffic
+            }
+            pfd = b.establish() ?: error("VPN permission was not granted")
             tun = pfd
             currentCoroutineContext().ensureActive()
 

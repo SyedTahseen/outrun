@@ -5,6 +5,12 @@ import android.graphics.Bitmap
 import android.provider.Settings
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -25,6 +31,16 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.outlined.AddCircleOutline
+import androidx.compose.material.icons.outlined.PhoneAndroid
+import androidx.compose.material.icons.outlined.RemoveCircleOutline
+import androidx.compose.material.icons.outlined.Terminal
+import androidx.compose.material.icons.outlined.Tune
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -79,12 +95,12 @@ private class AppInfo(val label: String, val pkg: String)
 fun MenuScreen(
     store: Store,
     onExport: () -> Unit,
-    onRemoveAll: () -> Unit,
     onDebugInfo: () -> Unit,
+    onScrolledChange: (Boolean) -> Unit = {},
 ) {
     val ctx = LocalContext.current
     var page by remember { mutableStateOf("main") }
-    var dialog by remember { mutableStateOf<String?>(null) }
+    val scroll = rememberScrollState()   // hoisted so the position survives opening a sub page
 
     var splitOn by remember { mutableStateOf(store.splitEnabled) }
     var splitApps by remember { mutableStateOf(store.splitApps) }
@@ -94,93 +110,231 @@ fun MenuScreen(
     var autoConnect by remember { mutableStateOf(store.autoConnect) }
     var autoUpdate by remember { mutableStateOf(store.autoUpdateSubs) }
 
-    BackHandler(page != "main") { page = "main" }
+    var splitMode by remember { mutableStateOf(store.splitMode) }
+    var excApps by remember { mutableStateOf(store.splitApps) }
+    var incApps by remember { mutableStateOf(store.splitIncludeApps) }
+    var excIps by remember { mutableStateOf(store.splitExcludeIps) }
+    var incIps by remember { mutableStateOf(store.splitIncludeIps) }
+    val including = splitMode == "include"
 
-    if (page == "apps") {
-        AppsPage(
-            on = splitOn, selected = splitApps,
-            onOn = { splitOn = it; store.splitEnabled = it },
-            onSelected = { splitApps = it; store.splitApps = it },
-            onBack = { page = "main" },
-        )
-        return
+    BackHandler(page == "split") { page = "main" }
+
+    when (page) {
+        "split" -> {
+            SplitPage(
+                on = splitOn, including = including,
+                apps = if (including) incApps else excApps, ipCount = (if (including) incIps else excIps).size,
+                onOn = { splitOn = it; store.splitEnabled = it },
+                onMode = { page = "mode" },
+                onApps = { page = "apps" }, onIps = { page = "ips" },
+                onBack = { page = "main" },
+            )
+            return
+        }
+        "mode" -> {
+            SubPage(null, { page = "split" }) {
+                Hero(Icons.Outlined.Tune)
+                PageHeading("Mode", "Choose how split tunneling treats the apps and IP addresses you select. Applies the next time you connect.")
+                Spacer(Modifier.height(8.dp))
+                ChoiceList {
+                    ChoiceRow("Exclude", "Selected apps and IP addresses are excluded from the VPN connection.", !including) {
+                        splitMode = "exclude"; store.splitMode = "exclude"; page = "split"
+                    }
+                    ChoiceRow("Include", "Only selected apps and IP addresses connect through the VPN, all other traffic is unprotected.", including) {
+                        splitMode = "include"; store.splitMode = "include"; page = "split"
+                    }
+                }
+            }
+            return
+        }
+        "dns" -> {
+            SubPage(null, { page = "main" }) {
+                Hero(Icons.Outlined.Dns)
+                PageHeading("DNS", "Choose the DNS servers used while connected. Applies the next time you connect.")
+                Spacer(Modifier.height(8.dp))
+                ChoiceList {
+                    Choices.dns.forEach { o -> ChoiceRow(o.name, o.note, dns == o.id) { dns = o.id; store.dnsChoice = o.id; page = "main" } }
+                    ChoiceRow("Custom", if (dnsCustom.isBlank()) "Your own IPv4 DNS servers" else dnsCustom, dns == "custom") { page = "dns_custom" }
+                }
+            }
+            return
+        }
+        "dns_custom" -> {
+            var text by remember { mutableStateOf(dnsCustom) }
+            var error by remember { mutableStateOf(false) }
+            Column(Modifier.fillMaxSize()) {
+                EditorBar("Custom DNS", { page = "dns" }) {
+                    if (Choices.parseDns(text).isNotEmpty()) {
+                        dnsCustom = text.trim(); store.dnsCustom = dnsCustom
+                        dns = "custom"; store.dnsChoice = "custom"; page = "main"
+                    } else error = true
+                }
+                Column(Modifier.padding(horizontal = 20.dp)) {
+                    Text("DNS servers", color = C.Text, fontSize = 14.sp, modifier = Modifier.padding(top = 8.dp, bottom = 6.dp))
+                    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(Radius.Small)).background(C.Card).padding(14.dp)) {
+                        BasicTextField(
+                            value = text, onValueChange = { text = it; error = false }, singleLine = true,
+                            textStyle = TextStyle(color = C.Text, fontSize = 16.sp), cursorBrush = SolidColor(C.Accent),
+                            modifier = Modifier.fillMaxWidth(),
+                            decorationBox = { inner -> if (text.isEmpty()) Text("e.g. 9.9.9.9, 149.112.112.112", color = C.Muted, fontSize = 16.sp); inner() },
+                        )
+                    }
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        if (error) "Not a valid IPv4 address list." else "Enter one or more IPv4 addresses, separated by commas.",
+                        color = if (error) C.Red else C.Muted, fontSize = 12.sp,
+                    )
+                }
+            }
+            return
+        }
+        "test" -> {
+            SubPage(null, { page = "main" }) {
+                Hero(Icons.Outlined.Speed)
+                PageHeading("Latency test", "Servers are tested with a real request through each one. The other addresses are used as fallback if this one is unreachable.")
+                Spacer(Modifier.height(8.dp))
+                ChoiceList {
+                    Choices.testUrls.forEach { o -> ChoiceRow(o.name, o.url, testUrl == o.id) { testUrl = o.id; store.testUrlChoice = o.id; page = "main" } }
+                }
+            }
+            return
+        }
+        "connect" -> {
+            SubPage(null, { page = "main" }) {
+                Hero(Icons.Outlined.PowerSettingsNew)
+                PageHeading("Connect on launch", "Connect to the selected server automatically when the app opens.")
+                ToggleCard("Connect on launch", autoConnect) { autoConnect = it; store.autoConnect = it }
+            }
+            return
+        }
+        "autoupdate" -> {
+            SubPage(null, { page = "main" }) {
+                Hero(Icons.Outlined.Sync)
+                PageHeading("Auto-update subscriptions", "Refresh your subscriptions when the app opens, following each subscription's update interval.")
+                ToggleCard("Auto-update subscriptions", autoUpdate) { autoUpdate = it; store.autoUpdateSubs = it }
+            }
+            return
+        }
+        "kill" -> {
+            val bold = androidx.compose.ui.text.SpanStyle(fontWeight = FontWeight.Bold)
+            SubPage(
+                "Kill switch", { page = "main" },
+                bottom = {
+                    ActionButton("Settings", filled = true, trailing = Icons.AutoMirrored.Outlined.OpenInNew) {
+                        runCatching { ctx.startActivity(Intent(Settings.ACTION_VPN_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    ActionButton("What is kill switch?", filled = false, trailing = Icons.AutoMirrored.Outlined.OpenInNew) {
+                        runCatching { ctx.startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(KILL_SWITCH_HELP_URL)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+                    }
+                },
+            ) {
+                Hero(Icons.Outlined.Shield, size = 96.dp, centered = true, tint = C.Green)
+                Spacer(Modifier.height(24.dp))
+                Text("How to enable kill switch", color = C.Text, fontSize = 24.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 20.dp))
+                Spacer(Modifier.height(14.dp))
+                Column(Modifier.padding(horizontal = 20.dp)) {
+                    Text("1. Open your device settings", color = C.Text, fontSize = 17.sp)
+                    Text("2. Find SingBox VPN and tap the gear icon", color = C.Text, fontSize = 17.sp)
+                    Text(
+                        androidx.compose.ui.text.buildAnnotatedString {
+                            append("3. Enable \""); pushStyle(bold); append("Always-on VPN"); pop(); append("\" and \"")
+                            pushStyle(bold); append("Block connections without VPN"); pop(); append("\"")
+                        },
+                        color = C.Text, fontSize = 17.sp,
+                    )
+                    Spacer(Modifier.height(18.dp))
+                    Row(verticalAlignment = Alignment.Top) {
+                        Icon(Icons.Outlined.Info, null, tint = C.Muted, modifier = Modifier.size(22.dp))
+                        Spacer(Modifier.width(12.dp))
+                        Column {
+                            Text("When kill switch is on, you won't be able to connect to:", color = C.Muted, fontSize = 15.sp)
+                            Spacer(Modifier.height(8.dp))
+                            Text("•  Websites and apps excluded from your VPN connection through split tunneling", color = C.Muted, fontSize = 15.sp)
+                            Text("•  Devices on your local area network", color = C.Muted, fontSize = 15.sp)
+                        }
+                    }
+                }
+            }
+            return
+        }
+        "apps" -> {
+            AppPickerPage(
+                title = if (including) "Included apps" else "Excluded apps",
+                listTitle = if (including) "Included apps" else "Excluded apps",
+                note = if (including) "Only these apps connect through the VPN." else "These apps connect directly, bypassing the VPN.",
+                initial = if (including) incApps else excApps,
+                onSave = { if (including) { incApps = it; store.splitIncludeApps = it } else { excApps = it; store.splitApps = it } },
+                onBack = { page = "split" },
+            )
+            return
+        }
+        "ips" -> {
+            IpPage(
+                title = if (including) "Included IP addresses" else "Excluded IP addresses",
+                initial = if (including) incIps else excIps,
+                onSave = { if (including) { incIps = it; store.splitIncludeIps = it } else { excIps = it; store.splitExcludeIps = it } },
+                onBack = { page = "split" },
+            )
+            return
+        }
     }
 
     val dnsLabel = if (dns == "custom") "Custom" else Choices.dns.firstOrNull { it.id == dns }?.name ?: "Cloudflare"
     val testLabel = Choices.testUrls.firstOrNull { it.id == testUrl }?.name ?: "Google"
     val version = remember { runCatching { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName }.getOrNull() ?: "-" }
 
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-        Spacer(Modifier.height(20.dp))
-        Text("Settings", color = C.Text, fontSize = 26.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 20.dp))
-        Spacer(Modifier.height(4.dp))
+    // The title stays pinned; its bar switches from the background colour to the bottom-bar colour once the list scrolls
+    // (same behaviour as the Servers header, and the status bar strip follows it).
+    val scrolled by remember { derivedStateOf { scroll.value > 0 } }
+    val headerColor by animateColorAsState(if (scrolled) C.Card else C.Bg, label = "settingsHeader")
+    LaunchedEffect(scrolled) { onScrolledChange(scrolled) }
+    DisposableEffect(Unit) { onDispose { onScrolledChange(false) } }
 
-        Section("Features")
-        SettingRow(
-            Icons.Outlined.AltRoute, "Split tunneling",
-            if (splitOn) "On · ${splitApps.size} app${if (splitApps.size == 1) "" else "s"} bypass the VPN" else "Off",
-            chevron = true,
-        ) { page = "apps" }
-        SettingRow(
-            Icons.Outlined.Shield, "Kill switch", "Block traffic if the VPN drops (system setting)",
-            trailing = { Icon(Icons.AutoMirrored.Outlined.OpenInNew, null, tint = C.Muted, modifier = Modifier.size(22.dp)) },
-        ) {
-            runCatching { ctx.startActivity(Intent(Settings.ACTION_VPN_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
-        }
-
-        Section("Connection")
-        SettingRow(Icons.Outlined.Dns, "DNS", dnsLabel, chevron = true) { dialog = "dns" }
-        SettingRow(Icons.Outlined.Speed, "Latency test", "$testLabel · real delay through the server", chevron = true) { dialog = "test" }
-        SettingRow(
-            Icons.Outlined.PowerSettingsNew, "Connect on launch", "Connect to the selected server when the app opens",
-            trailing = { Toggle(autoConnect) { autoConnect = it; store.autoConnect = it } },
-        ) { autoConnect = !autoConnect; store.autoConnect = autoConnect }
-        SettingRow(
-            Icons.Outlined.Sync, "Auto-update subscriptions", "Refresh on launch, following each subscription's interval",
-            trailing = { Toggle(autoUpdate) { autoUpdate = it; store.autoUpdateSubs = it } },
-        ) { autoUpdate = !autoUpdate; store.autoUpdateSubs = autoUpdate }
-
-        Section("Servers")
-        SettingRow(Icons.Outlined.ContentCopy, "Export servers", "Copy all share links to the clipboard") { onExport() }
-        SettingRow(Icons.Outlined.DeleteOutline, "Remove all servers", "Delete every server and subscription link") { dialog = "remove" }
-
-        Section("Support")
-        SettingRow(Icons.Outlined.BugReport, "Copy debug info", "App version, device and the last connection error") { onDebugInfo() }
-        SettingRow(Icons.Outlined.Info, "Version", version) {}
-        Spacer(Modifier.height(24.dp))
-    }
-
-    when (dialog) {
-        "dns" -> SheetDialog("DNS", { dialog = null }) {
-            Choices.dns.forEach { o -> ChoiceRow(o.name, o.note, dns == o.id) { dns = o.id; store.dnsChoice = o.id; dialog = null } }
-            ChoiceRow("Custom", if (dnsCustom.isBlank()) "Your own IPv4 DNS servers" else dnsCustom, dns == "custom") { dialog = "dns_custom" }
-            Hint("Applies the next time you connect.")
-        }
-        "dns_custom" -> TextDialog(
-            "Custom DNS", "e.g. 9.9.9.9, 149.112.112.112", dnsCustom, "Enter one or more IPv4 addresses.",
-            validate = { Choices.parseDns(it).isNotEmpty() },
-            onSave = { dnsCustom = it.trim(); store.dnsCustom = dnsCustom; dns = "custom"; store.dnsChoice = "custom"; dialog = null },
-            onDismiss = { dialog = null },
-        )
-        "test" -> SheetDialog("Latency test", { dialog = null }) {
-            Choices.testUrls.forEach { o -> ChoiceRow(o.name, o.url, testUrl == o.id) { testUrl = o.id; store.testUrlChoice = o.id; dialog = null } }
-            Hint("The other servers are used as fallback if this one is unreachable.")
-        }
-        "remove" -> SheetDialog("Remove all servers?", { dialog = null }) {
-            Text("This deletes every server and subscription link from the app. It can't be undone.", color = C.Muted, fontSize = 14.sp)
-            Spacer(Modifier.height(18.dp))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = androidx.compose.foundation.layout.Arrangement.End) {
-                Text("Cancel", color = C.Muted, fontSize = 16.sp, fontWeight = FontWeight.Medium, modifier = Modifier.clickable { dialog = null }.padding(12.dp))
-                Spacer(Modifier.width(8.dp))
-                Text("Remove all", color = C.Red, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.clickable { dialog = null; onRemoveAll() }.padding(12.dp))
+    Column(Modifier.fillMaxSize()) {
+        Column(Modifier.fillMaxWidth().background(headerColor)) {
+            Spacer(Modifier.height(20.dp))
+            Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp).height(44.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text("Settings", color = C.Text, fontSize = 26.sp, fontWeight = FontWeight.Bold, maxLines = 1)
             }
+            Spacer(Modifier.height(8.dp))
+        }
+        Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(scroll)) {
+            Section("Features", first = true)
+            SettingRow(
+                Icons.Outlined.AltRoute, "Split tunneling",
+                if (!splitOn) "Off" else "On",
+            ) { page = "split" }
+            SettingRow(Icons.Outlined.Shield, "Kill switch") { page = "kill" }
+
+            Section("Connection")
+            SettingRow(Icons.Outlined.Dns, "DNS", dnsLabel) { page = "dns" }
+            SettingRow(Icons.Outlined.Speed, "Latency test", testLabel) { page = "test" }
+            SettingRow(Icons.Outlined.PowerSettingsNew, "Connect on launch", if (autoConnect) "On" else "Off") { page = "connect" }
+            SettingRow(Icons.Outlined.Sync, "Auto-update subscriptions", if (autoUpdate) "On" else "Off") { page = "autoupdate" }
+
+            Section("Servers")
+            SettingRow(Icons.Outlined.ContentCopy, "Export servers") { onExport() }
+
+            Section("Support")
+            SettingRow(Icons.Outlined.BugReport, "Copy debug info") { onDebugInfo() }
+
+            Spacer(Modifier.height(28.dp))
+            Text(
+                "App version: $version", color = C.Muted, fontSize = 15.sp, textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Spacer(Modifier.height(28.dp))
         }
     }
 }
 
 @Composable
-private fun Section(label: String) {
-    Text(label, color = C.Accent, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(start = 20.dp, top = 22.dp, bottom = 4.dp))
+private fun Section(label: String, first: Boolean = false) {
+    Text(
+        label, color = C.Accent, fontSize = 16.sp, fontWeight = FontWeight.SemiBold,
+        modifier = Modifier.padding(start = 20.dp, top = if (first) 12.dp else 28.dp, bottom = 8.dp),
+    )
 }
 
 @Composable
@@ -189,17 +343,16 @@ private fun SettingRow(
     trailing: (@Composable () -> Unit)? = null, chevron: Boolean = false, onClick: () -> Unit,
 ) {
     Row(
-        Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 20.dp, vertical = 12.dp),
+        Modifier.fillMaxWidth().heightIn(min = 56.dp).clickable(onClick = onClick).padding(horizontal = 20.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(icon, null, tint = C.Text, modifier = Modifier.size(24.dp))
-        Spacer(Modifier.width(18.dp))
+        Spacer(Modifier.width(20.dp))
         Column(Modifier.weight(1f)) {
             Text(title, color = C.Text, fontSize = 17.sp)
-            if (subtitle != null) Text(subtitle, color = C.Muted, fontSize = 14.sp, maxLines = 2)
+            if (subtitle != null) Text(subtitle, color = C.Muted, fontSize = 16.sp, maxLines = 2)
         }
         if (trailing != null) { Spacer(Modifier.width(12.dp)); trailing() }
-        else if (chevron) Icon(Icons.Filled.ChevronRight, null, tint = C.Muted, modifier = Modifier.size(22.dp))
     }
 }
 
@@ -237,7 +390,7 @@ private fun ChoiceRow(label: String, note: String, selected: Boolean, onClick: (
         Spacer(Modifier.width(14.dp))
         Column(Modifier.weight(1f)) {
             Text(label, color = C.Text, fontSize = 16.sp)
-            Text(note, color = C.Muted, fontSize = 13.sp, maxLines = 1)
+            Text(note, color = C.Muted, fontSize = 13.sp, maxLines = 4)
         }
     }
 }
@@ -278,16 +431,123 @@ private fun TextDialog(
     }
 }
 
-/** Split tunneling: pick the apps that bypass the VPN. */
+private val AppRowIcon = 32.dp
+
+/** Split tunneling landing page: toggle, mode, and the apps / IP lists for the current mode. */
 @Composable
-private fun AppsPage(
-    on: Boolean, selected: Set<String>,
-    onOn: (Boolean) -> Unit, onSelected: (Set<String>) -> Unit, onBack: () -> Unit,
+private fun SplitPage(
+    on: Boolean, including: Boolean, apps: Set<String>, ipCount: Int,
+    onOn: (Boolean) -> Unit, onMode: () -> Unit, onApps: () -> Unit, onIps: () -> Unit, onBack: () -> Unit,
+) {
+    val pm = LocalContext.current.packageManager
+    val names = remember(apps) {
+        apps.mapNotNull { runCatching { pm.getApplicationInfo(it, 0).loadLabel(pm).toString() }.getOrNull() }.sortedBy { it.lowercase() }
+    }
+    val appsText = when {
+        names.isEmpty() -> "None"
+        names.size <= 2 -> names.joinToString(", ")
+        else -> "${names.take(2).joinToString(", ")} +${names.size - 2}"
+    }
+    val word = if (including) "Included" else "Excluded"
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+        Spacer(Modifier.height(20.dp))
+        Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp).height(44.dp), verticalAlignment = Alignment.CenterVertically) {
+            HeaderIcon(Icons.AutoMirrored.Filled.ArrowBack, "Back") { onBack() }
+        }
+        Spacer(Modifier.height(16.dp))
+        Column(Modifier.padding(horizontal = 20.dp)) {
+            Box(
+                Modifier.size(64.dp).clip(RoundedCornerShape(Radius.Card))
+                    .background(Brush.linearGradient(listOf(C.AccentMid, C.AccentDeep))),
+                contentAlignment = Alignment.Center,
+            ) { Icon(Icons.Outlined.AltRoute, null, tint = C.Accent, modifier = Modifier.size(36.dp)) }
+            Spacer(Modifier.height(20.dp))
+            Text("Split tunneling", color = C.Text, fontSize = 26.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(8.dp))
+            Text("Customize your connection by deciding which apps and IP addresses are protected by the VPN.", color = C.Muted, fontSize = 15.sp)
+            Spacer(Modifier.height(20.dp))
+            Row(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(Radius.Card)).background(C.Card)
+                    .clickable { onOn(!on) }.padding(start = 16.dp, end = 12.dp, top = 10.dp, bottom = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("Split tunneling", color = C.Text, fontSize = 17.sp, modifier = Modifier.weight(1f))
+                Toggle(on, onOn)
+            }
+        }
+        if (on) {
+            Spacer(Modifier.height(8.dp))
+            SettingRow(Icons.Outlined.Tune, "Mode", if (including) "Include" else "Exclude", chevron = true) { onMode() }
+            SettingRow(Icons.Outlined.PhoneAndroid, "$word apps", appsText, chevron = true) { onApps() }
+            SettingRow(
+                Icons.Outlined.Terminal, "$word IP addresses",
+                if (ipCount == 0) "None" else "$ipCount address${if (ipCount == 1) "" else "es"}", chevron = true,
+            ) { onIps() }
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "Applies the next time you connect." + if (!including) " Excluding IP addresses needs Android 13 or newer." else "",
+                color = C.Muted, fontSize = 12.sp, modifier = Modifier.padding(horizontal = 20.dp),
+            )
+        }
+        Spacer(Modifier.height(24.dp))
+    }
+}
+
+/** Top bar shared by the two editor pages: back arrow, title, Save. */
+@Composable
+private fun EditorBar(title: String, onBack: () -> Unit, onSave: () -> Unit) {
+    Spacer(Modifier.height(20.dp))
+    Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 8.dp).height(44.dp), verticalAlignment = Alignment.CenterVertically) {
+        HeaderIcon(Icons.AutoMirrored.Filled.ArrowBack, "Back") { onBack() }
+        Spacer(Modifier.width(6.dp))
+        Text(title, color = C.Text, fontSize = 22.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, modifier = Modifier.weight(1f))
+        Text("Save", color = C.Accent, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.clip(RoundedCornerShape(Radius.Small)).clickable(onClick = onSave).padding(12.dp))
+    }
+    Spacer(Modifier.height(8.dp))
+}
+
+@Composable
+private fun DiscardDialog(onDiscard: () -> Unit, onKeep: () -> Unit) {
+    SheetDialog("Discard unsaved changes?", onKeep) {
+        Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.End) {
+            Text("Discard changes", color = C.Accent, fontSize = 17.sp, fontWeight = FontWeight.Medium, modifier = Modifier.clickable(onClick = onDiscard).padding(12.dp))
+            Text("Keep editing", color = C.Accent, fontSize = 17.sp, fontWeight = FontWeight.Medium, modifier = Modifier.clickable(onClick = onKeep).padding(12.dp))
+        }
+    }
+}
+
+@Composable
+private fun ListHeader(title: String, note: String? = null) {
+    Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 6.dp)) {
+        Text(title, color = C.Accent, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+        if (note != null) Text(note, color = C.Muted, fontSize = 14.sp)
+    }
+}
+
+@Composable
+private fun RoundAction(add: Boolean, onClick: () -> Unit) {
+    Box(Modifier.size(44.dp).clip(CircleShape).clickable(onClick = onClick), contentAlignment = Alignment.Center) {
+        Icon(
+            if (add) Icons.Outlined.AddCircleOutline else Icons.Outlined.RemoveCircleOutline,
+            if (add) "Add" else "Remove", tint = if (add) C.Text else C.Muted, modifier = Modifier.size(26.dp),
+        )
+    }
+}
+
+/** Pick apps for split tunneling. Edits are kept locally until Save; leaving with changes asks first. */
+@Composable
+private fun AppPickerPage(
+    title: String, listTitle: String, note: String, initial: Set<String>,
+    onSave: (Set<String>) -> Unit, onBack: () -> Unit,
 ) {
     val ctx = LocalContext.current
     val pm = ctx.packageManager
-    var query by remember { mutableStateOf("") }
-    val initial = remember { selected }      // selected apps are listed first, in the order the page was opened
+    var sel by remember { mutableStateOf(initial) }
+    var confirm by remember { mutableStateOf(false) }
+    val dirty = sel != initial
+    val leave: () -> Unit = { if (dirty) confirm = true else onBack() }
+    BackHandler(true) { leave() }
+
     val apps by produceState<List<AppInfo>?>(null) {
         value = withContext(Dispatchers.Default) {
             val launcher = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
@@ -295,58 +555,95 @@ private fun AppsPage(
                 .map { AppInfo(it.loadLabel(pm).toString(), it.activityInfo.packageName) }
                 .distinctBy { it.pkg }
                 .filter { it.pkg != ctx.packageName }
-                .sortedWith(compareByDescending<AppInfo> { it.pkg in initial }.thenBy { it.label.lowercase() })
+                .sortedBy { it.label.lowercase() }
         }
     }
-    val shown = apps?.filter { query.isBlank() || it.label.contains(query.trim(), ignoreCase = true) }
-
     Column(Modifier.fillMaxSize()) {
-        Spacer(Modifier.height(20.dp))
-        Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp).height(44.dp), verticalAlignment = Alignment.CenterVertically) {
-            HeaderIcon(Icons.AutoMirrored.Filled.ArrowBack, "Back") { onBack() }
-            Spacer(Modifier.width(6.dp))
-            Text("Split tunneling", color = C.Text, fontSize = 26.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+        EditorBar(title, leave) { onSave(sel); onBack() }
+        val list = apps
+        if (list == null) {
+            Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) { Text("Loading apps…", color = C.Muted, fontSize = 14.sp) }
+        } else {
+            val chosen = list.filter { it.pkg in sel }
+            val others = list.filter { it.pkg !in sel }
+            LazyColumn(Modifier.weight(1f).fillMaxWidth()) {
+                item(key = "h1") { ListHeader("$listTitle (${chosen.size})", note) }
+                items(chosen, key = { "s_" + it.pkg }) { a -> PickRow(a, false) { sel = sel - a.pkg } }
+                item(key = "h2") { ListHeader("All other regular apps (${others.size})") }
+                items(others, key = { "o_" + it.pkg }) { a -> PickRow(a, true) { sel = sel + a.pkg } }
+                item(key = "end") { Spacer(Modifier.height(24.dp)) }
+            }
         }
-        Spacer(Modifier.height(8.dp))
-        SettingRow(
-            Icons.Outlined.AltRoute, "Bypass the VPN for selected apps", "Selected apps connect directly. Applies the next time you connect.",
-            trailing = { Toggle(on, onOn) },
-        ) { onOn(!on) }
-        Row(
-            Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 6.dp).clip(RoundedCornerShape(Radius.Small)).background(C.Card).padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(Icons.Outlined.Search, null, tint = C.Muted, modifier = Modifier.size(20.dp))
-            Spacer(Modifier.width(10.dp))
-            BasicTextField(
-                value = query, onValueChange = { query = it }, singleLine = true,
-                textStyle = TextStyle(color = C.Text, fontSize = 15.sp), cursorBrush = SolidColor(C.Accent),
-                modifier = Modifier.weight(1f),
-                decorationBox = { inner -> if (query.isEmpty()) Text("Search apps", color = C.Muted, fontSize = 15.sp); inner() },
+    }
+    if (confirm) DiscardDialog(onDiscard = { confirm = false; onBack() }, onKeep = { confirm = false })
+}
+
+@Composable
+private fun PickRow(app: AppInfo, add: Boolean, onClick: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().clickable(onClick = onClick).padding(start = 20.dp, end = 8.dp, top = 4.dp, bottom = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        AppIcon(app.pkg)
+        Spacer(Modifier.width(16.dp))
+        Text(app.label, color = C.Text, fontSize = 17.sp, maxLines = 1, modifier = Modifier.weight(1f))
+        RoundAction(add, onClick)
+    }
+}
+
+/** Add / remove IP addresses (optionally with a /prefix) for split tunneling. */
+@Composable
+private fun IpPage(title: String, initial: List<String>, onSave: (List<String>) -> Unit, onBack: () -> Unit) {
+    var ips by remember { mutableStateOf(initial) }
+    var text by remember { mutableStateOf("") }
+    var error by remember { mutableStateOf(false) }
+    var confirm by remember { mutableStateOf(false) }
+    val dirty = ips != initial
+    val leave: () -> Unit = { if (dirty) confirm = true else onBack() }
+    BackHandler(true) { leave() }
+    val add: () -> Unit = {
+        val ip = Choices.parseIp(text)
+        if (ip == null) error = true
+        else { if (ip !in ips) ips = ips + ip; text = ""; error = false }
+    }
+    Column(Modifier.fillMaxSize()) {
+        EditorBar(title, leave) { onSave(ips); onBack() }
+        Column(Modifier.padding(horizontal = 20.dp)) {
+            Text("IP address", color = C.Text, fontSize = 14.sp, modifier = Modifier.padding(top = 8.dp, bottom = 6.dp))
+            Row(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(Radius.Small)).background(C.Card).padding(start = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                BasicTextField(
+                    value = text, onValueChange = { text = it; error = false }, singleLine = true,
+                    textStyle = TextStyle(color = C.Text, fontSize = 16.sp), cursorBrush = SolidColor(C.Accent),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { add() }),
+                    modifier = Modifier.weight(1f),
+                    decorationBox = { inner -> if (text.isEmpty()) Text("192.0.2.0", color = C.Muted, fontSize = 16.sp); inner() },
+                )
+                RoundAction(true) { add() }
+            }
+            Spacer(Modifier.height(6.dp))
+            Text(
+                if (error) "Not a valid IPv4 or IPv6 address." else "Enter an IPv4 or IPv6 address, optionally with a prefix like 10.0.0.0/8.",
+                color = if (error) C.Red else C.Muted, fontSize = 12.sp,
             )
         }
-        if (shown == null) {
-            Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) { Text("Loading apps…", color = C.Muted, fontSize = 14.sp) }
-        } else if (shown.isEmpty()) {
-            Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) { Text("No apps found", color = C.Muted, fontSize = 14.sp) }
-        } else {
-            LazyColumn(Modifier.weight(1f).fillMaxWidth()) {
-                items(shown, key = { it.pkg }) { app ->
-                    val checked = app.pkg in selected
-                    Row(
-                        Modifier.fillMaxWidth().clickable { onSelected(if (checked) selected - app.pkg else selected + app.pkg) }
-                            .padding(horizontal = 20.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        AppIcon(app.pkg)
-                        Spacer(Modifier.width(16.dp))
-                        Text(app.label, color = C.Text, fontSize = 16.sp, maxLines = 1, modifier = Modifier.weight(1f))
-                        Toggle(checked) { onSelected(if (it) selected + app.pkg else selected - app.pkg) }
-                    }
+        LazyColumn(Modifier.weight(1f).fillMaxWidth()) {
+            item(key = "h") { ListHeader("$title (${ips.size})") }
+            items(ips, key = { it }) { ip ->
+                Row(
+                    Modifier.fillMaxWidth().padding(start = 20.dp, end = 8.dp, top = 4.dp, bottom = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(ip, color = C.Text, fontSize = 17.sp, maxLines = 1, modifier = Modifier.weight(1f))
+                    RoundAction(false) { ips = ips - ip }
                 }
             }
         }
     }
+    if (confirm) DiscardDialog(onDiscard = { confirm = false; onBack() }, onKeep = { confirm = false })
 }
 
 @Composable
@@ -364,7 +661,86 @@ private fun AppIcon(pkg: String) {
             }.getOrNull()
         }
     }
-    val m = Modifier.size(38.dp).clip(RoundedCornerShape(9.dp))
+    val m = Modifier.size(AppRowIcon).clip(RoundedCornerShape(Radius.Small))
     val i = icon
     if (i != null) Image(i, null, m) else Box(m.background(C.Card))
+}
+
+private const val KILL_SWITCH_HELP_URL = "https://developer.android.com/develop/connectivity/vpn"
+
+/** Full-screen sub page: back arrow (+ optional title), scrolling content, optional pinned buttons at the bottom. */
+@Composable
+private fun SubPage(
+    title: String?, onBack: () -> Unit,
+    bottom: (@Composable ColumnScope.() -> Unit)? = null,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    BackHandler(true) { onBack() }
+    Column(Modifier.fillMaxSize()) {
+        Spacer(Modifier.height(20.dp))
+        Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp).height(44.dp), verticalAlignment = Alignment.CenterVertically) {
+            HeaderIcon(Icons.AutoMirrored.Filled.ArrowBack, "Back") { onBack() }
+            if (title != null) {
+                Spacer(Modifier.width(6.dp))
+                Text(title, color = C.Text, fontSize = 22.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+            }
+        }
+        Spacer(Modifier.height(16.dp))
+        Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())) { content(); Spacer(Modifier.height(16.dp)) }
+        if (bottom != null) Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 20.dp)) { bottom() }
+    }
+}
+
+@Composable
+private fun Hero(icon: ImageVector, size: androidx.compose.ui.unit.Dp = 64.dp, centered: Boolean = false, tint: Color = C.Accent) {
+    Box(Modifier.fillMaxWidth().padding(horizontal = 20.dp), contentAlignment = if (centered) Alignment.Center else Alignment.CenterStart) {
+        Box(
+            Modifier.size(size).clip(RoundedCornerShape(Radius.Card)).background(Brush.linearGradient(listOf(C.AccentMid, C.AccentDeep))),
+            contentAlignment = Alignment.Center,
+        ) { Icon(icon, null, tint = tint, modifier = Modifier.size(size * 0.56f)) }
+    }
+}
+
+@Composable
+private fun PageHeading(title: String, text: String) {
+    Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 12.dp)) {
+        Text(title, color = C.Text, fontSize = 26.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(8.dp))
+        Text(text, color = C.Muted, fontSize = 15.sp)
+    }
+}
+
+@Composable
+private fun ToggleCard(label: String, on: Boolean, onOn: (Boolean) -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = 20.dp).clip(RoundedCornerShape(Radius.Card)).background(C.Card)
+            .clickable { onOn(!on) }.padding(start = 16.dp, end = 12.dp, top = 10.dp, bottom = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(label, color = C.Text, fontSize = 17.sp, modifier = Modifier.weight(1f))
+        Toggle(on, onOn)
+    }
+}
+
+@Composable
+private fun ChoiceList(content: @Composable ColumnScope.() -> Unit) {
+    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp), content = content)
+}
+
+@Composable
+private fun ActionButton(
+    label: String, filled: Boolean, color: Color = C.Button, trailing: ImageVector? = null, onClick: () -> Unit,
+) {
+    val shape = RoundedCornerShape(Radius.Card)
+    Box(
+        Modifier.fillMaxWidth().height(56.dp).clip(shape)
+            .then(if (filled) Modifier.background(color) else Modifier.border(1.5.dp, C.Accent, shape))
+            .clickable(onClick = onClick).padding(horizontal = 16.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(label, color = if (filled) Color.White else C.Accent, fontSize = 18.sp, fontWeight = FontWeight.Medium)
+        if (trailing != null) Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
+            Icon(trailing, null, tint = if (filled) Color.White else C.Accent, modifier = Modifier.size(24.dp))
+        }
+    }
 }

@@ -40,6 +40,23 @@ object Choices {
         TestUrlOption("apple", "Apple", "https://captive.apple.com/"),
     )
     private val ipv4 = Regex("^((25[0-5]|2[0-4]\\d|1?\\d?\\d)\\.){3}(25[0-5]|2[0-4]\\d|1?\\d?\\d)$")
+    /**
+     * Parses one IPv4/IPv6 address with an optional /prefix ("192.0.2.0", "10.0.0.0/8", "2001:db8::/32").
+     * Returns the normalised text, or null if it is not a valid literal. Never does a DNS lookup.
+     */
+    fun parseIp(text: String): String? {
+        val t = text.trim()
+        if (t.isEmpty()) return null
+        val addr = t.substringBefore('/')
+        val v6 = ':' in addr
+        val max = if (v6) 128 else 32
+        val prefix = if ('/' in t) t.substringAfter('/').toIntOrNull()?.takeIf { it in 0..max } ?: return null else max
+        val ok = if (v6) addr.all { it.isDigit() || it in 'a'..'f' || it in 'A'..'F' || it == ':' || it == '.' } &&
+            runCatching { java.net.InetAddress.getByName(addr) is java.net.Inet6Address }.getOrDefault(false)
+        else ipv4.matches(addr)
+        if (!ok) return null
+        return if (prefix == max) addr else "$addr/$prefix"
+    }
     fun parseDns(text: String): List<String> = text.split(',', ' ', ';', '\n').map { it.trim() }.filter { it.isNotEmpty() }
         .let { parts -> if (parts.isNotEmpty() && parts.all { ipv4.matches(it) }) parts else emptyList() }
 }
@@ -128,6 +145,19 @@ class Store(context: Context) {
     var splitApps: Set<String>
         get() = (prefs.getString("split_apps", "") ?: "").split("\n").filter { it.isNotBlank() }.toSet()
         set(v) = prefs.edit().putString("split_apps", v.joinToString("\n")).apply()
+    /** "exclude": selected apps / IPs bypass the VPN. "include": only selected apps / IPs use the VPN. */
+    var splitMode: String
+        get() = prefs.getString("split_mode", "exclude") ?: "exclude"
+        set(v) = prefs.edit().putString("split_mode", v).apply()
+    var splitIncludeApps: Set<String>
+        get() = (prefs.getString("split_inc_apps", "") ?: "").split("\n").filter { it.isNotBlank() }.toSet()
+        set(v) = prefs.edit().putString("split_inc_apps", v.joinToString("\n")).apply()
+    var splitExcludeIps: List<String>
+        get() = (prefs.getString("split_exc_ips", "") ?: "").split("\n").filter { it.isNotBlank() }
+        set(v) = prefs.edit().putString("split_exc_ips", v.joinToString("\n")).apply()
+    var splitIncludeIps: List<String>
+        get() = (prefs.getString("split_inc_ips", "") ?: "").split("\n").filter { it.isNotBlank() }
+        set(v) = prefs.edit().putString("split_inc_ips", v.joinToString("\n")).apply()
     var dnsChoice: String
         get() = prefs.getString("dns", "cloudflare") ?: "cloudflare"
         set(v) = prefs.edit().putString("dns", v).apply()
