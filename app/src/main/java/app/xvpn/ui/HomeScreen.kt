@@ -2,20 +2,13 @@ package app.xvpn.ui
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.SizeTransform
-import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.expandVertically
+import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
-import androidx.compose.animation.togetherWith
+import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.unit.Dp
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
@@ -161,14 +154,12 @@ fun HomeScreen(
 
         Column(Modifier.fillMaxSize().statusBarsPadding().padding(horizontal = 16.dp)) {
             Spacer(Modifier.height(40.dp))
-            // the three headers swap with a soft fade + small vertical drift instead of snapping
             AnimatedContent(
                 targetState = status,
                 modifier = Modifier.fillMaxWidth(),
-                transitionSpec = {
-                    fadeIn(tween(240, delayMillis = 100)) togetherWith fadeOut(tween(120)) using SizeTransform(clip = false)
-                },
-                label = "header",
+                contentAlignment = Alignment.TopCenter,
+                transitionSpec = { statusTransition() },
+                label = "homeHeader",
             ) { st ->
                 when (st) {
                     Status.Connected -> ProtectedHeader(fmtDuration(now - connectedAt), up, down)
@@ -179,49 +170,68 @@ fun HomeScreen(
 
             Spacer(Modifier.weight(1f))
 
-            FadeSwap(
-                when { on -> "Browsing safely from"; connecting -> "Connecting to..."; else -> "Selected server" },
-                modifier = Modifier.padding(start = 4.dp, bottom = 10.dp),
-            ) { label -> Text(label, color = C.Text, fontSize = 17.sp) }
-            // the card grows / shrinks smoothly when the button set changes
-            Column(Modifier.fillMaxWidth().animateContentSize(spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessMediumLow)).clip(RoundedCornerShape(Radius.Card)).background(C.Card).border(1.dp, C.CardBorder, RoundedCornerShape(Radius.Card)).padding(16.dp)) {
+            AnimatedContent(
+                targetState = when { on -> "Browsing safely from"; connecting -> "Connecting to..."; else -> "Selected server" },
+                transitionSpec = { fadeTransition() },
+                label = "caption",
+            ) { caption ->
+                Text(caption, color = C.Text, fontSize = 17.sp, modifier = Modifier.padding(start = 4.dp, bottom = 10.dp))
+            }
+            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(Radius.Card)).background(C.Card).border(1.dp, C.CardBorder, RoundedCornerShape(Radius.Card)).padding(16.dp)) {
                 Row(
-                    Modifier.fillMaxWidth().bounceClick(pressedScale = 0.98f, enabled = on, ripple = on, onClick = onOpenStats),
+                    Modifier.fillMaxWidth().then(if (on) Modifier.pressable(RoundedCornerShape(Radius.Small), 0.985f, onClick = onOpenStats) else Modifier),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     FlagBadge(selected?.name)
                     Spacer(Modifier.width(14.dp))
                     Column(Modifier.weight(1f)) {
-                        FadeSwap(selected?.let { Flags.clean(it.name) } ?: "No server selected") { name ->
+                        AnimatedContent(
+                            targetState = selected?.let { Flags.clean(it.name) } ?: "No server selected",
+                            transitionSpec = { fadeTransition() }, label = "serverName",
+                        ) { name ->
                             Text(name, color = C.Text, fontSize = 19.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
                         }
-                        FadeSwap(
-                            when {
+                        AnimatedContent(
+                            targetState = when {
                                 on && proxy != null -> listOf(proxy.city, proxy.country).filter { it.isNotBlank() }.joinToString(", ")
                                 selected != null -> "${selected.host}:${selected.port}"
                                 else -> "Add one in Servers"
                             },
+                            transitionSpec = { fadeTransition() }, label = "serverSub",
                         ) { sub -> Text(sub, color = C.Muted, fontSize = 14.sp, maxLines = 1) }
                     }
                     AnimatedVisibility(
                         visible = on,
-                        enter = fadeIn(tween(250)),
-                        exit = fadeOut(tween(150)),
+                        enter = fadeIn(tween(Motion.Short + 50)) + expandHorizontally(tween(Motion.Medium, easing = Motion.Standard)),
+                        exit = fadeOut(tween(Motion.Short - 40)) + shrinkHorizontally(tween(Motion.Short + 50, easing = Motion.Standard)),
                     ) { Icon(Icons.Filled.ChevronRight, "Statistics", tint = C.Muted) }
                 }
                 Spacer(Modifier.height(16.dp))
-                // Primary button keeps its place and morphs (colour + label); "Change server" slides in / out beneath it.
-                BigButton(
-                    label = when { connecting -> "Cancel"; on -> "Disconnect"; else -> "Connect" },
-                    bg = if (!connecting && !on) C.Button else C.ButtonGrey,
-                    onClick = onToggle,
-                )
-                AnimatedVisibility(
-                    visible = !connecting || slow,
-                    enter = fadeIn(tween(250)) + expandVertically(tween(300, easing = Motion.Emphasized)),
-                    exit = fadeOut(tween(120)) + shrinkVertically(tween(220)),
-                ) {
-                    Column { Spacer(Modifier.height(10.dp)); OutlineButton("Change server", onChangeServer) }
+                AnimatedContent(
+                    targetState = status,
+                    transitionSpec = { fadeTransition() },
+                    label = "homeActions",
+                ) { st ->
+                    Column {
+                        when (st) {
+                            Status.Connecting -> {
+                                BigButton("Cancel", C.ButtonGrey, onToggle)
+                                AnimatedVisibility(slow) {
+                                    Column { Spacer(Modifier.height(10.dp)); OutlineButton("Change server", onChangeServer) }
+                                }
+                            }
+                            Status.Connected -> {
+                                BigButton("Disconnect", C.ButtonGrey, onToggle)
+                                Spacer(Modifier.height(10.dp))
+                                OutlineButton("Change server", onChangeServer)
+                            }
+                            Status.Disconnected -> {
+                                BigButton("Connect", C.Button, onToggle)
+                                Spacer(Modifier.height(10.dp))
+                                OutlineButton("Change server", onChangeServer)
+                            }
+                        }
+                    }
                 }
             }
             Spacer(Modifier.height(16.dp))
@@ -232,7 +242,7 @@ fun HomeScreen(
 @Composable
 private fun UnprotectedHeader(real: IpInfo?, error: String?) {
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-        Icon(Icons.Filled.LockOpen, null, tint = C.Red, modifier = Modifier.size(40.dp).popIn(0.6f))
+        PopIcon(Icons.Filled.LockOpen, C.Red, 40.dp)
         Spacer(Modifier.height(14.dp))
         Text(
             "You are unprotected",
@@ -291,13 +301,13 @@ private fun ScrambleText(text: String, color: Color, fontSize: TextUnit) {
 private fun ProtectedHeader(time: String, up: Long, down: Long) {
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Filled.Lock, null, tint = C.Green, modifier = Modifier.size(34.dp).popIn(0.4f))
+            PopIcon(Icons.Filled.Lock, C.Green, 34.dp)
             Spacer(Modifier.width(12.dp))
             Text("Protected", color = C.Green, fontSize = 30.sp, fontWeight = FontWeight.Bold)
         }
         Spacer(Modifier.height(18.dp))
         Row(
-            Modifier.fillMaxWidth().enterFade(delayMs = 150).clip(RoundedCornerShape(Radius.Card)).background(C.Card.copy(alpha = 0.92f)).padding(16.dp),
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(Radius.Card)).background(C.Card.copy(alpha = 0.92f)).padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(Modifier.weight(1f)) {
@@ -322,23 +332,30 @@ private fun Speed(icon: ImageVector, tint: Color, text: String) {
 
 @Composable
 private fun BigButton(label: String, bg: Color, onClick: () -> Unit) {
-    val color by animateColorAsState(bg, tween(300), label = "bigButton")
+    val tick = rememberTick(strong = true)
+    val color by animateColorAsState(bg, tween(Motion.Medium), label = "bigButton")
     Box(
-        Modifier.fillMaxWidth().height(54.dp)
-            .bounceClick(pressedScale = 0.96f, shape = RoundedCornerShape(Radius.Small), haptic = true, onClick = onClick)
-            .background(color),
+        Modifier.fillMaxWidth().height(54.dp).pressable(RoundedCornerShape(Radius.Small), 0.97f) { tick(); onClick() }.background(color),
         contentAlignment = Alignment.Center,
-    ) { FadeSwap(label) { Text(it, color = Color.White, fontSize = 19.sp, fontWeight = FontWeight.Medium) } }
+    ) { Text(label, color = Color.White, fontSize = 19.sp, fontWeight = FontWeight.Medium) }
 }
 
 @Composable
 private fun OutlineButton(label: String, onClick: () -> Unit) {
+    val tick = rememberTick()
     Box(
-        Modifier.fillMaxWidth().height(54.dp)
-            .bounceClick(pressedScale = 0.96f, shape = RoundedCornerShape(Radius.Small), onClick = onClick)
+        Modifier.fillMaxWidth().height(54.dp).pressable(RoundedCornerShape(Radius.Small), 0.97f) { tick(); onClick() }
             .border(1.dp, Color(0xFF4F4D5C), RoundedCornerShape(Radius.Small)),
         contentAlignment = Alignment.Center,
     ) { Text(label, color = C.Text, fontSize = 19.sp, fontWeight = FontWeight.Medium) }
+}
+
+/** Icon that springs in from 50% size when it first appears (lock closing / opening). */
+@Composable
+private fun PopIcon(icon: ImageVector, tint: Color, size: Dp) {
+    val pop = remember { Animatable(0.5f) }
+    LaunchedEffect(Unit) { pop.animateTo(1f, spring(dampingRatio = 0.4f, stiffness = 260f)) }
+    Icon(icon, null, tint = tint, modifier = Modifier.size(size).graphicsLayer { scaleX = pop.value; scaleY = pop.value })
 }
 
 /** Flag image (looked up from the country name in the proxy name) in a rounded tile; a globe when unknown. */

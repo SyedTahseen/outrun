@@ -7,19 +7,16 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.scaleIn
-import androidx.compose.animation.togetherWith
-import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.animation.scaleOut
+import androidx.compose.foundation.ScrollState
+import androidx.compose.runtime.MutableState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -101,13 +98,6 @@ import kotlinx.coroutines.withContext
 
 private class AppInfo(val label: String, val pkg: String)
 
-/** How deep a settings page is, so transitions know whether to slide forward or back. */
-private fun pageDepth(page: String): Int = when (page) {
-    "main" -> 0
-    "mode", "dns_custom", "apps", "ips" -> 2
-    else -> 1
-}
-
 /**
  * Settings. Importing configs / subscriptions lives in the Servers screen; this screen holds the options that change
  * how the VPN behaves. Everything here is stored in [Store] and read by the VPN service when it connects.
@@ -119,9 +109,42 @@ fun MenuScreen(
     onDebugInfo: () -> Unit,
     onScrolledChange: (Boolean) -> Unit = {},
 ) {
-    val ctx = LocalContext.current
-    var page by remember { mutableStateOf("main") }
+    val pageState = remember { mutableStateOf("main") }
     val scroll = rememberScrollState()   // hoisted so the position survives opening a sub page
+    // Sub pages slide in from the right when you go deeper and back out the other way (Material shared-axis).
+    AnimatedContent(
+        targetState = pageState.value,
+        modifier = Modifier.fillMaxSize(),
+        transitionSpec = { axisTransition(forward = pageDepth(targetState) >= pageDepth(initialState), distance = 0.2f) },
+        label = "settingsPage",
+    ) { shown -> MenuPage(store, onExport, onDebugInfo, onScrolledChange, pageState, scroll, shown) }
+}
+
+private fun pageDepth(p: String) = when (p) {
+    "main" -> 0
+    "mode", "apps", "ips", "dns_custom" -> 2
+    else -> 1
+}
+
+private fun pageParent(p: String) = when (p) {
+    "mode", "apps", "ips" -> "split"
+    "dns_custom" -> "dns"
+    else -> "main"
+}
+
+/** One settings page. [shown] is the page this instance draws (the old one keeps drawing while it animates out). */
+@Composable
+private fun MenuPage(
+    store: Store,
+    onExport: () -> Unit,
+    onDebugInfo: () -> Unit,
+    onScrolledChange: (Boolean) -> Unit,
+    pageState: MutableState<String>,
+    scroll: ScrollState,
+    shown: String,
+) {
+    val ctx = LocalContext.current
+    var page by pageState
 
     var splitOn by remember { mutableStateOf(store.splitEnabled) }
     var splitApps by remember { mutableStateOf(store.splitApps) }
@@ -138,19 +161,10 @@ fun MenuScreen(
     var incIps by remember { mutableStateOf(store.splitIncludeIps) }
     val including = splitMode == "include"
 
-    BackHandler(page == "split") { page = "main" }
+    // system back always steps one level up (sub pages with their own back handling take priority)
+    BackHandler(enabled = shown == page && page != "main") { page = pageParent(page) }
 
-    // Sub pages slide in from the right (and back out to it) while the page underneath drifts the other way;
-    // pages at the same depth just cross-fade.
-    AnimatedContent(
-        targetState = page,
-        modifier = Modifier.fillMaxSize(),
-        transitionSpec = {
-            (fadeIn(tween(200, delayMillis = 90)) + scaleIn(tween(200, delayMillis = 90), initialScale = 0.985f)) togetherWith fadeOut(tween(90))
-        },
-        label = "settingsPage",
-    ) { pg ->
-    when (pg) {
+    when (shown) {
         "split" -> {
             SplitPage(
                 on = splitOn, including = including,
@@ -160,7 +174,7 @@ fun MenuScreen(
                 onApps = { page = "apps" }, onIps = { page = "ips" },
                 onBack = { page = "main" },
             )
-            return@AnimatedContent
+            return
         }
         "mode" -> {
             SubPage(null, { page = "split" }) {
@@ -176,7 +190,7 @@ fun MenuScreen(
                     }
                 }
             }
-            return@AnimatedContent
+            return
         }
         "dns" -> {
             SubPage(null, { page = "main" }) {
@@ -188,22 +202,21 @@ fun MenuScreen(
                     ChoiceRow("Custom", if (dnsCustom.isBlank()) "Your own IPv4 DNS servers" else dnsCustom, dns == "custom") { page = "dns_custom" }
                 }
             }
-            return@AnimatedContent
+            return
         }
         "dns_custom" -> {
             var text by remember { mutableStateOf(dnsCustom) }
             var error by remember { mutableStateOf(false) }
-            var shakes by remember { mutableIntStateOf(0) }
             Column(Modifier.fillMaxSize()) {
                 EditorBar("Custom DNS", { page = "dns" }) {
                     if (Choices.parseDns(text).isNotEmpty()) {
                         dnsCustom = text.trim(); store.dnsCustom = dnsCustom
                         dns = "custom"; store.dnsChoice = "custom"; page = "main"
-                    } else { error = true; shakes++ }
+                    } else error = true
                 }
                 Column(Modifier.padding(horizontal = 20.dp)) {
                     Text("DNS servers", color = C.Text, fontSize = 14.sp, modifier = Modifier.padding(top = 8.dp, bottom = 6.dp))
-                    Row(Modifier.fillMaxWidth().shake(shakes).clip(RoundedCornerShape(Radius.Small)).background(C.Card).padding(14.dp)) {
+                    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(Radius.Small)).background(C.Card).padding(14.dp)) {
                         BasicTextField(
                             value = text, onValueChange = { text = it; error = false }, singleLine = true,
                             textStyle = TextStyle(color = C.Text, fontSize = 16.sp), cursorBrush = SolidColor(C.Accent),
@@ -218,7 +231,7 @@ fun MenuScreen(
                     )
                 }
             }
-            return@AnimatedContent
+            return
         }
         "test" -> {
             SubPage(null, { page = "main" }) {
@@ -229,7 +242,7 @@ fun MenuScreen(
                     Choices.testUrls.forEach { o -> ChoiceRow(o.name, o.url, testUrl == o.id) { testUrl = o.id; store.testUrlChoice = o.id; page = "main" } }
                 }
             }
-            return@AnimatedContent
+            return
         }
         "connect" -> {
             SubPage(null, { page = "main" }) {
@@ -237,7 +250,7 @@ fun MenuScreen(
                 PageHeading("Connect on launch", "Connect to the selected server automatically when the app opens.")
                 ToggleCard("Connect on launch", autoConnect) { autoConnect = it; store.autoConnect = it }
             }
-            return@AnimatedContent
+            return
         }
         "autoupdate" -> {
             SubPage(null, { page = "main" }) {
@@ -245,7 +258,7 @@ fun MenuScreen(
                 PageHeading("Auto-update subscriptions", "Refresh your subscriptions when the app opens, following each subscription's update interval.")
                 ToggleCard("Auto-update subscriptions", autoUpdate) { autoUpdate = it; store.autoUpdateSubs = it }
             }
-            return@AnimatedContent
+            return
         }
         "kill" -> {
             val bold = androidx.compose.ui.text.SpanStyle(fontWeight = FontWeight.Bold)
@@ -288,7 +301,7 @@ fun MenuScreen(
                     }
                 }
             }
-            return@AnimatedContent
+            return
         }
         "apps" -> {
             AppPickerPage(
@@ -299,7 +312,7 @@ fun MenuScreen(
                 onSave = { if (including) { incApps = it; store.splitIncludeApps = it } else { excApps = it; store.splitApps = it } },
                 onBack = { page = "split" },
             )
-            return@AnimatedContent
+            return
         }
         "ips" -> {
             IpPage(
@@ -308,7 +321,7 @@ fun MenuScreen(
                 onSave = { if (including) { incIps = it; store.splitIncludeIps = it } else { excIps = it; store.splitExcludeIps = it } },
                 onBack = { page = "split" },
             )
-            return@AnimatedContent
+            return
         }
     }
 
@@ -331,7 +344,7 @@ fun MenuScreen(
             }
             Spacer(Modifier.height(8.dp))
         }
-        Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(scroll)) {
+        Column(Modifier.weight(1f).fillMaxWidth().verticalScrollbar(scroll).verticalScroll(scroll)) {
             Section("Features", first = true)
             SettingRow(
                 Icons.Outlined.AltRoute, "Split tunneling",
@@ -359,7 +372,6 @@ fun MenuScreen(
             Spacer(Modifier.height(28.dp))
         }
     }
-    }
 }
 
 @Composable
@@ -376,7 +388,7 @@ private fun SettingRow(
     trailing: (@Composable () -> Unit)? = null, chevron: Boolean = false, onClick: () -> Unit,
 ) {
     Row(
-        Modifier.fillMaxWidth().heightIn(min = 56.dp).bounceClick(pressedScale = 0.985f, onClick = onClick).padding(horizontal = 20.dp, vertical = 12.dp),
+        Modifier.fillMaxWidth().heightIn(min = 56.dp).clickable(onClick = onClick).padding(horizontal = 20.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(icon, null, tint = C.Text, modifier = Modifier.size(24.dp))
@@ -403,10 +415,19 @@ private fun Toggle(checked: Boolean, onChange: (Boolean) -> Unit) {
 @Composable
 private fun SheetDialog(title: String, onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
     Dialog(onDismissRequest = onDismiss) {
-        Column(Modifier.fillMaxWidth().popIn().clip(RoundedCornerShape(Radius.Card)).background(C.Card).padding(20.dp)) {
-            Text(title, color = C.Text, fontSize = 19.sp, fontWeight = FontWeight.SemiBold)
-            Spacer(Modifier.height(12.dp))
-            content()
+        // card scales + fades in on top of the window's own fade
+        var visible by remember { mutableStateOf(false) }
+        LaunchedEffect(Unit) { visible = true }
+        AnimatedVisibility(
+            visible = visible,
+            enter = fadeIn(tween(Motion.Short + 30)) + scaleIn(spring(dampingRatio = 0.8f, stiffness = 500f), initialScale = 0.9f),
+            exit = fadeOut(tween(Motion.Short - 40)),
+        ) {
+            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(Radius.Card)).background(C.Card).padding(20.dp)) {
+                Text(title, color = C.Text, fontSize = 19.sp, fontWeight = FontWeight.SemiBold)
+                Spacer(Modifier.height(12.dp))
+                content()
+            }
         }
     }
 }
@@ -414,13 +435,16 @@ private fun SheetDialog(title: String, onDismiss: () -> Unit, content: @Composab
 @Composable
 private fun ChoiceRow(label: String, note: String, selected: Boolean, onClick: () -> Unit) {
     Row(
-        Modifier.fillMaxWidth().bounceClick(pressedScale = 0.985f, shape = RoundedCornerShape(Radius.Small), onClick = onClick).padding(vertical = 10.dp, horizontal = 4.dp),
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(Radius.Small)).clickable(onClick = onClick).padding(vertical = 10.dp, horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        val ring by animateColorAsState(if (selected) C.Accent else C.Muted, tween(200), label = "radioRing")
-        val dot by animateDpAsState(if (selected) 10.dp else 0.dp, spring(dampingRatio = 0.5f, stiffness = 500f), label = "radioDot")
+        val ring by animateColorAsState(if (selected) C.Accent else C.Muted, tween(Motion.Short + 50), label = "radioRing")
         Box(Modifier.size(22.dp).border(2.dp, ring, CircleShape), contentAlignment = Alignment.Center) {
-            Box(Modifier.size(dot).clip(CircleShape).background(C.Accent))
+            AnimatedVisibility(
+                visible = selected,
+                enter = scaleIn(spring(dampingRatio = 0.45f, stiffness = 420f)) + fadeIn(tween(Motion.Short - 30)),
+                exit = scaleOut(tween(Motion.Short - 30)) + fadeOut(tween(Motion.Short - 30)),
+            ) { Box(Modifier.size(10.dp).clip(CircleShape).background(C.Accent)) }
         }
         Spacer(Modifier.width(14.dp))
         Column(Modifier.weight(1f)) {
@@ -456,11 +480,11 @@ private fun TextDialog(
         Text(if (error) "Not a valid IPv4 address list." else help, color = if (error) C.Red else C.Muted, fontSize = 12.sp)
         Spacer(Modifier.height(14.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = androidx.compose.foundation.layout.Arrangement.End) {
-            Text("Cancel", color = C.Muted, fontSize = 16.sp, fontWeight = FontWeight.Medium, modifier = Modifier.bounceClick(pressedScale = 0.92f, shape = RoundedCornerShape(Radius.Small), onClick = onDismiss).padding(12.dp))
+            Text("Cancel", color = C.Muted, fontSize = 16.sp, fontWeight = FontWeight.Medium, modifier = Modifier.clickable(onClick = onDismiss).padding(12.dp))
             Spacer(Modifier.width(8.dp))
             Text(
                 "Save", color = C.Accent, fontSize = 16.sp, fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.bounceClick(pressedScale = 0.92f, shape = RoundedCornerShape(Radius.Small)) { if (validate(text)) onSave(text) else error = true }.padding(12.dp),
+                modifier = Modifier.clickable { if (validate(text)) onSave(text) else error = true }.padding(12.dp),
             )
         }
     }
@@ -502,21 +526,15 @@ private fun SplitPage(
             Text("Customize your connection by deciding which apps and IP addresses are protected by the VPN.", color = C.Muted, fontSize = 15.sp)
             Spacer(Modifier.height(20.dp))
             Row(
-                Modifier.fillMaxWidth()
-                    .bounceClick(pressedScale = 0.98f, shape = RoundedCornerShape(Radius.Card), haptic = true) { onOn(!on) }
-                    .background(C.Card).padding(start = 16.dp, end = 12.dp, top = 10.dp, bottom = 10.dp),
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(Radius.Card)).background(C.Card)
+                    .clickable { onOn(!on) }.padding(start = 16.dp, end = 12.dp, top = 10.dp, bottom = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text("Split tunneling", color = C.Text, fontSize = 17.sp, modifier = Modifier.weight(1f))
                 Toggle(on, onOn)
             }
         }
-        AnimatedVisibility(
-            visible = on,
-            enter = fadeIn(tween(250)) + expandVertically(tween(320, easing = Motion.Emphasized)),
-            exit = fadeOut(tween(120)) + shrinkVertically(tween(240)),
-        ) {
-          Column {
+        if (on) {
             Spacer(Modifier.height(8.dp))
             SettingRow(Icons.Outlined.Tune, "Mode", if (including) "Include" else "Exclude", chevron = true) { onMode() }
             SettingRow(Icons.Outlined.PhoneAndroid, "$word apps", appsText, chevron = true) { onApps() }
@@ -529,7 +547,6 @@ private fun SplitPage(
                 "Applies the next time you connect." + if (!including) " Excluding IP addresses needs Android 13 or newer." else "",
                 color = C.Muted, fontSize = 12.sp, modifier = Modifier.padding(horizontal = 20.dp),
             )
-          }
         }
         Spacer(Modifier.height(24.dp))
     }
@@ -543,7 +560,7 @@ private fun EditorBar(title: String, onBack: () -> Unit, onSave: () -> Unit) {
         HeaderIcon(Icons.AutoMirrored.Filled.ArrowBack, "Back") { onBack() }
         Spacer(Modifier.width(6.dp))
         Text(title, color = C.Text, fontSize = 22.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, modifier = Modifier.weight(1f))
-        Text("Save", color = C.Accent, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.bounceClick(pressedScale = 0.92f, shape = RoundedCornerShape(Radius.Small), onClick = onSave).padding(12.dp))
+        Text("Save", color = C.Accent, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.clip(RoundedCornerShape(Radius.Small)).clickable(onClick = onSave).padding(12.dp))
     }
     Spacer(Modifier.height(8.dp))
 }
@@ -552,8 +569,8 @@ private fun EditorBar(title: String, onBack: () -> Unit, onSave: () -> Unit) {
 private fun DiscardDialog(onDiscard: () -> Unit, onKeep: () -> Unit) {
     SheetDialog("Discard unsaved changes?", onKeep) {
         Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.End) {
-            Text("Discard changes", color = C.Accent, fontSize = 17.sp, fontWeight = FontWeight.Medium, modifier = Modifier.bounceClick(pressedScale = 0.92f, shape = RoundedCornerShape(Radius.Small), onClick = onDiscard).padding(12.dp))
-            Text("Keep editing", color = C.Accent, fontSize = 17.sp, fontWeight = FontWeight.Medium, modifier = Modifier.bounceClick(pressedScale = 0.92f, shape = RoundedCornerShape(Radius.Small), onClick = onKeep).padding(12.dp))
+            Text("Discard changes", color = C.Accent, fontSize = 17.sp, fontWeight = FontWeight.Medium, modifier = Modifier.clickable(onClick = onDiscard).padding(12.dp))
+            Text("Keep editing", color = C.Accent, fontSize = 17.sp, fontWeight = FontWeight.Medium, modifier = Modifier.clickable(onClick = onKeep).padding(12.dp))
         }
     }
 }
@@ -568,7 +585,7 @@ private fun ListHeader(title: String, note: String? = null) {
 
 @Composable
 private fun RoundAction(add: Boolean, onClick: () -> Unit) {
-    Box(Modifier.size(44.dp).bounceClick(pressedScale = 0.8f, shape = CircleShape, onClick = onClick), contentAlignment = Alignment.Center) {
+    Box(Modifier.size(44.dp).clip(CircleShape).clickable(onClick = onClick), contentAlignment = Alignment.Center) {
         Icon(
             if (add) Icons.Outlined.AddCircleOutline else Icons.Outlined.RemoveCircleOutline,
             if (add) "Add" else "Remove", tint = if (add) C.Text else C.Muted, modifier = Modifier.size(26.dp),
@@ -600,6 +617,7 @@ private fun AppPickerPage(
                 .sortedBy { it.label.lowercase() }
         }
     }
+    val listState = rememberLazyListState()
     Column(Modifier.fillMaxSize()) {
         EditorBar(title, leave) { onSave(sel); onBack() }
         val list = apps
@@ -608,7 +626,7 @@ private fun AppPickerPage(
         } else {
             val chosen = list.filter { it.pkg in sel }
             val others = list.filter { it.pkg !in sel }
-            LazyColumn(Modifier.weight(1f).fillMaxWidth().enterFade()) {
+            LazyColumn(Modifier.weight(1f).fillMaxWidth().verticalScrollbar(listState), state = listState) {
                 item(key = "h1") { ListHeader("$listTitle (${chosen.size})", note) }
                 items(chosen, key = { "s_" + it.pkg }) { a -> PickRow(a, false, Modifier.animateItem()) { sel = sel - a.pkg } }
                 item(key = "h2") { ListHeader("All other regular apps (${others.size})") }
@@ -623,7 +641,7 @@ private fun AppPickerPage(
 @Composable
 private fun PickRow(app: AppInfo, add: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
     Row(
-        modifier.fillMaxWidth().bounceClick(pressedScale = 0.985f, onClick = onClick).padding(start = 20.dp, end = 8.dp, top = 4.dp, bottom = 4.dp),
+        modifier.fillMaxWidth().clickable(onClick = onClick).padding(start = 20.dp, end = 8.dp, top = 4.dp, bottom = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         AppIcon(app.pkg)
@@ -640,13 +658,12 @@ private fun IpPage(title: String, initial: List<String>, onSave: (List<String>) 
     var text by remember { mutableStateOf("") }
     var error by remember { mutableStateOf(false) }
     var confirm by remember { mutableStateOf(false) }
-    var shakes by remember { mutableIntStateOf(0) }
     val dirty = ips != initial
     val leave: () -> Unit = { if (dirty) confirm = true else onBack() }
     BackHandler(true) { leave() }
     val add: () -> Unit = {
         val ip = Choices.parseIp(text)
-        if (ip == null) { error = true; shakes++ }
+        if (ip == null) error = true
         else { if (ip !in ips) ips = ips + ip; text = ""; error = false }
     }
     Column(Modifier.fillMaxSize()) {
@@ -654,7 +671,7 @@ private fun IpPage(title: String, initial: List<String>, onSave: (List<String>) 
         Column(Modifier.padding(horizontal = 20.dp)) {
             Text("IP address", color = C.Text, fontSize = 14.sp, modifier = Modifier.padding(top = 8.dp, bottom = 6.dp))
             Row(
-                Modifier.fillMaxWidth().shake(shakes).clip(RoundedCornerShape(Radius.Small)).background(C.Card).padding(start = 14.dp),
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(Radius.Small)).background(C.Card).padding(start = 14.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 BasicTextField(
@@ -673,7 +690,8 @@ private fun IpPage(title: String, initial: List<String>, onSave: (List<String>) 
                 color = if (error) C.Red else C.Muted, fontSize = 12.sp,
             )
         }
-        LazyColumn(Modifier.weight(1f).fillMaxWidth()) {
+        val ipListState = rememberLazyListState()
+        LazyColumn(Modifier.weight(1f).fillMaxWidth().verticalScrollbar(ipListState), state = ipListState) {
             item(key = "h") { ListHeader("$title (${ips.size})") }
             items(ips, key = { it }) { ip ->
                 Row(
@@ -738,7 +756,7 @@ private fun SubPage(
 private fun Hero(icon: ImageVector, size: androidx.compose.ui.unit.Dp = 64.dp, centered: Boolean = false, tint: Color = C.Accent) {
     Box(Modifier.fillMaxWidth().padding(horizontal = 20.dp), contentAlignment = if (centered) Alignment.Center else Alignment.CenterStart) {
         Box(
-            Modifier.size(size).popIn(0.7f).clip(RoundedCornerShape(Radius.Card)).background(Brush.linearGradient(listOf(C.AccentMid, C.AccentDeep))),
+            Modifier.size(size).clip(RoundedCornerShape(Radius.Card)).background(Brush.linearGradient(listOf(C.AccentMid, C.AccentDeep))),
             contentAlignment = Alignment.Center,
         ) { Icon(icon, null, tint = tint, modifier = Modifier.size(size * 0.56f)) }
     }
@@ -756,9 +774,8 @@ private fun PageHeading(title: String, text: String) {
 @Composable
 private fun ToggleCard(label: String, on: Boolean, onOn: (Boolean) -> Unit) {
     Row(
-        Modifier.fillMaxWidth().padding(horizontal = 20.dp)
-            .bounceClick(pressedScale = 0.98f, shape = RoundedCornerShape(Radius.Card), haptic = true) { onOn(!on) }
-            .background(C.Card).padding(start = 16.dp, end = 12.dp, top = 10.dp, bottom = 10.dp),
+        Modifier.fillMaxWidth().padding(horizontal = 20.dp).clip(RoundedCornerShape(Radius.Card)).background(C.Card)
+            .clickable { onOn(!on) }.padding(start = 16.dp, end = 12.dp, top = 10.dp, bottom = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(label, color = C.Text, fontSize = 17.sp, modifier = Modifier.weight(1f))
@@ -777,10 +794,9 @@ private fun ActionButton(
 ) {
     val shape = RoundedCornerShape(Radius.Card)
     Box(
-        Modifier.fillMaxWidth().height(56.dp)
-            .bounceClick(pressedScale = 0.97f, shape = shape, onClick = onClick)
+        Modifier.fillMaxWidth().height(56.dp).clip(shape)
             .then(if (filled) Modifier.background(color) else Modifier.border(1.5.dp, C.Accent, shape))
-            .padding(horizontal = 16.dp),
+            .clickable(onClick = onClick).padding(horizontal = 16.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(label, color = if (filled) Color.White else C.Accent, fontSize = 18.sp, fontWeight = FontWeight.Medium)

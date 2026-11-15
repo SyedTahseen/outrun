@@ -21,22 +21,24 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
-import androidx.compose.animation.togetherWith
-import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.foundation.rememberScrollState
@@ -132,7 +134,7 @@ fun ServersScreen(
     var subDialog by remember { mutableStateOf(false) }
     var sortMenu by remember { mutableStateOf(false) }
     val focus = remember { FocusRequester() }
-    LaunchedEffect(searching) { if (searching) focus.requestFocus() }
+    LaunchedEffect(searching) { if (searching) runCatching { focus.requestFocus() } }
 
     val hasFav = profiles.any { it.link in favorites }
     val f = filter?.takeIf {
@@ -167,64 +169,72 @@ fun ServersScreen(
         // header: background colour at rest, switches to the bottom-bar colour once the list is scrolled
         Column(Modifier.fillMaxWidth().background(headerColor)) {
             Spacer(Modifier.height(20.dp))
-            AnimatedContent(
-                targetState = searching,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp).height(44.dp),
-                transitionSpec = { fadeIn(tween(220, delayMillis = 80)) togetherWith fadeOut(tween(100)) },
-                label = "searchSwap",
-            ) { isSearching ->
-            Row(Modifier.fillMaxWidth().height(44.dp), verticalAlignment = Alignment.CenterVertically) {
-                if (isSearching) {
-                    BasicTextField(
-                        value = query, onValueChange = { query = it }, singleLine = true,
-                        textStyle = TextStyle(color = C.Text, fontSize = 18.sp),
-                        cursorBrush = SolidColor(C.Accent),
-                        modifier = Modifier.weight(1f).focusRequester(focus),
-                        decorationBox = { inner ->
-                            if (query.isEmpty()) Text("Search servers", color = C.Muted, fontSize = 18.sp)
-                            inner()
-                        },
-                    )
-                    HeaderIcon(Icons.Filled.Close, "Close search") { searching = false; query = "" }
-                } else {
-                    Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
-                        Text("Servers", color = C.Text, fontSize = 26.sp, fontWeight = FontWeight.Bold)
-                        Spacer(Modifier.width(10.dp))
-                        Box(
-                            Modifier.clip(RoundedCornerShape(Radius.Small)).background(C.ButtonGrey).padding(horizontal = 10.dp, vertical = 3.dp),
-                        ) { Text("${profiles.size}", color = C.Text, fontSize = 15.sp, fontWeight = FontWeight.Medium) }
-                    }
-                    HeaderIcon(Icons.Filled.Search, "Search") { searching = true }
-                    Box {
-                        HeaderIcon(Icons.Filled.Add, "Add") { addMenu = true }
-                        DropdownMenu(addMenu, { addMenu = false }, shape = RoundedCornerShape(Radius.Card), containerColor = C.Card) {
-                            MenuRow(Icons.Outlined.QrCodeScanner, "Scan QR code") { addMenu = false; onScanQr() }
-                            MenuRow(Icons.Outlined.ContentPaste, "Paste from clipboard") { addMenu = false; onPasteClipboard() }
-                            MenuRow(Icons.Outlined.InsertDriveFile, "Import from file") { addMenu = false; onImportFile() }
-                            MenuRow(Icons.Outlined.Edit, "Add manually") { addMenu = false; manual = true }
-                            MenuRow(Icons.Outlined.Link, "Add subscription link") { addMenu = false; subDialog = true }
-                        }
-                    }
-                    Box {
-                        HeaderIcon(Icons.Filled.MoreVert, "More") { moreMenu = true }
-                        DropdownMenu(moreMenu, { moreMenu = false }, shape = RoundedCornerShape(Radius.Card), containerColor = C.Card) {
-                            MenuRow(Icons.Outlined.Speed, if (testing) "Testing…" else "Test latency") { moreMenu = false; if (!testing) onTestLatency() }
-                            MenuRow(Icons.AutoMirrored.Outlined.Sort, "Sort by: ${sort.label}") { moreMenu = false; sortMenu = true }
-                            MenuRow(Icons.Outlined.Refresh, "Update subscriptions") { moreMenu = false; onRefreshSubscriptions() }
-                            MenuRow(Icons.Outlined.DeleteOutline, "Delete all servers") { moreMenu = false; onDeleteAll() }
-                        }
-                        DropdownMenu(sortMenu, { sortMenu = false }, shape = RoundedCornerShape(Radius.Card), containerColor = C.Card) {
-                            SortMode.values().forEach { m ->
-                                DropdownMenuItem(
-                                    text = { Text(m.label, color = if (m == sort) C.Accent else C.Text, fontSize = 17.sp) },
-                                    trailingIcon = { if (m == sort) Icon(Icons.Filled.Check, null, tint = C.Accent, modifier = Modifier.size(20.dp)) },
-                                    onClick = { onSortChange(m); sortMenu = false },
-                                )
+            Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp).height(44.dp), verticalAlignment = Alignment.CenterVertically) {
+                AnimatedContent(
+                    targetState = searching,
+                    modifier = Modifier.fillMaxWidth(),
+                    transitionSpec = { fadeTransition() },
+                    label = "serversHeader",
+                ) { isSearch ->
+                    Row(Modifier.fillMaxWidth().height(44.dp), verticalAlignment = Alignment.CenterVertically) {
+                        if (isSearch) {
+                            BasicTextField(
+                                value = query, onValueChange = { query = it }, singleLine = true,
+                                textStyle = TextStyle(color = C.Text, fontSize = 18.sp),
+                                cursorBrush = SolidColor(C.Accent),
+                                modifier = Modifier.weight(1f).focusRequester(focus),
+                                decorationBox = { inner ->
+                                    if (query.isEmpty()) Text("Search servers", color = C.Muted, fontSize = 18.sp)
+                                    inner()
+                                },
+                            )
+                            HeaderIcon(Icons.Filled.Close, "Close search") { searching = false; query = "" }
+                        } else {
+                            Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+                                Text("Servers", color = C.Text, fontSize = 26.sp, fontWeight = FontWeight.Bold)
+                                Spacer(Modifier.width(10.dp))
+                                Box(
+                                    Modifier.clip(RoundedCornerShape(Radius.Small)).background(C.ButtonGrey).padding(horizontal = 10.dp, vertical = 3.dp),
+                                ) {
+                                    AnimatedContent(
+                                        targetState = profiles.size,
+                                        transitionSpec = { numberTransition(up = targetState > initialState) },
+                                        label = "serverCount",
+                                    ) { n -> Text("$n", color = C.Text, fontSize = 15.sp, fontWeight = FontWeight.Medium) }
+                                }
+                            }
+                            HeaderIcon(Icons.Filled.Search, "Search") { searching = true }
+                            Box {
+                                HeaderIcon(Icons.Filled.Add, "Add") { addMenu = true }
+                                DropdownMenu(addMenu, { addMenu = false }, shape = RoundedCornerShape(Radius.Card), containerColor = C.Card) {
+                                    MenuRow(Icons.Outlined.QrCodeScanner, "Scan QR code") { addMenu = false; onScanQr() }
+                                    MenuRow(Icons.Outlined.ContentPaste, "Paste from clipboard") { addMenu = false; onPasteClipboard() }
+                                    MenuRow(Icons.Outlined.InsertDriveFile, "Import from file") { addMenu = false; onImportFile() }
+                                    MenuRow(Icons.Outlined.Edit, "Add manually") { addMenu = false; manual = true }
+                                    MenuRow(Icons.Outlined.Link, "Add subscription link") { addMenu = false; subDialog = true }
+                                }
+                            }
+                            Box {
+                                HeaderIcon(Icons.Filled.MoreVert, "More") { moreMenu = true }
+                                DropdownMenu(moreMenu, { moreMenu = false }, shape = RoundedCornerShape(Radius.Card), containerColor = C.Card) {
+                                    MenuRow(Icons.Outlined.Speed, if (testing) "Testing…" else "Test latency") { moreMenu = false; if (!testing) onTestLatency() }
+                                    MenuRow(Icons.AutoMirrored.Outlined.Sort, "Sort by: ${sort.label}") { moreMenu = false; sortMenu = true }
+                                    MenuRow(Icons.Outlined.Refresh, "Update subscriptions") { moreMenu = false; onRefreshSubscriptions() }
+                                    MenuRow(Icons.Outlined.DeleteOutline, "Delete all servers") { moreMenu = false; onDeleteAll() }
+                                }
+                                DropdownMenu(sortMenu, { sortMenu = false }, shape = RoundedCornerShape(Radius.Card), containerColor = C.Card) {
+                                    SortMode.values().forEach { m ->
+                                        DropdownMenuItem(
+                                            text = { Text(m.label, color = if (m == sort) C.Accent else C.Text, fontSize = 17.sp) },
+                                            trailingIcon = { if (m == sort) Icon(Icons.Filled.Check, null, tint = C.Accent, modifier = Modifier.size(20.dp)) },
+                                            onClick = { onSortChange(m); sortMenu = false },
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
                 }
-            }
             }
             Spacer(Modifier.height(18.dp))
             // All / Default / one pill per subscription (long-press a subscription pill to delete it)
@@ -243,42 +253,58 @@ fun ServersScreen(
             Spacer(Modifier.height(16.dp))
         }
 
-        if (shown.isEmpty()) {
-            Box(Modifier.weight(1f).fillMaxWidth().enterFade().padding(24.dp), contentAlignment = Alignment.Center) {
-                Text(
-                    if (profiles.isEmpty()) "No servers yet.\nTap + to scan a QR code, paste a link,\nimport a file or add one manually."
-                    else "No servers match.",
-                    color = C.Muted, fontSize = 14.sp,
-                )
-            }
-        } else {
-            LazyColumn(Modifier.weight(1f).fillMaxWidth(), state = listState) {
-                items(shown, key = { it.link }) { p ->
-                    ServerRow(p, p.link == selectedLink, p.link in favorites, pings[p.link], testing, { onConnect(p) }, { onDelete(p) }, { onToggleFavorite(p) }, { onCopy(p) }, Modifier.animateItem())
+        // thin progress bar while latency is being tested (same idea as v2rayNG's loading bar under its top bar)
+        AnimatedVisibility(
+            visible = testing,
+            enter = expandVertically(tween(Motion.Medium)) + fadeIn(tween(Motion.Medium)),
+            exit = shrinkVertically(tween(Motion.Medium)) + fadeOut(tween(Motion.Short)),
+        ) {
+            LinearProgressIndicator(Modifier.fillMaxWidth().height(2.dp), color = C.Accent, trackColor = C.ButtonGrey)
+        }
+        Box(Modifier.weight(1f).fillMaxWidth()) {
+            Crossfade(targetState = shown.isEmpty(), animationSpec = tween(Motion.Medium), label = "serversList") { empty ->
+                if (empty) {
+                    Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
+                        Text(
+                            if (profiles.isEmpty()) "No servers yet.\nTap + to scan a QR code, paste a link,\nimport a file or add one manually."
+                            else "No servers match.",
+                            color = C.Muted, fontSize = 14.sp,
+                        )
+                    }
+                } else {
+                    LazyColumn(Modifier.fillMaxSize().verticalScrollbar(listState), state = listState) {
+                        items(shown, key = { it.link }) { p ->
+                            ServerRow(
+                                p, p.link == selectedLink, p.link in favorites, pings[p.link], testing,
+                                { onConnect(p) }, { onDelete(p) }, { onToggleFavorite(p) }, { onCopy(p) },
+                                modifier = Modifier.animateItem(),
+                            )
+                        }
+                    }
                 }
             }
         }
         // minimal footer with the selected subscription's metadata: quota, expiry, message, link
         val subUrl = f?.takeIf { it.startsWith("sub:") }?.removePrefix("sub:")
-        AnimatedContent(
-            targetState = subUrl,
-            modifier = Modifier.fillMaxWidth(),
-            transitionSpec = {
-                fadeIn(tween(220, delayMillis = 60)) togetherWith fadeOut(tween(120)) using SizeTransform(clip = true)
-            },
-            label = "subBar",
-        ) { u ->
-            if (u != null) SubscriptionBar(
-                url = u, info = subInfo[u], host = subHost(u),
-                onRefresh = { onRefreshSubscription(u) }, onCopy = { onCopySubscription(u) },
-            ) else Spacer(Modifier.fillMaxWidth())
+        // keep the last url around so the bar can slide out with its content still in place
+        val lastSub = remember { mutableStateOf<String?>(null) }
+        SideEffect { if (subUrl != null) lastSub.value = subUrl }
+        val barUrl = subUrl ?: lastSub.value
+        AnimatedVisibility(
+            visible = subUrl != null,
+            enter = expandVertically(tween(Motion.Medium, easing = Motion.Standard)) + fadeIn(tween(Motion.Medium)),
+            exit = shrinkVertically(tween(Motion.Medium, easing = Motion.Standard)) + fadeOut(tween(Motion.Short)),
+        ) {
+            if (barUrl != null) SubscriptionBar(
+                url = barUrl, info = subInfo[barUrl], host = subHost(barUrl),
+                onRefresh = { onRefreshSubscription(barUrl) }, onCopy = { onCopySubscription(barUrl) },
+            )
         }
     }
 
     delSub?.let { url ->
         val n = sources.count { it.value == url }
         AlertDialog(
-            modifier = Modifier.popIn(),
             onDismissRequest = { delSub = null },
             containerColor = C.Card,
             shape = RoundedCornerShape(Radius.Card),
@@ -294,20 +320,9 @@ fun ServersScreen(
 
 @Composable
 internal fun HeaderIcon(icon: ImageVector, desc: String, tint: Color = C.Text, onClick: () -> Unit) {
-    val color by animateColorAsState(tint, tween(250), label = "iconTint")
-    Box(
-        Modifier.size(44.dp).bounceClick(pressedScale = 0.82f, shape = RoundedCornerShape(22.dp), onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        // icons that change (star filled / outlined, search / close) pop between each other
-        AnimatedContent(
-            targetState = icon,
-            transitionSpec = {
-                (fadeIn(tween(160, delayMillis = 40)) + scaleIn(spring(dampingRatio = 0.5f, stiffness = 500f), initialScale = 0.5f)) togetherWith
-                    (fadeOut(tween(90)) + scaleOut(tween(90), targetScale = 0.6f))
-            },
-            label = "headerIcon",
-        ) { ic -> Icon(ic, desc, tint = color, modifier = Modifier.size(26.dp)) }
+    val color by animateColorAsState(tint, tween(Motion.Short + 50), label = "headerIconTint")
+    Box(Modifier.size(44.dp).pressable(RoundedCornerShape(22.dp), 0.86f, onClick = onClick), contentAlignment = Alignment.Center) {
+        Icon(icon, desc, tint = color, modifier = Modifier.size(26.dp))
     }
 }
 
@@ -362,8 +377,7 @@ private fun SubscriptionBar(url: String, info: SubInfo?, host: String, onRefresh
                         color = if (exhausted) C.Red else C.Muted, fontSize = 13.sp, maxLines = 1,
                     )
                     if (info.total > 0) {
-                        val target = (info.used.toFloat() / info.total).coerceIn(0f, 1f)
-                        val frac by animateFloatAsState(target, tween(600, easing = Motion.Emphasized), label = "quota")
+                        val frac = (info.used.toFloat() / info.total).coerceIn(0f, 1f)
                         Spacer(Modifier.height(6.dp))
                         Box(Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)).background(C.ButtonGrey)) {
                             Box(
@@ -399,12 +413,12 @@ private fun MenuRow(icon: ImageVector, label: String, onClick: () -> Unit) {
 }
 
 @Composable
-@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 private fun Chip(label: String, selected: Boolean, onLongClick: (() -> Unit)? = null, onClick: () -> Unit) {
-    val bg by animateColorAsState(if (selected) C.Button else C.ButtonGrey, tween(250), label = "chipBg")
+    val bg by animateColorAsState(if (selected) C.Button else C.ButtonGrey, tween(Motion.Medium), label = "chipBg")
+    val tick = rememberTick()
     Box(
         Modifier.height(44.dp)
-            .bounceClick(pressedScale = 0.94f, shape = RoundedCornerShape(Radius.Small), haptic = true, onLongClick = onLongClick, onClick = onClick)
+            .pressable(RoundedCornerShape(Radius.Small), 0.95f, onLongClick = onLongClick) { if (!selected) tick(); onClick() }
             .background(bg).padding(horizontal = 22.dp),
         contentAlignment = Alignment.Center,
     ) { Text(label, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Medium) }
@@ -418,12 +432,12 @@ private fun ServerRow(
 ) {
     var menu by remember { mutableStateOf(false) }
     // the selected server gets a raised row (card colour)
-    val rowBg by animateColorAsState(if (selected) C.Card else C.Bg, label = "rowBg")
-    val nameColor by animateColorAsState(if (selected) C.Green else C.Text, tween(300), label = "rowName")
+    val rowBg by animateColorAsState(if (selected) C.Card else C.Bg, tween(Motion.Medium), label = "rowBg")
+    val nameColor by animateColorAsState(if (selected) C.Green else C.Text, tween(Motion.Medium), label = "rowName")
     Column(modifier.fillMaxWidth().background(rowBg)) {
       Box(Modifier.fillMaxWidth()) {
         Row(
-            Modifier.fillMaxWidth().bounceClick(pressedScale = 0.985f, onClick = onConnect).padding(start = 20.dp, end = 8.dp).height(84.dp),
+            Modifier.fillMaxWidth().clickable(onClick = onConnect).padding(start = 20.dp, end = 8.dp).height(84.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             FlagBadge(p.name)
@@ -433,18 +447,8 @@ private fun ServerRow(
                 Text("${p.host}:${p.port}", color = C.Muted, fontSize = 13.sp, maxLines = 1)
                 Text(app.xvpn.data.LinkParser.describe(p.link), color = C.Muted.copy(alpha = 0.8f), fontSize = 12.sp, maxLines = 1)
             }
-            // "…" -> result cross-fades in as each latency test finishes
-            FadeSwap(ping) { pg ->
-                when {
-                    pg == null -> if (testing) Text("…", color = C.Muted, fontSize = 14.sp)
-                    pg < 0 -> Text("Timeout", color = C.Red, fontSize = 13.sp)
-                    else -> Text("$pg ms", color = if (pg < 500) C.Green else if (pg < 1200) C.Amber else C.Red, fontSize = 14.sp, fontWeight = FontWeight.Medium)
-                }
-            }
-            HeaderIcon(
-                if (fav) Icons.Filled.Star else Icons.Outlined.StarBorder, "Favorite",
-                tint = if (fav) C.Amber else C.Muted, onClick = onFavorite,
-            )
+            PingLabel(ping, testing)
+            FavStar(fav, onFavorite)
             Box {
                 HeaderIcon(Icons.Filled.MoreVert, "Options") { menu = true }
                 DropdownMenu(menu, { menu = false }, shape = RoundedCornerShape(Radius.Card), containerColor = C.Card) {
@@ -458,13 +462,62 @@ private fun ServerRow(
     }
 }
 
+/** Latency result: "…" while testing, then the value slides/fades in; colour follows the quality. */
+@Composable
+private fun PingLabel(ping: Int?, testing: Boolean) {
+    AnimatedContent(
+        targetState = ping to testing,
+        transitionSpec = {
+            ContentTransform(
+                fadeIn(tween(Motion.Short + 50, delayMillis = 60)) + slideInVertically(tween(Motion.Short + 50)) { it / 3 },
+                fadeOut(tween(Motion.Short - 40)),
+                0f,
+                SizeTransform(clip = false),
+            )
+        },
+        label = "ping",
+    ) { (p, t) ->
+        when {
+            p == null -> if (t) Text("…", color = C.Muted, fontSize = 14.sp)
+            p < 0 -> Text("Timeout", color = C.Red, fontSize = 13.sp)
+            else -> Text("$p ms", color = if (p < 500) C.Green else if (p < 1200) C.Amber else C.Red, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+        }
+    }
+}
+
+/** Favourite star: colour fades, and the star pops (spring) when added / dips when removed, with a haptic tick. */
+@Composable
+private fun FavStar(fav: Boolean, onClick: () -> Unit) {
+    val tick = rememberTick()
+    val tint by animateColorAsState(if (fav) C.Amber else C.Muted, tween(Motion.Medium), label = "favTint")
+    val scale = remember { Animatable(1f) }
+    var first by remember { mutableStateOf(true) }
+    LaunchedEffect(fav) {
+        if (first) { first = false; return@LaunchedEffect }
+        if (fav) {
+            scale.snapTo(0.55f)
+            scale.animateTo(1f, spring(dampingRatio = 0.35f, stiffness = 380f))
+        } else {
+            scale.animateTo(0.8f, tween(80))
+            scale.animateTo(1f, spring(dampingRatio = 0.6f, stiffness = 400f))
+        }
+    }
+    Box(
+        Modifier.size(44.dp).pressable(RoundedCornerShape(22.dp), 0.86f) { tick(); onClick() },
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            if (fav) Icons.Filled.Star else Icons.Outlined.StarBorder, "Favorite", tint = tint,
+            modifier = Modifier.size(26.dp).graphicsLayer { scaleX = scale.value; scaleY = scale.value },
+        )
+    }
+}
+
 @Composable
 private fun ManualDialog(onDismiss: () -> Unit, onAdd: (String) -> Boolean) {
     var text by remember { mutableStateOf("") }
     var bad by remember { mutableStateOf(false) }
-    var shakes by remember { mutableIntStateOf(0) }
     AlertDialog(
-        modifier = Modifier.popIn(),
         onDismissRequest = onDismiss,
         containerColor = C.Card,
         shape = RoundedCornerShape(Radius.Card),
@@ -477,14 +530,12 @@ private fun ManualDialog(onDismiss: () -> Unit, onAdd: (String) -> Boolean) {
                     value = text, onValueChange = { text = it; bad = false },
                     textStyle = TextStyle(color = C.Text, fontSize = 13.sp),
                     cursorBrush = SolidColor(C.Accent),
-                    modifier = Modifier.fillMaxWidth().shake(shakes).height(120.dp).clip(RoundedCornerShape(Radius.Small)).background(C.Bg).padding(12.dp),
+                    modifier = Modifier.fillMaxWidth().height(120.dp).clip(RoundedCornerShape(Radius.Small)).background(C.Bg).padding(12.dp),
                 )
-                AnimatedVisibility(bad, enter = fadeIn(tween(200)) + expandVertically(), exit = fadeOut(tween(120)) + shrinkVertically()) {
-                    Text("No valid link found", color = C.Red, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
-                }
+                if (bad) Text("No valid link found", color = C.Red, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
             }
         },
-        confirmButton = { TextButton({ if (!onAdd(text)) { bad = true; shakes++ } }) { Text("Add", color = C.Accent) } },
+        confirmButton = { TextButton({ if (!onAdd(text)) bad = true }) { Text("Add", color = C.Accent) } },
         dismissButton = { TextButton(onDismiss) { Text("Cancel", color = C.Muted) } },
     )
 }
@@ -493,7 +544,6 @@ private fun ManualDialog(onDismiss: () -> Unit, onAdd: (String) -> Boolean) {
 private fun SubscriptionDialog(onDismiss: () -> Unit, onAdd: (String) -> Unit) {
     var url by remember { mutableStateOf("") }
     AlertDialog(
-        modifier = Modifier.popIn(),
         onDismissRequest = onDismiss,
         containerColor = C.Card,
         shape = RoundedCornerShape(Radius.Card),

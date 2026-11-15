@@ -19,11 +19,8 @@ import androidx.compose.foundation.clickable
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -31,13 +28,16 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.layout.asPaddingValues
-import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.LocalIndication
+import androidx.compose.foundation.indication
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.graphics.graphicsLayer
-import app.xvpn.ui.bounceClick
+import app.xvpn.ui.AppIndication
 import app.xvpn.ui.Motion
+import app.xvpn.ui.axisTransition
+import app.xvpn.ui.rememberTick
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -117,7 +117,7 @@ class MainActivity : ComponentActivity() {
             navigationBarStyle = SystemBarStyle.dark(C.Card.toArgb()),
         )
         window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(C.Bg.toArgb()))
-        setContent { DesignScale { App() } }
+        setContent { DesignScale { AppIndication { App() } } }
     }
 }
 
@@ -143,8 +143,9 @@ private enum class Tab(val label: String, val icon: ImageVector) {
     Menu("Settings", Icons.Filled.Settings),
 }
 
-/** Everything the content area can show. The order doubles as the "depth" that decides which way screens slide. */
-private enum class Dest { Home, Servers, Menu, Stats }
+private enum class Screen { Home, Servers, Menu, Stats }
+
+private fun Tab.screen() = when (this) { Tab.Home -> Screen.Home; Tab.Servers -> Screen.Servers; Tab.Menu -> Screen.Menu }
 
 @Composable
 private fun App() {
@@ -304,161 +305,172 @@ private fun App() {
     }
 
     // Home draws its own map behind the status bar; every other screen sits below it.
-    val homeVisible = tab == Tab.Home && !(showStats && status == Status.Connected)
-    val dockHidden = showStats && status == Status.Connected
+    val statsOn = showStats && status == Status.Connected
+    val screen = if (statsOn) Screen.Stats else tab.screen()
+    val homeVisible = screen == Screen.Home
+    val dockHidden = statsOn
     // Servers header colour is reported by ServersScreen: Bg at rest, Card once the list is scrolled.
     var serversScrolled by remember { mutableStateOf(false) }
     val statusStripColor by animateColorAsState(
-        if ((tab == Tab.Servers || tab == Tab.Menu) && serversScrolled) C.Card else C.Bg, label = "statusStrip",
+        if ((tab == Tab.Servers || tab == Tab.Menu) && serversScrolled) C.Card else C.Bg,
+        tween(Motion.Medium), label = "statusStrip",
     )
+    // the strip fades in/out instead of popping when you enter or leave Home (which draws behind the status bar)
+    val stripAlpha by animateFloatAsState(if (homeVisible) 0f else 1f, tween(Motion.Medium), label = "stripAlpha")
     // System navigation bar follows the bottom dock: Card with the dock, Bg when the dock is hidden (stats screen).
-    val navBarColor = if (dockHidden) C.Bg else C.Card
-    // The status-bar strip and the nav-bar padding animate their size instead of popping in / out, so the content
-    // below doesn't jump when you move between Home (map behind the status bar) and the other screens.
-    val statusInset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-    val navInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-    val stripHeight by animateDpAsState(if (homeVisible) 0.dp else statusInset, tween(Motion.Medium, easing = FastOutSlowInEasing), label = "stripHeight")
-    val contentBottom by animateDpAsState(if (dockHidden) navInset else 0.dp, tween(Motion.Medium, easing = FastOutSlowInEasing), label = "contentBottom")
-    SideEffect {
-        (ctx as? ComponentActivity)?.enableEdgeToEdge(
-            statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
-            navigationBarStyle = SystemBarStyle.dark(navBarColor.toArgb()),
-        )
+    val navBarColor = animateColorAsState(if (dockHidden) C.Bg else C.Card, tween(Motion.Medium), label = "navBar")
+    LaunchedEffect(Unit) {
+        snapshotFlow { navBarColor.value }.collect { c ->
+            (ctx as? ComponentActivity)?.enableEdgeToEdge(
+                statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
+                navigationBarStyle = SystemBarStyle.dark(c.toArgb()),
+            )
+        }
     }
     Column(Modifier.fillMaxSize().background(C.Bg).imePadding()) {
-        // Home draws its map behind the status bar. Other screens get a solid strip there: the Servers header
-        // colour (Bg, fading to Card on scroll) so header and status bar read as one bar, Bg elsewhere.
-        Spacer(Modifier.fillMaxWidth().height(stripHeight).background(statusStripColor))
-        Box(
-            Modifier.weight(1f).padding(bottom = contentBottom),
-        ) {
-            val dest = when {
-                showStats && status == Status.Connected -> Dest.Stats
-                tab == Tab.Home -> Dest.Home
-                tab == Tab.Servers -> Dest.Servers
-                else -> Dest.Menu
-            }
-            // Screens slide a short distance sideways while cross-fading; direction follows the tab order
-            // (Stats counts as one level deeper than Home, so it pushes in from the right and back-navigation reverses).
+        Box(Modifier.weight(1f)) {
             AnimatedContent(
-                targetState = dest,
+                targetState = screen,
+                transitionSpec = { axisTransition(forward = targetState.ordinal > initialState.ordinal) },
                 modifier = Modifier.fillMaxSize(),
-                // "fade through": the old screen fades out, the new one fades in with a barely-there scale. No sliding.
-                transitionSpec = {
-                    (fadeIn(tween(200, delayMillis = 90)) + scaleIn(tween(200, delayMillis = 90), initialScale = 0.985f)) togetherWith
-                        fadeOut(tween(90)) using SizeTransform(clip = false)
-                },
-                label = "screens",
-            ) { d -> when (d) {
-                Dest.Stats -> StatsScreen(
-                    profile = profiles.firstOrNull { it.link == selectedLink },
-                    real = real, proxy = proxy, onBack = { showStats = false },
-                )
-                Dest.Home -> HomeScreen(
-                    selected = profiles.firstOrNull { it.link == selectedLink },
-                    real = real, proxy = proxy,
-                    onToggle = ::toggle,
-                    onChangeServer = { tab = Tab.Servers },
-                    onOpenStats = { showStats = true },
-                )
-                Dest.Servers -> ServersScreen(
-                    profiles = profiles,
-                    selectedLink = selectedLink,
-                    onConnect = { p -> connect(p.link); tab = Tab.Home },
-                    onDelete = { p -> store.remove(p.link); store.favorites = store.favorites - p.link; favs = store.favorites; reload() },
-                    onPasteClipboard = ::importClipboard,
-                    onScanQr = {
-                        qrLauncher.launch(Unit)
-                    },
-                    onImportFile = { fileLauncher.launch(arrayOf("*/*")) },
-                    onAddManual = { importText(it) },
-                    onRefreshSubscriptions = { if (subs.isEmpty()) toast("No subscriptions added") else refreshSubs(subs) },
-                    favorites = favs,
-                    pings = pings, testing = testing, onTestLatency = ::testLatency,
-                    subscriptions = subs, sources = sources,
-                    onDeleteSubscription = { url ->
-                        val n = store.removeSubscription(url)
-                        reload(); toast("Deleted subscription and $n server(s)")
-                    },
-                    onToggleFavorite = { p ->
-                        store.favorites = if (p.link in favs) favs - p.link else favs + p.link
-                        favs = store.favorites
-                    },
-                    onCopy = { p ->
-                        (ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager)
-                            .setPrimaryClip(android.content.ClipData.newPlainText("proxy", p.link))
-                        toast("Copied ${p.name}")
-                    },
-                    onAddSubscription = { refreshSubs(listOf(it)) },
-                    onDeleteAll = { store.clear(); favs = emptySet(); reload(); toast("All servers deleted") },
-                    sort = sort, onSortChange = { sort = it; store.sortName = it.name },
-                    filter = serverFilter, onFilterChange = { serverFilter = it },
-                    onScrolledChange = { serversScrolled = it },
-                    subInfo = subInfo,
-                    onRefreshSubscription = { refreshSubs(listOf(it)) },
-                    onCopySubscription = { url ->
-                        (ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager)
-                            .setPrimaryClip(android.content.ClipData.newPlainText("subscription", url))
-                        toast("Subscription link copied")
-                    },
-                )
-                Dest.Menu -> MenuScreen(
-                    store = store,
-                    onExport = {
-                        (ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager)
-                            .setPrimaryClip(android.content.ClipData.newPlainText("servers", profiles.joinToString("\n") { it.link }))
-                        toast("Copied ${profiles.size} server link${if (profiles.size == 1) "" else "s"}")
-                    },
-                    onDebugInfo = {
-                        val info = "App ${runCatching { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName }.getOrNull()}\n" +
-                            "Android ${android.os.Build.VERSION.RELEASE} (API ${android.os.Build.VERSION.SDK_INT})\n" +
-                            "Device ${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}\n" +
-                            "Status $status\nServers ${profiles.size}\nSubscriptions ${subs.size}\n" +
-                            "Last error ${VpnState.error.value ?: "none"}"
-                        (ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager)
-                            .setPrimaryClip(android.content.ClipData.newPlainText("debug", info))
-                        toast("Debug info copied")
-                    },
-                    onScrolledChange = { serversScrolled = it },
-                )
-            } }
-        }
-        // the dock collapses away on the stats screen and grows back when you return
-        AnimatedVisibility(
-            visible = !dockHidden,
-            enter = fadeIn(tween(250)) + expandVertically(tween(Motion.Medium, easing = FastOutSlowInEasing)),
-            exit = fadeOut(tween(150)) + shrinkVertically(tween(Motion.Medium, easing = FastOutSlowInEasing)),
-        ) {
-        Row(
-            // fixed content height so the dock is exactly the same on every tab and device
-            Modifier.fillMaxWidth().background(C.Card).navigationBarsPadding().height(72.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Tab.values().forEach { t ->
-                val sel = t == tab
-                val c by animateColorAsState(if (sel) C.Accent else C.Muted, tween(220), label = "navTint")
-                // the pill grows out from the centre of the icon; the icon gives a little bounce when it becomes selected
-                val pill by animateFloatAsState(if (sel) 1f else 0f, spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow), label = "navPill")
-                val iconScale by animateFloatAsState(if (sel) 1.08f else 1f, spring(dampingRatio = 0.4f, stiffness = Spring.StiffnessMedium), label = "navIcon")
-                Column(
-                    Modifier.weight(1f).bounceClick(pressedScale = 0.92f, ripple = false, haptic = true) { tab = t },
-                    horizontalAlignment = Alignment.CenterHorizontally,
+                label = "screen",
+            ) { s ->
+                // Home draws its map behind the status bar; every other screen sits below it.
+                Box(
+                    Modifier.fillMaxSize()
+                        .then(if (s == Screen.Home) Modifier else Modifier.statusBarsPadding())
+                        .then(if (s == Screen.Stats) Modifier.navigationBarsPadding() else Modifier),
                 ) {
-                    Box(Modifier.width(56.dp).height(32.dp), contentAlignment = Alignment.Center) {
-                        Box(
-                            Modifier.matchParentSize()
-                                .graphicsLayer { scaleX = 0.35f + 0.65f * pill; alpha = pill.coerceIn(0f, 1f) }
-                                .clip(RoundedCornerShape(Radius.Pill)).background(C.NavPill),
+                    when (s) {
+                        Screen.Stats -> StatsScreen(
+                            profile = profiles.firstOrNull { it.link == selectedLink },
+                            real = real, proxy = proxy, onBack = { showStats = false },
                         )
-                        Icon(
-                            t.icon, t.label, tint = c,
-                            modifier = Modifier.size(22.dp).graphicsLayer { scaleX = iconScale; scaleY = iconScale },
+                        Screen.Home -> HomeScreen(
+                            selected = profiles.firstOrNull { it.link == selectedLink },
+                            real = real, proxy = proxy,
+                            onToggle = ::toggle,
+                            onChangeServer = { tab = Tab.Servers },
+                            onOpenStats = { showStats = true },
+                        )
+                        Screen.Servers -> ServersScreen(
+                            profiles = profiles,
+                            selectedLink = selectedLink,
+                            onConnect = { p -> connect(p.link); tab = Tab.Home },
+                            onDelete = { p -> store.remove(p.link); store.favorites = store.favorites - p.link; favs = store.favorites; reload() },
+                            onPasteClipboard = ::importClipboard,
+                            onScanQr = {
+                                qrLauncher.launch(Unit)
+                            },
+                            onImportFile = { fileLauncher.launch(arrayOf("*/*")) },
+                            onAddManual = { importText(it) },
+                            onRefreshSubscriptions = { if (subs.isEmpty()) toast("No subscriptions added") else refreshSubs(subs) },
+                            favorites = favs,
+                            pings = pings, testing = testing, onTestLatency = ::testLatency,
+                            subscriptions = subs, sources = sources,
+                            onDeleteSubscription = { url ->
+                                val n = store.removeSubscription(url)
+                                reload(); toast("Deleted subscription and $n server(s)")
+                            },
+                            onToggleFavorite = { p ->
+                                store.favorites = if (p.link in favs) favs - p.link else favs + p.link
+                                favs = store.favorites
+                            },
+                            onCopy = { p ->
+                                (ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager)
+                                    .setPrimaryClip(android.content.ClipData.newPlainText("proxy", p.link))
+                                toast("Copied ${p.name}")
+                            },
+                            onAddSubscription = { refreshSubs(listOf(it)) },
+                            onDeleteAll = { store.clear(); favs = emptySet(); reload(); toast("All servers deleted") },
+                            sort = sort, onSortChange = { sort = it; store.sortName = it.name },
+                            filter = serverFilter, onFilterChange = { serverFilter = it },
+                            onScrolledChange = { serversScrolled = it },
+                            subInfo = subInfo,
+                            onRefreshSubscription = { refreshSubs(listOf(it)) },
+                            onCopySubscription = { url ->
+                                (ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager)
+                                    .setPrimaryClip(android.content.ClipData.newPlainText("subscription", url))
+                                toast("Subscription link copied")
+                            },
+                        )
+                        Screen.Menu -> MenuScreen(
+                            store = store,
+                            onExport = {
+                                (ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager)
+                                    .setPrimaryClip(android.content.ClipData.newPlainText("servers", profiles.joinToString("\n") { it.link }))
+                                toast("Copied ${profiles.size} server link${if (profiles.size == 1) "" else "s"}")
+                            },
+                            onDebugInfo = {
+                                val info = "App ${runCatching { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName }.getOrNull()}\n" +
+                                    "Android ${android.os.Build.VERSION.RELEASE} (API ${android.os.Build.VERSION.SDK_INT})\n" +
+                                    "Device ${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}\n" +
+                                    "Status $status\nServers ${profiles.size}\nSubscriptions ${subs.size}\n" +
+                                    "Last error ${VpnState.error.value ?: "none"}"
+                                (ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager)
+                                    .setPrimaryClip(android.content.ClipData.newPlainText("debug", info))
+                                toast("Debug info copied")
+                            },
+                            onScrolledChange = { serversScrolled = it },
                         )
                     }
-                    Text(t.label, color = c, fontSize = 13.sp)
                 }
             }
+            // Solid strip behind the status icons on every screen except Home (which draws its map there).
+            Spacer(
+                Modifier.align(Alignment.TopStart).fillMaxWidth().windowInsetsTopHeight(WindowInsets.statusBars)
+                    .graphicsLayer { alpha = stripAlpha }.background(statusStripColor),
+            )
         }
+        AnimatedVisibility(
+            visible = !dockHidden,
+            enter = expandVertically(tween(Motion.Medium, easing = Motion.Standard)) + fadeIn(tween(Motion.Medium)),
+            exit = shrinkVertically(tween(Motion.Medium, easing = Motion.Standard)) + fadeOut(tween(Motion.Short)),
+        ) {
+            Row(
+                // fixed content height so the dock is exactly the same on every tab and device
+                Modifier.fillMaxWidth().background(C.Card).navigationBarsPadding().height(72.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Tab.values().forEach { t -> DockItem(t, selected = t == tab) { tab = t } }
+            }
         }
+    }
+}
+
+/** One dock tab: the pill grows in behind the icon, the icon springs, label + icon colour fade, ripple stays inside the pill. */
+@Composable
+private fun RowScope.DockItem(t: Tab, selected: Boolean, onClick: () -> Unit) {
+    val source = remember { MutableInteractionSource() }
+    val tick = rememberTick()
+    val tint by animateColorAsState(if (selected) C.Accent else C.Muted, tween(Motion.Medium), label = "dockTint")
+    val pillAlpha by animateFloatAsState(if (selected) 1f else 0f, tween(Motion.Medium), label = "pillAlpha")
+    val pillScale by animateFloatAsState(
+        if (selected) 1f else 0.5f, spring(dampingRatio = 0.75f, stiffness = Spring.StiffnessMediumLow), label = "pillScale",
+    )
+    val iconScale by animateFloatAsState(
+        if (selected) 1.1f else 1f, spring(dampingRatio = 0.45f, stiffness = Spring.StiffnessMedium), label = "iconScale",
+    )
+    val pill = RoundedCornerShape(Radius.Pill)
+    Column(
+        Modifier.weight(1f).clickable(interactionSource = source, indication = null) {
+            if (!selected) tick()
+            onClick()
+        },
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Box(
+            Modifier.width(56.dp).height(32.dp).clip(pill).indication(source, LocalIndication.current),
+            contentAlignment = Alignment.Center,
+        ) {
+            Box(
+                Modifier.matchParentSize().graphicsLayer { scaleX = pillScale; alpha = pillAlpha }.background(C.NavPill, pill),
+            )
+            Icon(
+                t.icon, t.label, tint = tint,
+                modifier = Modifier.size(22.dp).graphicsLayer { scaleX = iconScale; scaleY = iconScale },
+            )
+        }
+        Text(t.label, color = tint, fontSize = 13.sp)
     }
 }

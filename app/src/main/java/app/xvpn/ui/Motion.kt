@@ -1,8 +1,13 @@
+@file:OptIn(ExperimentalFoundationApi::class)
+
 package app.xvpn.ui
 
-import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.ContentTransform
+import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.FastOutLinearInEasing
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
@@ -10,126 +15,151 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material.ripple.ripple
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 
-/** Shared timings / easings so every transition in the app has the same feel. */
-internal object Motion {
-    /** Material "emphasized decelerate": quick start, soft landing. Used for things entering the screen. */
-    val Emphasized = CubicBezierEasing(0.2f, 0f, 0f, 1f)
-    const val Fast = 150
+/**
+ * Shared motion language. Every duration / easing in the app comes from here so screens, lists and buttons
+ * all move the same way (this is what makes v2rayNG feel "native": Material standard easing, short fades,
+ * ripples on everything tappable, springs for small feedback).
+ */
+object Motion {
+    const val Short = 150
     const val Medium = 300
-    const val Slow = 400
+    const val Long = 420
+    val Standard = FastOutSlowInEasing
+    val Emphasized = CubicBezierEasing(0.2f, 0f, 0f, 1f)
+}
+
+/** Gives every `clickable` in the app a Material ripple (without a MaterialTheme the app had no touch feedback at all). */
+@Composable
+fun AppIndication(content: @Composable () -> Unit) {
+    val indication = remember { ripple(color = Color.White) }
+    CompositionLocalProvider(LocalIndication provides indication, content = content)
+}
+
+/** Light "tick" haptic. Honours the user's touch-feedback system setting. */
+@Composable
+fun rememberTick(strong: Boolean = false): () -> Unit {
+    val haptic = LocalHapticFeedback.current
+    return remember(haptic, strong) {
+        { haptic.performHapticFeedback(if (strong) HapticFeedbackType.LongPress else HapticFeedbackType.TextHandleMove) }
+    }
 }
 
 /**
- * Drop-in replacement for `clickable` / `combinedClickable` that adds press feedback: the element shrinks a touch while
- * the finger is down and springs back with a small overshoot on release. The ripple is kept.
- *
- * Put it FIRST among the decorating modifiers (right after the size modifiers) and the `background` / `border` /
- * `padding` after it, so the whole visual scales together. Pass [shape] to clip the ripple to rounded corners.
+ * Tappable surface with ripple (clipped to [shape]) and a springy press-down scale.
+ * Put it BEFORE `.background(...)` / `.border(...)` so the whole button scales and the ripple draws over the fill:
+ * `Modifier.pressable(shape) { ... }.background(color)`.
  */
-@OptIn(ExperimentalFoundationApi::class)
-fun Modifier.bounceClick(
+fun Modifier.pressable(
+    shape: Shape = RectangleShape,
     pressedScale: Float = 0.97f,
-    shape: Shape? = null,
     enabled: Boolean = true,
-    ripple: Boolean = true,
-    haptic: Boolean = false,
     onLongClick: (() -> Unit)? = null,
     onClick: () -> Unit,
 ): Modifier = composed {
     val source = remember { MutableInteractionSource() }
     val pressed by source.collectIsPressedAsState()
     val scale by animateFloatAsState(
-        targetValue = if (pressed && enabled) pressedScale else 1f,
-        animationSpec = if (pressed) tween(90, easing = LinearOutSlowInEasing)
-        else spring(dampingRatio = 0.55f, stiffness = Spring.StiffnessMediumLow),
+        targetValue = if (pressed) pressedScale else 1f,
+        animationSpec = spring(dampingRatio = 0.55f, stiffness = Spring.StiffnessMedium),
         label = "pressScale",
     )
-    val haptics = LocalHapticFeedback.current
     this
         .graphicsLayer { scaleX = scale; scaleY = scale }
-        .then(if (shape != null) Modifier.clip(shape) else Modifier)
+        .clip(shape)
         .combinedClickable(
             interactionSource = source,
-            indication = if (ripple) LocalIndication.current else null,
+            indication = LocalIndication.current,
             enabled = enabled,
             onLongClick = onLongClick,
-            onClick = {
-                if (haptic) haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                onClick()
-            },
+            onClick = onClick,
         )
 }
 
-/** Fades in the first time it is composed (set [distance] > 0 for a small rise). [delayMs] lets a column of blocks arrive one after another. */
-fun Modifier.enterRise(delayMs: Int = 0, distance: Dp = 0.dp, durationMs: Int = Motion.Medium): Modifier = composed {
-    val progress = remember { Animatable(0f) }
-    LaunchedEffect(Unit) {
-        if (delayMs > 0) delay(delayMs.toLong())
-        progress.animateTo(1f, tween(durationMs, easing = Motion.Emphasized))
-    }
-    val px = with(LocalDensity.current) { distance.toPx() }
-    this.graphicsLayer { alpha = progress.value; translationY = (1f - progress.value) * px }
+/** Fade + short slide that fades the old screen out first, then brings the new one in (Material "shared axis X"). */
+fun axisTransition(forward: Boolean, distance: Float = 0.12f): ContentTransform {
+    val dir = if (forward) 1 else -1
+    val enter = slideInHorizontally(tween(Motion.Medium, easing = Motion.Standard)) { (it * distance).toInt() * dir } +
+        fadeIn(tween(Motion.Medium - 90, delayMillis = 90, easing = LinearOutSlowInEasing))
+    val exit = slideOutHorizontally(tween(Motion.Medium, easing = Motion.Standard)) { -(it * distance).toInt() * dir } +
+        fadeOut(tween(90, easing = FastOutLinearInEasing))
+    return ContentTransform(enter, exit, 0f, SizeTransform(clip = false))
 }
 
-/** Fades in the first time it is composed. */
-fun Modifier.enterFade(delayMs: Int = 0, durationMs: Int = Motion.Medium): Modifier = composed {
-    val progress = remember { Animatable(0f) }
-    LaunchedEffect(Unit) {
-        if (delayMs > 0) delay(delayMs.toLong())
-        progress.animateTo(1f, tween(durationMs))
-    }
-    this.graphicsLayer { alpha = progress.value }
+/** Plain cross-fade with a smooth size change. For text / label swaps. */
+fun fadeTransition(): ContentTransform = ContentTransform(
+    fadeIn(tween(Motion.Short + 50, delayMillis = 60, easing = LinearOutSlowInEasing)),
+    fadeOut(tween(Motion.Short - 40)),
+    0f,
+    SizeTransform(clip = false),
+)
+
+/** Connection-state swap on Home: new content rises in slightly while the old one fades away. */
+fun statusTransition(): ContentTransform {
+    val enter = fadeIn(tween(240, delayMillis = 90, easing = LinearOutSlowInEasing)) +
+        slideInVertically(tween(Motion.Medium, delayMillis = 60, easing = Motion.Standard)) { it / 10 } +
+        scaleIn(tween(Motion.Medium, delayMillis = 60, easing = Motion.Standard), initialScale = 0.96f)
+    val exit = fadeOut(tween(90))
+    return ContentTransform(
+        enter, exit, 0f,
+        SizeTransform(clip = false) { _, _ -> tween<IntSize>(Motion.Medium, easing = Motion.Standard) },
+    )
 }
 
-/** Springs in from slightly smaller (dialogs, icons that appear). */
-fun Modifier.popIn(from: Float = 0.88f): Modifier = composed {
-    val progress = remember { Animatable(0f) }
-    LaunchedEffect(Unit) { progress.animateTo(1f, spring(dampingRatio = 0.72f, stiffness = 380f)) }
-    this.graphicsLayer {
-        val s = from + (1f - from) * progress.value
-        scaleX = s; scaleY = s
-        alpha = (progress.value * 2.5f).coerceIn(0f, 1f)
-    }
+/** Counter / badge change: the new number slides in from below when it grows, from above when it shrinks. */
+fun numberTransition(up: Boolean): ContentTransform {
+    val dir = if (up) 1 else -1
+    return ContentTransform(
+        slideInVertically(tween(Motion.Short + 50, easing = Motion.Standard)) { it * dir / 2 } + fadeIn(tween(Motion.Short + 50)),
+        slideOutVertically(tween(Motion.Short + 50, easing = Motion.Standard)) { -it * dir / 2 } + fadeOut(tween(Motion.Short)),
+        0f,
+        SizeTransform(clip = false),
+    )
 }
 
-/** A quick horizontal wiggle every time [trigger] changes (used to say "that input is invalid"). */
-fun Modifier.shake(trigger: Int): Modifier = composed {
-    val x = remember { Animatable(0f) }
-    LaunchedEffect(trigger) {
-        if (trigger > 0) for (t in floatArrayOf(-9f, 8f, -6f, 4f, -2f, 0f)) x.animateTo(t, tween(50))
-    }
-    this.graphicsLayer { translationX = x.value * density }
-}
-
-/** Cross-fades whenever [target] changes (text, small blocks). */
+/** Staggered entrance: content fades in and floats up a few dp, [index] * 60 ms after the screen opens. */
 @Composable
-fun <T> FadeSwap(target: T, modifier: Modifier = Modifier, content: @Composable (T) -> Unit) {
-    AnimatedContent(
-        targetState = target,
-        modifier = modifier,
-        transitionSpec = { fadeIn(tween(220, delayMillis = 60)) togetherWith fadeOut(tween(120)) },
-        label = "fadeSwap",
-    ) { content(it) }
+fun Reveal(index: Int, content: @Composable () -> Unit) {
+    val progress = remember { Animatable(0f) }
+    LaunchedEffect(Unit) {
+        delay(index * 60L)
+        progress.animateTo(1f, tween(Motion.Long, easing = Motion.Standard))
+    }
+    Column(
+        Modifier.fillMaxWidth().graphicsLayer {
+            alpha = progress.value
+            translationY = (1f - progress.value) * 20.dp.toPx()
+        },
+    ) { content() }
 }
