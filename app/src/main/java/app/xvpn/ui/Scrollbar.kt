@@ -21,10 +21,6 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 
-/**
- * Thin overlay scrollbar that fades in while you scroll and fades out ~1.2 s after you stop.
- * Same behaviour as v2rayNG's Scrollbar.kt, minus the Material theme / lifecycle dependencies.
- */
 private const val FADE_OUT_DELAY_MS = 1200L
 private const val FADE_ANIM_MS = 300
 
@@ -34,7 +30,7 @@ private fun rememberScrollbarAlpha(key: Any, position: () -> Any): State<Float> 
     LaunchedEffect(key) {
         var first = true
         snapshotFlow(position).collectLatest {
-            // don't flash the bar just because the screen opened
+
             if (first) { first = false; return@collectLatest }
             alpha.animateTo(1f, tween(80))
             delay(FADE_OUT_DELAY_MS)

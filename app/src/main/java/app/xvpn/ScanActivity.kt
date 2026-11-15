@@ -92,7 +92,6 @@ import com.journeyapps.barcodescanner.BarcodeView
 import com.journeyapps.barcodescanner.DefaultDecoderFactory
 import kotlin.concurrent.thread
 
-/** Portrait QR scanner (the stock zxing CaptureActivity is locked to landscape). Returns the scanned text. */
 class ScanContract : ActivityResultContract<Unit, String?>() {
     override fun createIntent(context: Context, input: Unit) = Intent(context, ScanActivity::class.java)
     override fun parseResult(resultCode: Int, intent: Intent?): String? =
@@ -140,7 +139,7 @@ class ScanActivity : ComponentActivity() {
         val start: () -> Unit = { if (granted) { scanning = true } else { permission.launch(Manifest.permission.CAMERA) } }
 
         Column(Modifier.fillMaxSize().background(C.Bg)) {
-            // header: same layout as the Servers screen
+
             Column(Modifier.fillMaxWidth().statusBarsPadding()) {
                 Spacer(Modifier.height(20.dp))
                 Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp).height(44.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -180,7 +179,6 @@ class ScanActivity : ComponentActivity() {
         }
     }
 
-    /** Same look as the filter chips on the Servers screen. */
     @Composable
     private fun PillButton(label: String, primary: Boolean, onClick: () -> Unit) {
         Box(
@@ -219,14 +217,14 @@ class ScanActivity : ComponentActivity() {
                 val l = (size.width - sd) / 2f; val t = (size.height - sd) / 2f
                 val rt = l + sd; val b = t + sd
                 val r = Radius.Card.toPx(); val len = 36.dp.toPx(); val w = 4.dp.toPx()
-                // dim everything outside the rounded scan window
+
                 val scrim = Path().apply {
                     fillType = PathFillType.EvenOdd
                     addRect(Rect(0f, 0f, size.width, size.height))
                     addRoundRect(RoundRect(Rect(l, t, rt, b), CornerRadius(r)))
                 }
                 drawPath(scrim, C.Bg.copy(alpha = 0.6f))
-                // accent corner brackets with rounded corners
+
                 val corners = Path().apply {
                     moveTo(l, t + len); lineTo(l, t + r); arcTo(Rect(l, t, l + 2 * r, t + 2 * r), 180f, 90f, false); lineTo(l + len, t)
                     moveTo(rt - len, t); lineTo(rt - r, t); arcTo(Rect(rt - 2 * r, t, rt, t + 2 * r), 270f, 90f, false); lineTo(rt, t + len)
@@ -242,7 +240,6 @@ class ScanActivity : ComponentActivity() {
         }
     }
 
-    /** Decodes a QR code from a gallery image; null if none is found. */
     private fun decodeImage(uri: Uri): String? = runCatching {
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }

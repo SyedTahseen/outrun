@@ -11,6 +11,4 @@ app/build/
 build-native/
 dist/
 
-# fetched / built during CI (scripts/fetch-singbox.sh, scripts/build-native.sh)
-
 app/src/main/jniLibs/

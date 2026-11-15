@@ -110,10 +110,9 @@ import kotlin.concurrent.thread
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Edge-to-edge: the app draws behind the status bar (so the map reaches the top of the screen) and behind
-        // the navigation bar, which gets the same colour as our bottom dock instead of system black.
+
         enableEdgeToEdge(
-            statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),   // light icons over the map
+            statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
             navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
         )
         window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(C.Bg.toArgb()))
@@ -121,11 +120,6 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-/**
- * The design is drawn on a 360dp-wide phone. Phones differ in "display size" / font size settings, which
- * made every dp/sp value render larger or smaller than the mockup. Re-base the density so the screen is always
- * 360dp wide (portrait) and ignore the system font scale: layout proportions then match the design everywhere.
- */
 @Composable
 internal fun DesignScale(content: @Composable () -> Unit) {
     val d = LocalDensity.current
@@ -151,12 +145,12 @@ private fun Tab.screen() = when (this) { Tab.Home -> Screen.Home; Tab.Servers ->
 private fun App() {
     val ctx = androidx.compose.ui.platform.LocalContext.current
     val store = remember { Store(ctx) }
-    // show the last known location straight away (before the first lookup finishes) instead of a default
+
     remember { if (NetInfo.real.value == null) NetInfo.real.value = store.lastReal }
     var tab by remember { mutableStateOf(Tab.Home) }
     var profiles by remember { mutableStateOf(store.profiles()) }
     var selectedLink by remember { mutableStateOf(store.selected ?: profiles.firstOrNull()?.link) }
-    // Servers-screen choices live here so they survive switching tabs (the screen itself leaves composition)
+
     var sort by remember { mutableStateOf(SortMode.values().firstOrNull { it.name == store.sortName } ?: SortMode.Default) }
     var serverFilter by remember { mutableStateOf<String?>(null) }
     var subs by remember { mutableStateOf(store.subscriptions) }
@@ -171,8 +165,6 @@ private fun App() {
     var showStats by remember { mutableStateOf(false) }
     LaunchedEffect(real) { real?.let { store.lastReal = it } }
 
-    // Look up our real location when the VPN is off, and the proxy's exit location (through sing-box's
-    // local SOCKS port, because this app is excluded from the tunnel) when it is on.
     LaunchedEffect(status, socks) {
         if (status != Status.Connected) showStats = false
         when {
@@ -184,7 +176,7 @@ private fun App() {
                     delay(1500)
                 }
             }
-            // switching servers: forget the old exit location so the map doesn't bounce back to it once connected
+
             status == Status.Connecting -> NetInfo.proxy.value = null
             status == Status.Connected && socks > 0 -> {
                 for (i in 0 until 5) {
@@ -210,7 +202,7 @@ private fun App() {
         testing = true; pings = emptyMap()
         val list = profiles.map { it.link }
         scope.launch {
-            // real delay: an HTTPS request through each server (client -> server -> internet), same method as v2rayNG
+
             runCatching { RealDelay.test(ctx, list, store.testUrl()) { link, ms -> pings = pings + (link to ms) } }
             testing = false
         }
@@ -222,7 +214,6 @@ private fun App() {
 
     fun toast(m: String) = android.widget.Toast.makeText(ctx, m, android.widget.Toast.LENGTH_SHORT).show()
 
-    /** Parses share links / a subscription body from any text. Returns true if at least one valid link was found. */
     fun importText(text: String): Boolean {
         val found = LinkParser.parseMany(text)
         val n = store.add(found)
@@ -263,7 +254,6 @@ private fun App() {
         }
     }
 
-    // "Connect on launch": once, when the app opens with the VPN off and a server selected
     LaunchedEffect(Unit) {
         if (store.autoConnect && status == Status.Disconnected && selectedLink != null) toggle()
     }
@@ -293,7 +283,6 @@ private fun App() {
         }
     }
 
-    // Respect each subscription's profile-update-interval (default 24h): refresh stale ones when the app opens.
     LaunchedEffect(Unit) {
         if (!store.autoUpdateSubs) return@LaunchedEffect
         val info = store.subInfo
@@ -304,23 +293,19 @@ private fun App() {
         if (stale.isNotEmpty()) refreshSubs(stale, silent = true)
     }
 
-    // Home draws its own map behind the status bar; every other screen sits below it.
     val statsOn = showStats && status == Status.Connected
     val screen = if (statsOn) Screen.Stats else tab.screen()
     val homeVisible = screen == Screen.Home
     val dockHidden = statsOn
-    // Servers header colour is reported by ServersScreen: Bg at rest, Card once the list is scrolled.
+
     var serversScrolled by remember { mutableStateOf(false) }
     val statusStripColor by animateColorAsState(
         if ((tab == Tab.Servers || tab == Tab.Menu) && serversScrolled) C.Card else C.Bg,
         tween(Motion.Medium), label = "statusStrip",
     )
-    // the strip fades in/out instead of popping when you enter or leave Home (which draws behind the status bar)
+
     val stripAlpha by animateFloatAsState(if (homeVisible) 0f else 1f, tween(Motion.Medium), label = "stripAlpha")
-    // The system nav bar is transparent (set once in onCreate); the dock / stats screen paint behind it themselves.
-    // Re-applying enableEdgeToEdge on every animation frame made the window insets jump while stats opened / closed.
-    // The dock is an overlay (not part of the layout), so opening / closing stats never resizes the screens:
-    // each screen reserves the dock's height itself, and stats simply reserves none.
+
     Box(Modifier.fillMaxSize().background(C.Bg).imePadding()) {
         Box(Modifier.fillMaxSize()) {
             AnimatedContent(
@@ -329,7 +314,7 @@ private fun App() {
                 modifier = Modifier.fillMaxSize(),
                 label = "screen",
             ) { s ->
-                // Home draws its map behind the status bar; every other screen sits below it.
+
                 Box(
                     Modifier.fillMaxSize()
                         .then(if (s == Screen.Home) Modifier else Modifier.statusBarsPadding())
@@ -410,7 +395,7 @@ private fun App() {
                     }
                 }
             }
-            // Solid strip behind the status icons on every screen except Home (which draws its map there).
+
             Spacer(
                 Modifier.align(Alignment.TopStart).fillMaxWidth().windowInsetsTopHeight(WindowInsets.statusBars)
                     .graphicsLayer { alpha = stripAlpha }.background(statusStripColor),
@@ -423,7 +408,7 @@ private fun App() {
             exit = slideOutVertically(tween(Motion.Medium, easing = Motion.Standard)) { it } + fadeOut(tween(Motion.Short)),
         ) {
             Row(
-                // fixed content height so the dock is exactly the same on every tab and device
+
                 Modifier.fillMaxWidth().background(C.Card).navigationBarsPadding().height(72.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -433,7 +418,6 @@ private fun App() {
     }
 }
 
-/** One dock tab: the pill grows in behind the icon, the icon springs, label + icon colour fade, ripple stays inside the pill. */
 @Composable
 private fun RowScope.DockItem(t: Tab, selected: Boolean, onClick: () -> Unit) {
     val source = remember { MutableInteractionSource() }

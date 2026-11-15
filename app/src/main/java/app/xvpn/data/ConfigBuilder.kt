@@ -4,16 +4,8 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.net.URI
 
-/**
- * Builds a sing-box (1.14.x format) JSON config from a share link:
- * one SOCKS inbound on 127.0.0.1:socksPort -> "proxy" outbound.
- *
- * Not supported by stock sing-box (a clear error is shown instead of a broken connection):
- * XHTTP / SplitHTTP, mKCP, QUIC transports and VLESS "encryption" (post-quantum).
- */
 object ConfigBuilder {
 
-    /** The "proxy" outbound for one share link. Throws if the link can't be used by sing-box. */
     fun outbound(link: String): JSONObject {
         val proxy = when {
             link.startsWith("vless://") -> vless(link)
@@ -26,7 +18,6 @@ object ConfigBuilder {
         return proxy
     }
 
-    // Plain UDP DNS, used only to resolve the proxy server's own hostname.
     private fun dnsBlock(dns: String = "1.1.1.1") = JSONObject()
         .put(
             "servers", JSONArray().put(
@@ -35,10 +26,6 @@ object ConfigBuilder {
         )
         .put("final", "dns-direct")
 
-    /**
-     * One config for many servers (used by the real-delay test): every server gets its own SOCKS inbound
-     * (ports[i]) that is routed to its own outbound, so each one can be probed independently in one process.
-     */
     fun buildMulti(outs: List<JSONObject>, ports: List<Int>): String {
         val inbounds = JSONArray(); val outbounds = JSONArray(); val rules = JSONArray()
         outs.forEachIndexed { i, o ->
@@ -61,8 +48,7 @@ object ConfigBuilder {
 
         val root = JSONObject()
             .put("log", JSONObject().put("level", "warn"))
-            // Plain UDP DNS, used only to resolve the proxy server's own hostname.
-            // (Go on Android has no /etc/resolv.conf, so the "local" resolver can't be relied on.)
+
             .put("dns", dnsBlock(dns))
             .put(
                 "inbounds", JSONArray().put(
@@ -167,7 +153,7 @@ object ConfigBuilder {
 
         val fp = q["fp"].orEmpty()
         if (security == "reality") {
-            // REALITY requires uTLS in sing-box
+
             t.put("utls", JSONObject().put("enabled", true).put("fingerprint", fp.ifEmpty { "chrome" }))
             t.put(
                 "reality", JSONObject()
@@ -189,7 +175,7 @@ object ConfigBuilder {
             "tcp" -> null
             "ws" -> {
                 val o = JSONObject().put("type", "ws")
-                // Xray-style early data: path "/x?ed=2048"
+
                 val ed = Regex("[?&]ed=(\\d+)").find(path)?.groupValues?.get(1)?.toIntOrNull()
                 o.put("path", if (ed != null) path.replace(Regex("[?&]ed=\\d+"), "").ifEmpty { "/" } else path)
                 if (ed != null) {

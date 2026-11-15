@@ -100,10 +100,6 @@ import kotlinx.coroutines.withContext
 
 private class AppInfo(val label: String, val pkg: String)
 
-/**
- * Settings. Importing configs / subscriptions lives in the Servers screen; this screen holds the options that change
- * how the VPN behaves. Everything here is stored in [Store] and read by the VPN service when it connects.
- */
 @Composable
 fun MenuScreen(
     store: Store,
@@ -112,8 +108,8 @@ fun MenuScreen(
     onScrolledChange: (Boolean) -> Unit = {},
 ) {
     val pageState = remember { mutableStateOf("main") }
-    val scroll = rememberScrollState()   // hoisted so the position survives opening a sub page
-    // Sub pages slide in from the right when you go deeper and back out the other way (Material shared-axis).
+    val scroll = rememberScrollState()
+
     AnimatedContent(
         targetState = pageState.value,
         modifier = Modifier.fillMaxSize(),
@@ -134,7 +130,6 @@ private fun pageParent(p: String) = when (p) {
     else -> "main"
 }
 
-/** One settings page. [shown] is the page this instance draws (the old one keeps drawing while it animates out). */
 @Composable
 private fun MenuPage(
     store: Store,
@@ -163,7 +158,6 @@ private fun MenuPage(
     var incIps by remember { mutableStateOf(store.splitIncludeIps) }
     val including = splitMode == "include"
 
-    // system back always steps one level up (sub pages with their own back handling take priority)
     BackHandler(enabled = shown == page && page != "main") { page = pageParent(page) }
 
     when (shown) {
@@ -331,8 +325,6 @@ private fun MenuPage(
     val testLabel = Choices.testUrls.firstOrNull { it.id == testUrl }?.name ?: "Google"
     val version = remember { runCatching { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName }.getOrNull() ?: "-" }
 
-    // The title stays pinned; its bar switches from the background colour to the bottom-bar colour once the list scrolls
-    // (same behaviour as the Servers header, and the status bar strip follows it).
     val scrolled by remember { derivedStateOf { scroll.value > 0 } }
     val headerColor by animateColorAsState(if (scrolled) C.Card else C.Bg, label = "settingsHeader")
     LaunchedEffect(scrolled) { onScrolledChange(scrolled) }
@@ -417,7 +409,7 @@ private fun Toggle(checked: Boolean, onChange: (Boolean) -> Unit) {
 @Composable
 private fun SheetDialog(title: String, onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
     Dialog(onDismissRequest = onDismiss) {
-        // card scales + fades in on top of the window's own fade
+
         var visible by remember { mutableStateOf(false) }
         LaunchedEffect(Unit) { visible = true }
         AnimatedVisibility(
@@ -499,7 +491,6 @@ private fun TextDialog(
 
 private val AppRowIcon = 32.dp
 
-/** Split tunneling landing page: toggle, mode, and the apps / IP lists for the current mode. */
 @Composable
 private fun SplitPage(
     on: Boolean, including: Boolean, apps: Set<String>, ipCount: Int,
@@ -559,7 +550,6 @@ private fun SplitPage(
     }
 }
 
-/** Top bar shared by the two editor pages: back arrow, title, Save. */
 @Composable
 private fun EditorBar(title: String, onBack: () -> Unit, onSave: () -> Unit) {
     Spacer(Modifier.height(20.dp))
@@ -600,7 +590,6 @@ private fun RoundAction(add: Boolean, onClick: () -> Unit) {
     }
 }
 
-/** Pick apps for split tunneling. Edits are kept locally until Save; leaving with changes asks first. */
 @Composable
 private fun AppPickerPage(
     title: String, listTitle: String, note: String, initial: Set<String>,
@@ -658,7 +647,6 @@ private fun PickRow(app: AppInfo, add: Boolean, modifier: Modifier = Modifier, o
     }
 }
 
-/** Add / remove IP addresses (optionally with a /prefix) for split tunneling. */
 @Composable
 private fun IpPage(title: String, initial: List<String>, onSave: (List<String>) -> Unit, onBack: () -> Unit) {
     var ips by remember { mutableStateOf(initial) }
@@ -736,7 +724,6 @@ private fun AppIcon(pkg: String) {
 
 private const val KILL_SWITCH_HELP_URL = "https://developer.android.com/develop/connectivity/vpn"
 
-/** Full-screen sub page: back arrow (+ optional title), scrolling content, optional pinned buttons at the bottom. */
 @Composable
 private fun SubPage(
     title: String?, onBack: () -> Unit,

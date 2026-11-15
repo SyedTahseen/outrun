@@ -6,15 +6,14 @@ import java.net.URLDecoder
 
 data class Profile(
     val name: String,
-    val protocol: String,   // vless | trojan | ss | vmess
+    val protocol: String,
     val host: String,
     val port: Int,
-    val link: String,       // original share link, config is built from this at connect time
+    val link: String,
 )
 
 object LinkParser {
 
-    /** Parse one share link. Returns null if unsupported or malformed. */
     fun parse(raw: String): Profile? = try {
         val link = sanitize(raw.trim())
         when {
@@ -30,10 +29,6 @@ object LinkParser {
 
     private const val ALLOWED = "-._~:/?[]@!\$&'()*+,;="
 
-    /**
-     * Subscriptions often contain links that java.net.URI rejects (spaces, '|', '{', stray '%' or a second '#' in the
-     * server name). Percent-encode those characters so the link parses (and the config can be built from it later).
-     */
     fun sanitize(link: String): String {
         val sb = StringBuilder(link.length + 16)
         var seenHash = false
@@ -60,20 +55,17 @@ object LinkParser {
 
     private fun Char.isHex() = this in '0'..'9' || this in 'a'..'f' || this in 'A'..'F'
 
-    /** Lines that look like share links (scheme://) but aren't supported, counted per scheme. */
     fun skipped(text: String): Map<String, Int> =
         text.lines().map { it.trim() }.filter { it.contains("://") && parse(it) == null }
             .groupingBy { it.substringBefore("://").lowercase().takeIf { s -> s.length in 1..12 && s.all { c -> c.isLetterOrDigit() } } ?: "invalid" }
             .eachCount()
 
-    /** The readable text of a subscription body: the body itself if it holds share links, else its base64 decoding. */
     fun plainText(text: String): String {
         val body = text.trim().trimStart('\uFEFF')
         if (body.lines().any { parse(it) != null }) return body
         return decodeB64(body) ?: body
     }
 
-    /** Parse many links (one per line), or a base64 subscription body. */
     fun parseMany(text: String): List<Profile> = plainText(text).lines().mapNotNull { parse(it) }
 
     fun query(uri: URI): Map<String, String> =
@@ -82,7 +74,6 @@ object LinkParser {
             k to URLDecoder.decode(v, "UTF-8")
         }
 
-    /** Decodes standard or URL-safe base64, with or without padding (subscriptions use all of them). */
     fun decodeB64(s: String): String? = try {
         var t = s.filter { !it.isWhitespace() }.replace('-', '+').replace('_', '/').trimEnd('=')
         t += "=".repeat((4 - t.length % 4) % 4)
@@ -104,7 +95,6 @@ object LinkParser {
 
     class Ss(val method: String, val password: String, val host: String, val port: Int, val name: String)
 
-    /** Handles both ss://base64(method:pass)@host:port and ss://base64(method:pass@host:port). */
     fun parseSs(link: String): Ss {
         var rest = link.removePrefix("ss://")
         var name = ""
@@ -140,7 +130,6 @@ object LinkParser {
 
     private val describeCache = HashMap<String, String>()
 
-    /** Human-readable protocol line, e.g. "VLESS / Reality", "VMess / WS / TLS", "Trojan / TLS", "Shadowsocks". */
     fun describe(link: String): String = describeCache.getOrPut(link) {
         runCatching {
             val parts = mutableListOf<String>()

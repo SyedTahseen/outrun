@@ -9,7 +9,6 @@
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
 
-    <!-- lets Split tunneling list the apps that have a launcher icon, without the broad QUERY_ALL_PACKAGES permission -->
     <queries>
         <intent>
             <action android:name="android.intent.action.MAIN" />

@@ -47,11 +47,6 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 
-/**
- * Shared motion language. Every duration / easing in the app comes from here so screens, lists and buttons
- * all move the same way (this is what makes v2rayNG feel "native": Material standard easing, short fades,
- * ripples on everything tappable, springs for small feedback).
- */
 object Motion {
     const val Short = 150
     const val Medium = 300
@@ -60,14 +55,12 @@ object Motion {
     val Emphasized = CubicBezierEasing(0.2f, 0f, 0f, 1f)
 }
 
-/** Gives every `clickable` in the app a Material ripple (without a MaterialTheme the app had no touch feedback at all). */
 @Composable
 fun AppIndication(content: @Composable () -> Unit) {
     val indication = remember { ripple(color = Color.White) }
     CompositionLocalProvider(LocalIndication provides indication, content = content)
 }
 
-/** Light "tick" haptic. Honours the user's touch-feedback system setting. */
 @Composable
 fun rememberTick(strong: Boolean = false): () -> Unit {
     val haptic = LocalHapticFeedback.current
@@ -76,11 +69,6 @@ fun rememberTick(strong: Boolean = false): () -> Unit {
     }
 }
 
-/**
- * Tappable surface with ripple (clipped to [shape]) and a springy press-down scale.
- * Put it BEFORE `.background(...)` / `.border(...)` so the whole button scales and the ripple draws over the fill:
- * `Modifier.pressable(shape) { ... }.background(color)`.
- */
 fun Modifier.pressable(
     shape: Shape = RectangleShape,
     pressedScale: Float = 0.97f,
@@ -108,7 +96,6 @@ fun Modifier.pressable(
         )
 }
 
-/** Fade + short slide that fades the old screen out first, then brings the new one in (Material "shared axis X"). */
 fun axisTransition(forward: Boolean, distance: Float = 0.12f): ContentTransform {
     val dir = if (forward) 1 else -1
     val enter = slideInHorizontally(tween(Motion.Medium, easing = Motion.Standard)) { (it * distance).toInt() * dir } +
@@ -118,7 +105,6 @@ fun axisTransition(forward: Boolean, distance: Float = 0.12f): ContentTransform 
     return ContentTransform(enter, exit, 0f, SizeTransform(clip = false))
 }
 
-/** Plain cross-fade with a smooth size change. For text / label swaps. */
 fun fadeTransition(): ContentTransform = ContentTransform(
     fadeIn(tween(Motion.Short + 50, delayMillis = 60, easing = LinearOutSlowInEasing)),
     fadeOut(tween(Motion.Short - 40)),
@@ -126,7 +112,6 @@ fun fadeTransition(): ContentTransform = ContentTransform(
     SizeTransform(clip = false),
 )
 
-/** Connection-state swap on Home: new content rises in slightly while the old one fades away. */
 fun statusTransition(): ContentTransform {
     val enter = fadeIn(tween(240, delayMillis = 90, easing = LinearOutSlowInEasing)) +
         slideInVertically(tween(Motion.Medium, delayMillis = 60, easing = Motion.Standard)) { it / 10 } +
@@ -138,7 +123,6 @@ fun statusTransition(): ContentTransform {
     )
 }
 
-/** Counter / badge change: the new number slides in from below when it grows, from above when it shrinks. */
 fun numberTransition(up: Boolean): ContentTransform {
     val dir = if (up) 1 else -1
     return ContentTransform(
@@ -149,7 +133,6 @@ fun numberTransition(up: Boolean): ContentTransform {
     )
 }
 
-/** Staggered entrance: content fades in and floats up a few dp, [index] * 60 ms after the screen opens. */
 @Composable
 fun Reveal(index: Int, content: @Composable () -> Unit) {
     val progress = remember { Animatable(0f) }

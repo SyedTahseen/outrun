@@ -6,7 +6,6 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLDecoder
 
-/** Subscription metadata (from response headers / body comments). Sizes in bytes, [expire] in epoch seconds (0 = none). */
 data class SubInfo(
     val title: String = "",
     val upload: Long = 0, val download: Long = 0, val total: Long = 0,
@@ -26,7 +25,6 @@ class SubSync(val added: Int, val removed: Int, val total: Int, val skipped: Map
 class DnsOption(val id: String, val name: String, val note: String, val servers: List<String>)
 class TestUrlOption(val id: String, val name: String, val url: String)
 
-/** Choices offered in Settings. */
 object Choices {
     val dns = listOf(
         DnsOption("cloudflare", "Cloudflare", "1.1.1.1 · fast, private", listOf("1.1.1.1", "1.0.0.1")),
@@ -40,10 +38,7 @@ object Choices {
         TestUrlOption("apple", "Apple", "https://captive.apple.com/"),
     )
     private val ipv4 = Regex("^((25[0-5]|2[0-4]\\d|1?\\d?\\d)\\.){3}(25[0-5]|2[0-4]\\d|1?\\d?\\d)$")
-    /**
-     * Parses one IPv4/IPv6 address with an optional /prefix ("192.0.2.0", "10.0.0.0/8", "2001:db8::/32").
-     * Returns the normalised text, or null if it is not a valid literal. Never does a DNS lookup.
-     */
+
     fun parseIp(text: String): String? {
         val t = text.trim()
         if (t.isEmpty()) return null
@@ -61,16 +56,13 @@ object Choices {
         .let { parts -> if (parts.isNotEmpty() && parts.all { ipv4.matches(it) }) parts else emptyList() }
 }
 
-/** Stores saved share links + subscription URLs in SharedPreferences. */
 class Store(context: Context) {
     private val prefs = context.getSharedPreferences("xvpn", Context.MODE_PRIVATE)
 
-    /** Sort order chosen in the Servers screen (SortMode name). Survives tab switches and restarts. */
     var sortName: String
         get() = prefs.getString("sort", "Default") ?: "Default"
         set(v) = prefs.edit().putString("sort", v).apply()
 
-    /** Last location seen with the VPN off. Shown immediately on launch so the map doesn't start from a default. */
     var lastReal: IpInfo?
         get() = runCatching {
             val j = JSONObject(prefs.getString("last_real", null) ?: return null)
@@ -91,7 +83,6 @@ class Store(context: Context) {
 
     fun profiles(): List<Profile> = links().mapNotNull { LinkParser.parse(it) }
 
-    /** link -> subscription URL it came from. Links not in the map are "Default" (pasted, scanned, file, manual). */
     val sources: Map<String, String>
         get() = runCatching {
             val j = JSONObject(prefs.getString("src", "{}") ?: "{}")
@@ -100,7 +91,6 @@ class Store(context: Context) {
 
     private fun saveSources(m: Map<String, String>) = prefs.edit().putString("src", JSONObject(m).toString()).apply()
 
-    /** [source] = subscription URL, or null for Default. Returns the number of new profiles. */
     fun add(profiles: List<Profile>, source: String? = null): Int {
         val existing = links().toMutableList()
         val src = sources.toMutableMap()
@@ -121,7 +111,6 @@ class Store(context: Context) {
         if (selected == link) selected = null
     }
 
-    /** Removes a subscription URL together with every server that came from it. Returns how many servers were removed. */
     fun removeSubscription(url: String): Int {
         val gone = sources.filterValues { it == url }.keys
         prefs.edit().putString("links", links().filter { it !in gone }.joinToString("\n")).apply()
@@ -137,15 +126,14 @@ class Store(context: Context) {
         get() = (prefs.getString("favs", "") ?: "").split("\n").filter { it.isNotBlank() }.toSet()
         set(v) = prefs.edit().putString("favs", v.joinToString("\n")).apply()
 
-    // ---- settings ----
     var splitEnabled: Boolean
         get() = prefs.getBoolean("split_on", false)
         set(v) = prefs.edit().putBoolean("split_on", v).apply()
-    /** Package names that bypass the VPN while split tunneling is on. */
+
     var splitApps: Set<String>
         get() = (prefs.getString("split_apps", "") ?: "").split("\n").filter { it.isNotBlank() }.toSet()
         set(v) = prefs.edit().putString("split_apps", v.joinToString("\n")).apply()
-    /** "exclude": selected apps / IPs bypass the VPN. "include": only selected apps / IPs use the VPN. */
+
     var splitMode: String
         get() = prefs.getString("split_mode", "exclude") ?: "exclude"
         set(v) = prefs.edit().putString("split_mode", v).apply()
@@ -174,14 +162,11 @@ class Store(context: Context) {
         get() = prefs.getBoolean("auto_update_subs", true)
         set(v) = prefs.edit().putBoolean("auto_update_subs", v).apply()
 
-    /** DNS servers handed to the VPN interface. */
     fun dnsServers(): List<String> {
         if (dnsChoice == "custom") Choices.parseDns(dnsCustom).takeIf { it.isNotEmpty() }?.let { return it }
         return (Choices.dns.firstOrNull { it.id == dnsChoice } ?: Choices.dns.first()).servers
     }
 
-    /** Latency test URLs: the chosen one first, the others as fallback. */
-    /** The URL chosen in Settings. The latency test uses only this one (no fallback), so every number means the same thing. */
     fun testUrl(): String = (Choices.testUrls.firstOrNull { it.id == testUrlChoice } ?: Choices.testUrls.first()).url
 
     fun clear() {
@@ -196,7 +181,6 @@ class Store(context: Context) {
         get() = (prefs.getString("subs", "") ?: "").split("\n").filter { it.isNotBlank() }
         set(v) = prefs.edit().putString("subs", v.joinToString("\n")).apply()
 
-    /** Metadata of each subscription URL, refreshed on every successful fetch. */
     var subInfo: Map<String, SubInfo>
         get() = runCatching {
             val j = JSONObject(prefs.getString("subinfo", "{}") ?: "{}")
@@ -221,7 +205,6 @@ class Store(context: Context) {
 
     private class Fetched(val body: String, val headers: Map<String, String>)
 
-    /** GET with manual redirects (HttpURLConnection won't follow http<->https) and a client-style User-Agent. */
     private fun fetch(url: String): Fetched {
         var u = url
         repeat(6) {
@@ -230,7 +213,7 @@ class Store(context: Context) {
                 c.connectTimeout = 20000
                 c.readTimeout = 25000
                 c.instanceFollowRedirects = false
-                // panels pick the output format from the User-Agent: a v2ray-style client gets plain/base64 share links
+
                 c.setRequestProperty("User-Agent", "v2rayNG/1.9.19")
                 c.setRequestProperty("Accept", "*/*")
                 val code = c.responseCode
@@ -250,7 +233,6 @@ class Store(context: Context) {
         throw java.io.IOException("Too many redirects")
     }
 
-    /** Header values may be "base64:..." or percent-encoded (profile-title, announce). */
     private fun decodeValue(v: String): String {
         val t = v.trim()
         if (t.startsWith("base64:", true)) return LinkParser.decodeB64(t.substring(7)) ?: t
@@ -259,7 +241,7 @@ class Store(context: Context) {
 
     private fun parseInfo(url: String, headers: Map<String, String>, text: String, count: Int): SubInfo {
         val h = HashMap(headers)
-        // some panels put the same fields in the body as "#profile-title: x" comment lines
+
         text.lines().forEach { l ->
             val t = l.trim()
             if (t.startsWith("#")) {
@@ -287,10 +269,6 @@ class Store(context: Context) {
         )
     }
 
-    /**
-     * Blocking: call from a background thread. Downloads the subscription and syncs it: new servers are added,
-     * servers that disappeared from the subscription are removed, and its metadata (quota, expiry...) is saved.
-     */
     fun importSubscription(rawUrl: String): SubSync {
         val url = rawUrl.trim()
         val f = fetch(url)

@@ -81,8 +81,6 @@ internal fun fmtDuration(ms: Long): String {
     }
 }
 
-/** Where the map camera last was. HomeScreen leaves composition when you visit other tabs, so without this it
- *  would restart at the NEW location (nothing to animate) instead of travelling from the old one. */
 private object MapMemory {
     var pos: GeoPoint? = null
     var code: String? = null
@@ -113,18 +111,16 @@ fun HomeScreen(
         label = "tone",
     )
 
-    // where the dot should be: the chosen server's country while connecting, the proxy's once connected,
-    // otherwise your real location
     fun place(): Pair<GeoPoint, String?>? {
         if (connecting) {
             val c = selected?.name?.let { Flags.iso(it) }
             if (c != null) WorldGeo.centerOf(c)?.let { return it to c }
-            return null   // unknown country: stay where we are instead of flying back to the real location
+            return null
         }
         val p = if (on) proxy else real
         return p?.let { GeoPoint(it.lon, it.lat) to it.code.ifBlank { null } }
     }
-    // start where the map last was (so a new target is animated to), else from the best known location
+
     val start = MapMemory.pos?.let { it to MapMemory.code }
         ?: place() ?: real?.let { GeoPoint(it.lon, it.lat) to it.code.ifBlank { null } }
     var cam by remember { mutableStateOf(start?.first ?: GeoPoint(103.8, 1.3)) }
@@ -133,7 +129,6 @@ fun HomeScreen(
         place()?.let { (g, c) -> cam = g; camCode = c; MapMemory.pos = g; MapMemory.code = c }
     }
 
-    // "Change server" only shows up if connecting is taking a while
     var slow by remember { mutableStateOf(false) }
     LaunchedEffect(connecting) {
         slow = false
@@ -145,7 +140,7 @@ fun HomeScreen(
             target = cam, countryCode = camCode, dotColor = tone, pulseMs = if (connecting) 700 else 1600,
             modifier = Modifier.fillMaxSize(), centerY = 0.46f, halo = !connecting,
         )
-        // colour wash at the top (red = unprotected, grey = connecting, green = protected) and a fade into the background below
+
         Box(Modifier.fillMaxWidth().fillMaxHeight(0.5f).background(Brush.verticalGradient(listOf(tone.copy(alpha = 0.55f), Color.Transparent))))
         Box(
             Modifier.align(Alignment.BottomCenter).fillMaxWidth().fillMaxHeight(0.4f)
@@ -262,7 +257,6 @@ private fun UnprotectedHeader(real: IpInfo?, error: String?) {
     }
 }
 
-/** Connecting: spinner instead of the lock, and your location / IP scramble into stars. */
 @Composable
 private fun ConnectingHeader(real: IpInfo?) {
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -285,7 +279,6 @@ private fun ConnectingHeader(real: IpInfo?) {
     }
 }
 
-/** Letters, digits and separators turn into '*' one by one at random; spaces and dots stay (e.g. "***.***.**.*"). */
 @Composable
 private fun ScrambleText(text: String, color: Color, fontSize: TextUnit) {
     fun maskable(ch: Char) = ch != ' ' && ch != '.'
@@ -350,13 +343,11 @@ private fun OutlineButton(label: String, onClick: () -> Unit) {
     ) { Text(label, color = C.Text, fontSize = 19.sp, fontWeight = FontWeight.Medium) }
 }
 
-/** Static lock / unlock icon (no entrance animation). */
 @Composable
 private fun PopIcon(icon: ImageVector, tint: Color, size: Dp) {
     Icon(icon, null, tint = tint, modifier = Modifier.size(size))
 }
 
-/** Flag image (looked up from the country name in the proxy name) in a rounded tile; a globe when unknown. */
 @Composable
 fun FlagBadge(name: String?) {
     val res = name?.let { Flags.iso(it) }?.let { FLAG_RES[it] }

@@ -2,7 +2,6 @@ package app.xvpn.ui
 
 import app.xvpn.R
 
-/** ISO country code -> flag image (res/drawable-nodpi/flag_xx.webp). */
 internal val FLAG_RES: Map<String, Int> = mapOf(
     "AD" to R.drawable.flag_ad,
     "AE" to R.drawable.flag_ae,

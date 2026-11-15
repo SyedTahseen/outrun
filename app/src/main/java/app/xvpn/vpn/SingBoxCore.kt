@@ -9,16 +9,10 @@ import java.net.ServerSocket
 import java.net.Socket
 import kotlin.concurrent.thread
 
-/**
- * Runs the official sing-box CLI binary (packaged as lib/<abi>/libsingbox.so, see scripts/fetch-singbox.sh)
- * as a child process with only a local SOCKS inbound. Packets reach it through tun2socks.
- *
- * Its outbound sockets bypass the VPN because SingBoxVpnService excludes this app (same uid) from the tunnel.
- */
 class SingBoxCore(private val context: Context, private val dirName: String = "singbox") {
 
     companion object {
-        /** Ask the OS for a free loopback port so a leftover process can never block a new connection. */
+
         fun freePort(): Int = ServerSocket(0, 0, InetAddress.getByName("127.0.0.1")).use { it.localPort }
     }
 
@@ -42,7 +36,6 @@ class SingBoxCore(private val context: Context, private val dirName: String = "s
         val p = pb.start()
         process = p
 
-        // keep the last log lines so a failed start can show the real reason
         thread(isDaemon = true, name = "singbox-log") {
             runCatching {
                 p.inputStream.bufferedReader().forEachLine {
@@ -58,7 +51,7 @@ class SingBoxCore(private val context: Context, private val dirName: String = "s
         val deadline = System.currentTimeMillis() + 10_000
         while (System.currentTimeMillis() < deadline) {
             if (!alive(p)) {
-                Thread.sleep(150) // let the log reader catch the last lines
+                Thread.sleep(150)
                 error("sing-box exited: " + lastLog())
             }
             try {

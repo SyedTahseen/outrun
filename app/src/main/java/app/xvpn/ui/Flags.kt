@@ -1,10 +1,5 @@
 package app.xvpn.ui
 
-/**
- * Country flag lookup for a proxy name.
- * The country is read from the proxy name text ("Italy", "Italy #3", "Germany - Frankfurt").
- * Any flag emoji left in a name is ignored for matching and stripped from the displayed name.
- */
 object Flags {
     private const val RI_FIRST = 0x1F1E6
     private const val RI_LAST = 0x1F1FF
@@ -229,7 +224,7 @@ AX|Aland
     private val exact = HashMap<String, String>()
 
     init {
-        val list = ArrayList<Pair<String, String>>()   // lowercase country name -> ISO
+        val list = ArrayList<Pair<String, String>>()
         for (line in table.lines()) {
             val parts = line.split("|")
             if (parts.size < 2) continue
@@ -237,7 +232,7 @@ AX|Aland
             for (n in parts.drop(1)) list += n.lowercase() to parts[0]
         }
         list.forEach { exact[it.first] = it.second }
-        matchers = list.sortedByDescending { it.first.length }   // "Papua New Guinea" before "Guinea"
+        matchers = list.sortedByDescending { it.first.length }
             .map { Regex("(?<!\\p{L})" + Regex.escape(it.first) + "(?!\\p{L})") to it.second }
     }
 
@@ -245,18 +240,16 @@ AX|Aland
 
     private fun isRi(cp: Int) = cp in RI_FIRST..RI_LAST
 
-    /** ISO country code for this proxy name ("Italy" -> "IT"), or null if the country isn't recognised. */
     fun iso(name: String): String? = cache.getOrPut(name) {
         val clean = clean(name).lowercase()
         exact[clean]?.let { return@getOrPut it }
         matchers.firstOrNull { it.first.containsMatchIn(clean) }?.let { return@getOrPut it.second }
-        // leading two-letter code like "US-1" / "DE | Frankfurt"
+
         Regex("^([A-Z]{2})(?![A-Za-z])").find(clean(name))?.groupValues?.get(1)
             ?.takeIf { it in codes }?.let { return@getOrPut it }
         ""
     }.ifEmpty { null }
 
-    /** Name without flag emoji and leftover separators; falls back to the original if nothing remains. */
     fun clean(name: String): String {
         val sb = StringBuilder()
         name.codePoints().forEach { if (!isRi(it)) sb.appendCodePoint(it) }

@@ -103,22 +103,22 @@ fun ServersScreen(
     onPasteClipboard: () -> Unit,
     onScanQr: () -> Unit,
     onImportFile: () -> Unit,
-    onAddManual: (String) -> Boolean,   // returns true if the link was valid and added
+    onAddManual: (String) -> Boolean,
     onRefreshSubscriptions: () -> Unit,
     onDeleteAll: () -> Unit,
     favorites: Set<String>,
     onToggleFavorite: (Profile) -> Unit,
     onCopy: (Profile) -> Unit,
     onAddSubscription: (String) -> Unit,
-    pings: Map<String, Int>,          // link -> ms, -1 = failed
+    pings: Map<String, Int>,
     testing: Boolean,
     onTestLatency: () -> Unit,
     subscriptions: List<String>,
-    sources: Map<String, String>,     // link -> subscription URL (missing = Default)
+    sources: Map<String, String>,
     onDeleteSubscription: (String) -> Unit,
-    sort: SortMode,                       // kept by the caller so it survives switching tabs
+    sort: SortMode,
     onSortChange: (SortMode) -> Unit,
-    filter: String?,                      // selected chip: null = All, "fav", "default" or "sub:<url>"
+    filter: String?,
     onFilterChange: (String?) -> Unit,
     onScrolledChange: (Boolean) -> Unit = {},
     subInfo: Map<String, SubInfo> = emptyMap(),
@@ -149,7 +149,7 @@ fun ServersScreen(
         } &&
             (query.isBlank() || it.name.contains(query, true) || it.host.contains(query, true))
     }.let { list ->
-        // favourites keep their place; the Favorites pill is how you see them together
+
         when (sort) {
             SortMode.Default -> list
             SortMode.Name -> list.sortedBy { it.name.lowercase() }
@@ -161,12 +161,12 @@ fun ServersScreen(
     val listState = rememberLazyListState()
     val scrolled by remember { derivedStateOf { listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 0 } }
     val headerColor by animateColorAsState(if (scrolled) C.Card else C.Bg, label = "headerColor")
-    // Tell the activity so the status bar strip can follow the header colour.
+
     LaunchedEffect(scrolled) { onScrolledChange(scrolled) }
     DisposableEffect(Unit) { onDispose { onScrolledChange(false) } }
 
     Column(Modifier.fillMaxSize()) {
-        // header: background colour at rest, switches to the bottom-bar colour once the list is scrolled
+
         Column(Modifier.fillMaxWidth().background(headerColor)) {
             Spacer(Modifier.height(20.dp))
             Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp).height(44.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -237,7 +237,7 @@ fun ServersScreen(
                 }
             }
             Spacer(Modifier.height(18.dp))
-            // All / Default / one pill per subscription (long-press a subscription pill to delete it)
+
             Row(
                 Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 20.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -253,7 +253,6 @@ fun ServersScreen(
             Spacer(Modifier.height(16.dp))
         }
 
-        // thin progress bar while latency is being tested (same idea as v2rayNG's loading bar under its top bar)
         AnimatedVisibility(
             visible = testing,
             enter = expandVertically(tween(Motion.Medium)) + fadeIn(tween(Motion.Medium)),
@@ -284,9 +283,9 @@ fun ServersScreen(
                 }
             }
         }
-        // minimal footer with the selected subscription's metadata: quota, expiry, message, link
+
         val subUrl = f?.takeIf { it.startsWith("sub:") }?.removePrefix("sub:")
-        // keep the last url around so the bar can slide out with its content still in place
+
         val lastSub = remember { mutableStateOf<String?>(null) }
         SideEffect { if (subUrl != null) lastSub.value = subUrl }
         val barUrl = subUrl ?: lastSub.value
@@ -338,7 +337,6 @@ private fun fmtAgo(ms: Long): String {
     return when { m < 1 -> "just now"; m < 60 -> "${m}m ago"; m < 1440 -> "${m / 60}h ago"; else -> "${m / 1440}d ago" }
 }
 
-/** Compact subscription info bar pinned above the bottom dock while a subscription pill is selected. */
 @Composable
 private fun SubscriptionBar(url: String, info: SubInfo?, host: String, onRefresh: () -> Unit, onCopy: () -> Unit) {
     val now = System.currentTimeMillis()
@@ -431,7 +429,7 @@ private fun ServerRow(
     modifier: Modifier = Modifier,
 ) {
     var menu by remember { mutableStateOf(false) }
-    // the selected server gets a raised row (card colour)
+
     val rowBg by animateColorAsState(if (selected) C.Card else C.Bg, tween(Motion.Medium), label = "rowBg")
     val nameColor by animateColorAsState(if (selected) C.Green else C.Text, tween(Motion.Medium), label = "rowName")
     Column(modifier.fillMaxWidth().background(rowBg)) {
@@ -462,7 +460,6 @@ private fun ServerRow(
     }
 }
 
-/** Latency result: "…" while testing, then the value slides/fades in; colour follows the quality. */
 @Composable
 private fun PingLabel(ping: Int?, testing: Boolean) {
     AnimatedContent(
@@ -485,7 +482,6 @@ private fun PingLabel(ping: Int?, testing: Boolean) {
     }
 }
 
-/** Favourite star: colour fades with a haptic tick and a ripple; no scale / jump effects. */
 @Composable
 private fun FavStar(fav: Boolean, onClick: () -> Unit) {
     val tick = rememberTick()

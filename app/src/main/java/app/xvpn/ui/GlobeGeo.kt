@@ -8,17 +8,15 @@ import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.math.sqrt
 
-/** One border ring as unit vectors on the sphere ([xyz] = x,y,z per vertex), with a bounding cap for culling. */
 class GlobeRing(
     val xyz: FloatArray, val n: Int,
-    val cx: Float, val cy: Float, val cz: Float,   // centre of the bounding cap (unit vector)
-    val radius: Float,                              // angular radius of the cap, radians
-    val ccw: Boolean,                               // winding as seen on the map (viewed from outside)
+    val cx: Float, val cy: Float, val cz: Float,
+    val radius: Float,
+    val ccw: Boolean,
 )
 
 class GlobeCountry(val code: String, val rings: List<GlobeRing>)
 
-/** The country borders from [WorldGeo], converted once to 3D points so the globe can rotate them cheaply. */
 object GlobeGeo {
     @Volatile var cached: List<GlobeCountry>? = null
 
@@ -42,10 +40,10 @@ object GlobeGeo {
             xyz[i * 3] = x.toFloat(); xyz[i * 3 + 1] = y.toFloat(); xyz[i * 3 + 2] = z.toFloat()
             sx += x; sy += y; sz += z
             val j = (i + 1) % n
-            area += r[i * 2].toDouble() * r[j * 2 + 1] - r[j * 2].toDouble() * r[i * 2 + 1]   // shoelace on the lon/lat plane
+            area += r[i * 2].toDouble() * r[j * 2 + 1] - r[j * 2].toDouble() * r[i * 2 + 1]
         }
         val len = sqrt(sx * sx + sy * sy + sz * sz)
-        if (len < 1e-6) return GlobeRing(xyz, n, 1f, 0f, 0f, Math.PI.toFloat(), area > 0)   // never culled
+        if (len < 1e-6) return GlobeRing(xyz, n, 1f, 0f, 0f, Math.PI.toFloat(), area > 0)
         val cx = (sx / len).toFloat(); val cy = (sy / len).toFloat(); val cz = (sz / len).toFloat()
         var maxAng = 0f
         for (i in 0 until n) {
