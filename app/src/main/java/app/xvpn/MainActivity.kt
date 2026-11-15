@@ -24,10 +24,10 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.indication
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -319,8 +319,10 @@ private fun App() {
     val stripAlpha by animateFloatAsState(if (homeVisible) 0f else 1f, tween(Motion.Medium), label = "stripAlpha")
     // The system nav bar is transparent (set once in onCreate); the dock / stats screen paint behind it themselves.
     // Re-applying enableEdgeToEdge on every animation frame made the window insets jump while stats opened / closed.
-    Column(Modifier.fillMaxSize().background(C.Bg).imePadding()) {
-        Box(Modifier.weight(1f)) {
+    // The dock is an overlay (not part of the layout), so opening / closing stats never resizes the screens:
+    // each screen reserves the dock's height itself, and stats simply reserves none.
+    Box(Modifier.fillMaxSize().background(C.Bg).imePadding()) {
+        Box(Modifier.fillMaxSize()) {
             AnimatedContent(
                 targetState = screen,
                 transitionSpec = { axisTransition(forward = targetState.ordinal > initialState.ordinal) },
@@ -331,7 +333,7 @@ private fun App() {
                 Box(
                     Modifier.fillMaxSize()
                         .then(if (s == Screen.Home) Modifier else Modifier.statusBarsPadding())
-                        .then(if (s == Screen.Stats) Modifier.navigationBarsPadding() else Modifier),
+                        .then(if (s == Screen.Stats) Modifier.navigationBarsPadding() else Modifier.navigationBarsPadding().padding(bottom = 72.dp)),
                 ) {
                     when (s) {
                         Screen.Stats -> StatsScreen(
@@ -416,8 +418,9 @@ private fun App() {
         }
         AnimatedVisibility(
             visible = !dockHidden,
-            enter = expandVertically(tween(Motion.Medium, easing = Motion.Standard)) + fadeIn(tween(Motion.Medium)),
-            exit = shrinkVertically(tween(Motion.Medium, easing = Motion.Standard)) + fadeOut(tween(Motion.Short)),
+            modifier = Modifier.align(Alignment.BottomCenter),
+            enter = slideInVertically(tween(Motion.Medium, easing = Motion.Standard)) { it } + fadeIn(tween(Motion.Medium)),
+            exit = slideOutVertically(tween(Motion.Medium, easing = Motion.Standard)) { it } + fadeOut(tween(Motion.Short)),
         ) {
             Row(
                 // fixed content height so the dock is exactly the same on every tab and device
