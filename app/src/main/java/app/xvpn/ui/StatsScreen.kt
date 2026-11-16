@@ -224,7 +224,7 @@ private fun SpeedChart(history: List<Pair<Long, Long>>, modifier: Modifier) {
             val dash = PathEffect.dashPathEffect(floatArrayOf(10f, 10f))
             for (f in listOf(0f, 0.5f, 1f)) {
                 val y = h - f * (h - 2.dp.toPx()) - 1.dp.toPx()
-                drawLine(Color(0xFF2A3753), Offset(0f, y), Offset(w, y), 1.dp.toPx(), pathEffect = dash)
+                drawLine(Color(0xFF3A3944), Offset(0f, y), Offset(w, y), 1.dp.toPx(), pathEffect = dash)
             }
             fun line(vals: List<Long>, close: Boolean): Path {
                 val p = Path()
