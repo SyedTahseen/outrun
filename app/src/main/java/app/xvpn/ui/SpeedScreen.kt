@@ -393,55 +393,6 @@ private const val RING_BOX = 250       // dp: the size of the button area; the s
 private const val RING_R = 86.5f       // dp, middle of the ring stroke
 private const val RING_W = 7.5f        // dp, stroke width
 
-/**
- * The light scattered by the ring, as a soft cloud of colored smoke: for every pixel the strength falls off smoothly with the distance
- * from the ring, the color is the ring's color at that angle (blurred a little along the ring and drifting as it moves away), and the
- * strength varies gently around the circle so it reads as smoke and not as a uniform outline.
- */
-private fun buildSmoke(): Bitmap {
-    val n = RING_BOX
-    val c = n / 2f
-    val outer = RING_R + RING_W / 2f
-    val inner = RING_R - RING_W / 2f
-    val peak = 0.20f
-    // The colors of the ring at full brightness; one lookup per degree keeps the per-pixel work small.
-    val lut = Array(360) { deg ->
-        val col = colorAt(RingStops, deg / 360f)
-        val m = maxOf(col.red, col.green, col.blue, 0.001f)
-        floatArrayOf(col.red / m, col.green / m, col.blue / m)
-    }
-    val rnd = java.util.Random(1)
-    val px = IntArray(n * n)
-    for (y in 0 until n) for (x in 0 until n) {
-        val dx = x + 0.5f - c
-        val dy = y + 0.5f - c
-        val r = sqrt(dx * dx + dy * dy)
-        val d = r - outer
-        var a = when {
-            d >= 0f -> peak * exp(-(d / 16f).pow(1.4f)) + 0.07f * exp(-(d / 34f).pow(1.5f))
-            r >= inner -> peak
-            else -> peak * 0.6f * exp(-(inner - r) / 5f)
-        }
-        if (a < 0.002f) continue
-        var deg = Math.toDegrees(atan2(dy, dx).toDouble()).toFloat()
-        if (deg < 0f) deg += 360f
-        val rad = Math.toRadians(deg.toDouble())
-        a *= 1f + 0.18f * sin(2 * rad + 0.6).toFloat() + 0.12f * sin(3 * rad + 2.0).toFloat()
-        val drift = 10f * (maxOf(d, 0f) / 16f).coerceAtMost(2f)
-        var rr = 0f; var gg = 0f; var bb = 0f
-        for ((off, w) in SmokeBlur) {
-            val k = (((deg + drift + off).toInt() % 360) + 360) % 360
-            rr += lut[k][0] * w; gg += lut[k][1] * w; bb += lut[k][2] * w
-        }
-        val alpha = (a.coerceIn(0f, 1f) * 255f + rnd.nextFloat() - 0.5f).roundToInt().coerceIn(0, 255)   // tiny dither avoids banding
-        px[y * n + x] = (alpha shl 24) or ((rr * 255f).roundToInt().coerceIn(0, 255) shl 16) or
-            ((gg * 255f).roundToInt().coerceIn(0, 255) shl 8) or (bb * 255f).roundToInt().coerceIn(0, 255)
-    }
-    return Bitmap.createBitmap(px, n, n, Bitmap.Config.ARGB_8888)
-}
-
-private val SmokeBlur = listOf(-14f to 0.1f, -7f to 0.2f, 0f to 0.4f, 7f to 0.2f, 14f to 0.1f)
-
 /** The thick gradient ring drawn once; the caller blurs this layer to get the glow. */
 @Composable
 private fun RingGlowLayer(modifier: Modifier, strokeDp: Float, alpha: Float) {
@@ -456,7 +407,7 @@ private fun RingGlowLayer(modifier: Modifier, strokeDp: Float, alpha: Float) {
 /**
  * The START button from the design. The glow is the ring itself, really blurred (RenderEffect, Android 12+): the colors of the ring
  * bleed into each other and into the dark, like light through smoke. A wide, faint blur sits under a tighter, brighter one.
- * Blur is not available before Android 12, so older phones get a pre-computed soft cloud instead.
+ * Blur is not available before Android 12, so older phones get stacked vector rings instead.
  */
 @Composable
 private fun StartRing(enabled: Boolean, onClick: () -> Unit) {
@@ -468,12 +419,17 @@ private fun StartRing(enabled: Boolean, onClick: () -> Unit) {
             RingGlowLayer(Modifier.blur(20.dp, BlurredEdgeTreatment.Unbounded), RING_W, 0.55f * on)
             RingGlowLayer(Modifier.blur(9.dp, BlurredEdgeTreatment.Unbounded), RING_W, 0.85f * on)
         } else {
-            val smoke = remember { buildSmoke().asImageBitmap() }
+            // Android 11 and older: no blur available, so stack faint, slightly wider copies of the ring. Still pure vector drawing.
             Canvas(Modifier.fillMaxSize()) {
-                drawImage(
-                    smoke, dstSize = IntSize(size.width.roundToInt(), size.height.roundToInt()),
-                    alpha = on, filterQuality = FilterQuality.High,
-                )
+                val brush = Brush.sweepGradient(*RingStops, center = center)
+                val layers = 16
+                for (i in layers downTo 1) {
+                    val reach = 30.dp.toPx() * sqrt(i.toFloat() / layers)
+                    drawCircle(
+                        brush = brush, radius = RING_R.dp.toPx(), alpha = 0.04f * on,
+                        style = Stroke(RING_W.dp.toPx() + 2f * reach),
+                    )
+                }
             }
         }
         Canvas(Modifier.fillMaxSize()) {
