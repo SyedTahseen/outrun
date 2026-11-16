@@ -305,7 +305,7 @@ private fun App() {
     val screen = if (statsOn) Screen.Stats else tab.screen()
     val homeVisible = screen == Screen.Home
     var menuFullScreen by remember { mutableStateOf(false) }
-    val dockHidden = statsOn || (tab == Tab.Menu && menuFullScreen)
+    val dockHidden = statsOn || menuFullScreen
 
     var serversScrolled by remember { mutableStateOf(false) }
     val statusStripColor by animateColorAsState(
@@ -384,6 +384,7 @@ private fun App() {
                         )
                         Screen.Speed -> SpeedScreen(
                             serverName = profiles.firstOrNull { it.link == selectedLink }?.name,
+                            onFullScreenChange = { menuFullScreen = it },
                         )
                         Screen.Menu -> MenuScreen(
                             store = store,

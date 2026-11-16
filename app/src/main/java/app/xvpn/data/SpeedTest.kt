@@ -39,6 +39,7 @@ data class SpeedUi(
     val downSeries: List<Float> = emptyList(),
     val upSeries: List<Float> = emptyList(),
     val log: List<String> = emptyList(),
+    val startedAt: Long = 0L,
 )
 
 /**
@@ -71,7 +72,7 @@ object SpeedTest {
     fun start(socksPort: Int) {
         if (job?.isActive == true) return
         job = scope.launch {
-            state.value = SpeedUi(phase = SpeedPhase.Ping, viaVpn = socksPort > 0)
+            state.value = SpeedUi(phase = SpeedPhase.Ping, viaVpn = socksPort > 0, startedAt = System.currentTimeMillis())
             log("Test started " + if (socksPort > 0) "(through VPN)" else "(direct, VPN off)")
             try {
                 val (ping, jitter) = measureLatency(socksPort)
@@ -91,7 +92,7 @@ object SpeedTest {
                 state.update { it.copy(upMbps = up, phase = SpeedPhase.Done, live = 0.0) }
                 log("Finished")
             } catch (e: CancellationException) {
-                state.update { it.copy(phase = SpeedPhase.Idle, live = 0.0) }
+                state.update { SpeedUi(log = it.log) }
                 log("Stopped")
                 throw e
             } catch (e: Exception) {
@@ -102,6 +103,11 @@ object SpeedTest {
     }
 
     fun stop() { job?.cancel() }
+
+    /** Back to the start screen after a finished or failed test (the log is kept). */
+    fun reset() {
+        if (job?.isActive != true) state.update { SpeedUi(log = it.log) }
+    }
 
     private fun nowMs() = System.nanoTime() / 1_000_000
 
