@@ -332,7 +332,7 @@ private fun MenuPage(
                         "What is kill switch?", {
                             runCatching { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(KILL_SWITCH_HELP_URL)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
                         },
-                        Modifier.fillMaxWidth(), ButtonStyle.Outline, trailingIcon = Icons.AutoMirrored.Outlined.OpenInNew,
+                        Modifier.fillMaxWidth(), ButtonStyle.OutlineAccent, trailingIcon = Icons.AutoMirrored.Outlined.OpenInNew,
                     )
                 },
             ) {

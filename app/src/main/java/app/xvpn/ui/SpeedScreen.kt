@@ -623,7 +623,7 @@ private fun HistorySheet(modifier: Modifier = Modifier) {
             .animateContentSize(tween(Motion.Medium, easing = Motion.Standard)),
     ) {
         Column(Modifier.fillMaxWidth().clickable { open = !open }.padding(top = Space.Sm, bottom = Space.Lg)) {
-            Box(Modifier.align(Alignment.CenterHorizontally).size(width = 36.dp, height = Space.Xs).clip(CircleShape).background(C.Control))
+            Box(Modifier.align(Alignment.CenterHorizontally).size(width = 36.dp, height = Space.Xs).clip(CircleShape).background(C.Border))
             Spacer(Modifier.height(Space.Md))
             Text("Client history", style = Type.Subtitle, color = C.Text, modifier = Modifier.padding(horizontal = Space.Gutter))
         }
@@ -660,7 +660,7 @@ private fun HistoryRow(r: SpeedResult, whenText: String) {
 @Composable
 private fun ModeToggle(mode: Int, onMode: (Int) -> Unit) {
     val tick = rememberTick()
-    Row(Modifier.clip(RoundedCornerShape(Radius.Control)).background(C.Card).border(1.dp, C.Border, RoundedCornerShape(Radius.Control)).padding(2.dp)) {
+    Row(Modifier.clip(RoundedCornerShape(Radius.Control)).background(C.Card).padding(2.dp)) {
         listOf(Icons.Outlined.Speed, Icons.Outlined.Terminal).forEachIndexed { i, icon ->
             val on = i == mode
             val bg by animateColorAsState(if (on) C.Primary else Color.Transparent, tween(Motion.Short), label = "toggleBg")

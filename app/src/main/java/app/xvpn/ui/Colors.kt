@@ -13,7 +13,7 @@ object C {
     val Bg = Color(0xFF1C1B24)          // screen background
     val Card = Color(0xFF282731)        // cards, bars, menus, dialogs, sheets
     val CardOverlay = Color(0xEB282731) // Card over the map (92 %)
-    val Control = Color(0xFF3A3846)     // unselected chips, secondary buttons, tracks, placeholders
+    val Control = Color(0xFF282731)     // unselected chips, secondary buttons: same color as Card
     val Border = Color(0xFF3A3944)      // 1dp hairlines: card borders, dividers, chart grid
     val Outline = Color(0xFF4F4D5C)     // border of outlined buttons
     val Track = Color(0xFF2A2933)       // faint guide lines on dark (gauge track)

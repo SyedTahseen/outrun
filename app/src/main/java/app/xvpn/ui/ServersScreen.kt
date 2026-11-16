@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -206,7 +207,7 @@ fun ServersScreen(
                             }
                             Box {
                                 IconAction(Icons.Filled.MoreVert, "More") { menuPage = "main"; moreMenu = true }
-                                AppDropdownMenu(moreMenu, { moreMenu = false }, Modifier.widthIn(min = 220.dp)) {
+                                AppDropdownMenu(moreMenu, { moreMenu = false }, Modifier.widthIn(min = 220.dp).heightIn(min = 264.dp)) {
                                     when (menuPage) {
                                         "sort" -> {
                                             AppMenuHeader("Sort") { menuPage = "main" }

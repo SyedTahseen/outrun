@@ -59,7 +59,7 @@ import androidx.compose.ui.window.Dialog
 // ------------------------------------------------------------------ surfaces
 
 /**
- * The one card. Flat Card fill, 1dp Border, Radius.Card. With [onClick] it also ripples and shrinks when pressed.
+ * The one card. Flat Card fill, Radius.Card; [bordered] adds the 1dp Border (only the selected-server card on Home uses it). With [onClick] it also ripples and shrinks when pressed.
  * Use padding = 0.dp when the content is a list of rows that bring their own padding.
  */
 @Composable
@@ -68,6 +68,7 @@ fun AppCard(
     padding: Dp = Space.Lg,
     containerColor: Color = C.Card,
     onClick: (() -> Unit)? = null,
+    bordered: Boolean = false,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val shape = RoundedCornerShape(Radius.Card)
@@ -75,7 +76,7 @@ fun AppCard(
         modifier
             .then(if (onClick != null) Modifier.pressable(shape, Press.Card, onClick = onClick) else Modifier.clip(shape))
             .background(containerColor)
-            .border(1.dp, C.Border, shape)
+            .then(if (bordered) Modifier.border(1.dp, C.Border, shape) else Modifier)
             .padding(padding),
         content = content,
     )
@@ -97,7 +98,7 @@ fun EmptyState(text: String, modifier: Modifier = Modifier) {
 @Composable
 fun AppProgressBar(fraction: Float, color: Color, modifier: Modifier = Modifier) {
     val shown by animateFloatAsState(fraction.coerceIn(0f, 1f), tween(Motion.Medium, easing = Motion.Standard), label = "progress")
-    Box(modifier.fillMaxWidth().height(Space.Xs).clip(CircleShape).background(C.Control)) {
+    Box(modifier.fillMaxWidth().height(Space.Xs).clip(CircleShape).background(C.Border)) {
         Box(Modifier.fillMaxWidth(shown).height(Space.Xs).background(color))
     }
 }
@@ -107,7 +108,7 @@ fun AppProgressBar(fraction: Float, color: Color, modifier: Modifier = Modifier)
 fun FlagBadge(name: String?) {
     val res = name?.let { Flags.iso(it) }?.let { FLAG_RES[it] }
     Box(
-        Modifier.size(width = 36.dp, height = 24.dp).clip(RoundedCornerShape(Radius.Badge)).background(C.Control),
+        Modifier.size(width = 36.dp, height = 24.dp).clip(RoundedCornerShape(Radius.Badge)).background(C.Border),
         contentAlignment = Alignment.Center,
     ) {
         if (res != null) Image(painterResource(res), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
@@ -301,7 +302,7 @@ fun AppDialog(
             enter = fadeIn(tween(Motion.Short)) + scaleIn(spring(dampingRatio = 0.8f, stiffness = 500f), initialScale = 0.9f),
             exit = fadeOut(tween(Motion.Fast)),
         ) {
-            Column(Modifier.fillMaxWidth().clip(shape).background(C.Card).border(1.dp, C.Border, shape).padding(Space.Xl)) {
+            Column(Modifier.fillMaxWidth().clip(shape).background(C.Card).padding(Space.Xl)) {
                 Text(title, style = Type.Subtitle, color = C.Text)
                 Spacer(Modifier.height(Space.Md))
                 content()

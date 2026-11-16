@@ -149,7 +149,7 @@ fun HomeScreen(
             ) { caption ->
                 Text(caption, style = Type.Body, color = C.Text, modifier = Modifier.padding(start = Space.Xs, bottom = Space.Sm))
             }
-            AppCard(Modifier.fillMaxWidth()) {
+            AppCard(Modifier.fillMaxWidth(), bordered = true) {
                 Row(
                     Modifier.fillMaxWidth().then(if (on) Modifier.pressable(RoundedCornerShape(Radius.Small), Press.Card, onClick = onOpenStats) else Modifier),
                     verticalAlignment = Alignment.CenterVertically,

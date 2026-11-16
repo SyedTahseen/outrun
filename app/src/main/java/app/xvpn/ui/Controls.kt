@@ -57,7 +57,7 @@ fun IconAction(icon: ImageVector, desc: String, modifier: Modifier = Modifier, t
     }
 }
 
-enum class ButtonStyle { Primary, Secondary, Outline }
+enum class ButtonStyle { Primary, Secondary, Outline, OutlineAccent }
 enum class ButtonSize { Large, Compact }
 
 /**
@@ -77,17 +77,18 @@ fun AppButton(
     val tick = rememberTick(strong = style == ButtonStyle.Primary)
     val shape = RoundedCornerShape(Radius.Control)
     val container by animateColorAsState(
-        when (style) { ButtonStyle.Primary -> C.Primary; ButtonStyle.Secondary -> C.Control; ButtonStyle.Outline -> Color.Transparent },
+        when (style) { ButtonStyle.Primary -> C.Primary; ButtonStyle.Secondary -> C.Control; ButtonStyle.Outline, ButtonStyle.OutlineAccent -> Color.Transparent },
         tween(Motion.Medium), label = "buttonContainer",
     )
     val large = size == ButtonSize.Large
-    val content = if (style == ButtonStyle.Outline) C.Text else C.OnPrimary
+    val outlined = style != ButtonStyle.Primary
+    val content = when (style) { ButtonStyle.Outline -> C.Text; ButtonStyle.OutlineAccent -> C.Accent; else -> C.OnPrimary }
     Box(
         modifier.alpha(if (enabled) 1f else 0.4f)
             .height(if (large) Sizes.Button else Sizes.Control)
             .pressable(shape, Press.Control, enabled) { tick(); onClick() }
             .background(container)
-            .then(if (style == ButtonStyle.Outline) Modifier.border(1.dp, C.Outline, shape) else Modifier)
+            .then(if (outlined) Modifier.border(if (style == ButtonStyle.OutlineAccent) 1.5.dp else 1.dp, when (style) { ButtonStyle.OutlineAccent -> C.Accent; ButtonStyle.Secondary -> C.Border; else -> C.Outline }, shape) else Modifier)
             .padding(horizontal = if (large) Space.Xxl else Space.Xl),
         contentAlignment = Alignment.Center,
     ) {
@@ -169,8 +170,8 @@ fun AppSwitch(checked: Boolean, onChange: (Boolean) -> Unit) {
     Switch(
         checked = checked, onCheckedChange = { tick(); onChange(it) },
         colors = SwitchDefaults.colors(
-            checkedThumbColor = C.OnPrimary, checkedTrackColor = C.Primary, checkedBorderColor = Color.Transparent,
-            uncheckedThumbColor = C.Muted, uncheckedTrackColor = C.Control, uncheckedBorderColor = Color.Transparent,
+            checkedThumbColor = C.OnPrimary, checkedTrackColor = C.Accent, checkedBorderColor = Color.Transparent,
+            uncheckedThumbColor = C.Muted, uncheckedTrackColor = C.Border, uncheckedBorderColor = Color.Transparent,
         ),
     )
 }
@@ -212,7 +213,7 @@ fun AppTextField(
     trailing: (@Composable () -> Unit)? = null,
 ) {
     var focused by remember { mutableStateOf(false) }
-    val border by animateColorAsState(if (focused) C.Accent else C.Border, tween(Motion.Short), label = "fieldBorder")
+    val border by animateColorAsState(if (focused) C.Accent else Color.Transparent, tween(Motion.Short), label = "fieldBorder")
     val shape = RoundedCornerShape(Radius.Control)
     Row(
         modifier.fillMaxWidth()
