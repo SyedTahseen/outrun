@@ -81,14 +81,14 @@ fun AppButton(
         tween(Motion.Medium), label = "buttonContainer",
     )
     val large = size == ButtonSize.Large
-    val outlined = style != ButtonStyle.Primary
+    val outlined = style == ButtonStyle.Outline || style == ButtonStyle.OutlineAccent
     val content = when (style) { ButtonStyle.Outline -> C.Text; ButtonStyle.OutlineAccent -> C.Accent; else -> C.OnPrimary }
     Box(
         modifier.alpha(if (enabled) 1f else 0.4f)
             .height(if (large) Sizes.Button else Sizes.Control)
             .pressable(shape, Press.Control, enabled) { tick(); onClick() }
             .background(container)
-            .then(if (outlined) Modifier.border(if (style == ButtonStyle.OutlineAccent) 1.5.dp else 1.dp, when (style) { ButtonStyle.OutlineAccent -> C.Accent; ButtonStyle.Secondary -> C.Border; else -> C.Outline }, shape) else Modifier)
+            .then(if (outlined) Modifier.border(if (style == ButtonStyle.OutlineAccent) 1.5.dp else 1.dp, if (style == ButtonStyle.OutlineAccent) C.Accent else C.Outline, shape) else Modifier)
             .padding(horizontal = if (large) Space.Xxl else Space.Xl),
         contentAlignment = Alignment.Center,
     ) {
@@ -134,8 +134,7 @@ fun SelectableBox(
     Box(
         modifier.height(Sizes.Control)
             .pressable(RoundedCornerShape(Radius.Control), Press.Control, enabled, onLongClick = onLongClick) { if (!selected) tick(); onClick() }
-            .background(bg)
-            .border(1.dp, if (selected) Color.Transparent else C.Border, RoundedCornerShape(Radius.Control)),
+            .background(bg),
         contentAlignment = Alignment.Center,
         content = content,
     )

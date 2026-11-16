@@ -10,10 +10,11 @@ import androidx.compose.ui.graphics.Color
  */
 object C {
     // Surfaces
-    val Bg = Color(0xFF1C1B24)          // screen background
+    val Bg = Color(0xFF1C1B23)          // screen background
     val Card = Color(0xFF282731)        // cards, bars, menus, dialogs, sheets
+    val Header = Color(0xFF292734)      // header and status bar once the page is scrolled
     val CardOverlay = Color(0xEB282731) // Card over the map (92 %)
-    val Control = Color(0xFF282731)     // unselected chips, secondary buttons: same color as Card
+    val Control = Color(0xFF3B3746)     // unselected chips, secondary buttons, pills
     val Border = Color(0xFF3A3944)      // 1dp hairlines: card borders, dividers, chart grid
     val Divider = Color(0x0AFFFFFF)     // hairlines between rows (4 % white: subtle on both Bg and Card)
     val Outline = Color(0xFF4F4D5C)     // border of outlined buttons

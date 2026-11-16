@@ -311,7 +311,7 @@ private fun App() {
 
     var serversScrolled by remember { mutableStateOf(false) }
     val statusStripColor by animateColorAsState(
-        if ((tab == Tab.Servers || tab == Tab.Menu) && serversScrolled) C.Card else C.Bg,
+        if ((tab == Tab.Servers || tab == Tab.Menu) && serversScrolled) C.Header else C.Bg,
         tween(Motion.Medium), label = "statusStrip",
     )
 

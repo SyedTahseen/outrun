@@ -126,7 +126,7 @@ fun FlagBadge(name: String?) {
  */
 @Composable
 fun HeaderSurface(scrolled: Boolean = false, content: @Composable ColumnScope.() -> Unit) {
-    val bg by animateColorAsState(if (scrolled) C.Card else C.Bg, tween(Motion.Medium), label = "headerSurface")
+    val bg by animateColorAsState(if (scrolled) C.Header else C.Bg, tween(Motion.Medium), label = "headerSurface")
     Column(Modifier.fillMaxWidth().background(bg), content = content)
 }
 
