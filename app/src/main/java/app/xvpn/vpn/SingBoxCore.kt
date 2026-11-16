@@ -10,18 +10,14 @@ import java.net.Socket
 import kotlin.concurrent.thread
 
 class SingBoxCore(private val context: Context, private val dirName: String = "singbox") {
-
     companion object {
-
         fun freePort(): Int = ServerSocket(0, 0, InetAddress.getByName("127.0.0.1")).use { it.localPort }
     }
 
     private var process: Process? = null
     private val tail = ArrayDeque<String>()
 
-    private fun alive(p: Process): Boolean = try { p.exitValue(); false } catch (_: IllegalThreadStateException) { true }
-
-    val isRunning: Boolean get() = process?.let { alive(it) } == true
+    private fun alive(p: Process): Boolean = try { p.exitValue(); false } catch (e: IllegalThreadStateException) { true }
 
     fun start(configJson: String, port: Int) {
         val bin = File(context.applicationInfo.nativeLibraryDir, "libsingbox.so")
@@ -57,7 +53,7 @@ class SingBoxCore(private val context: Context, private val dirName: String = "s
             try {
                 Socket().use { it.connect(InetSocketAddress("127.0.0.1", port), 200) }
                 return
-            } catch (_: Exception) {
+            } catch (e: Exception) {
                 Thread.sleep(100)
             }
         }

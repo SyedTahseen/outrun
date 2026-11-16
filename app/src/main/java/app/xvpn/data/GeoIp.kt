@@ -1,10 +1,7 @@
 package app.xvpn.data
 
+import kotlinx.coroutines.flow.MutableStateFlow
 import org.json.JSONObject
-import java.net.HttpURLConnection
-import java.net.InetSocketAddress
-import java.net.Proxy
-import java.net.URL
 
 data class IpInfo(
     val ip: String,
@@ -16,15 +13,13 @@ data class IpInfo(
 )
 
 object GeoIp {
-
     fun lookup(socksPort: Int = 0): IpInfo? = runCatching {
-        val url = URL("https://ipwho.is/")
-        val c = (if (socksPort > 0)
-            url.openConnection(Proxy(Proxy.Type.SOCKS, InetSocketAddress("127.0.0.1", socksPort)))
-        else url.openConnection()) as HttpURLConnection
-        c.connectTimeout = 8000
-        c.readTimeout = 8000
-        val j = JSONObject(c.inputStream.bufferedReader().use { it.readText() })
+        val c = openConnection("https://ipwho.is/", socksPort)
+        val j = try {
+            JSONObject(c.inputStream.bufferedReader().use { it.readText() })
+        } finally {
+            c.disconnect()
+        }
         if (!j.optBoolean("success", true)) return null
         IpInfo(
             ip = j.getString("ip"),
@@ -38,6 +33,6 @@ object GeoIp {
 }
 
 object NetInfo {
-    val real = kotlinx.coroutines.flow.MutableStateFlow<IpInfo?>(null)
-    val proxy = kotlinx.coroutines.flow.MutableStateFlow<IpInfo?>(null)
+    val real = MutableStateFlow<IpInfo?>(null)
+    val proxy = MutableStateFlow<IpInfo?>(null)
 }

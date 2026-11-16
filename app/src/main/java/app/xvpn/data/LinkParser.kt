@@ -1,8 +1,10 @@
 package app.xvpn.data
 
 import android.util.Base64
+import org.json.JSONObject
 import java.net.URI
 import java.net.URLDecoder
+import java.net.URLEncoder
 
 data class Profile(
     val name: String,
@@ -13,17 +15,28 @@ data class Profile(
 )
 
 object LinkParser {
+    /** Canonical protocol name for a share link, or null when the scheme isn't supported. */
+    fun protocolOf(link: String): String? = when {
+        link.startsWith("vless://") -> "vless"
+        link.startsWith("trojan://") -> "trojan"
+        link.startsWith("ss://") -> "ss"
+        link.startsWith("vmess://") -> "vmess"
+        link.startsWith("hysteria2://") || link.startsWith("hy2://") -> "hysteria2"
+        link.startsWith("tuic://") -> "tuic"
+        link.startsWith("wireguard://") || link.startsWith("wg://") -> "wireguard"
+        else -> null
+    }
 
     fun parse(raw: String): Profile? = try {
         val link = sanitize(raw.trim())
-        when {
-            link.startsWith("vless://") -> uriProfile(link, "vless")
-            link.startsWith("trojan://") -> uriProfile(link, "trojan")
-            link.startsWith("ss://") -> ssProfile(link)
-            link.startsWith("vmess://") -> vmessProfile(link)
-            link.startsWith("hysteria2://") || link.startsWith("hy2://") -> authProfile(link, "hysteria2", defaultPort = 443)
-            link.startsWith("tuic://") -> authProfile(link, "tuic")
-            link.startsWith("wireguard://") || link.startsWith("wg://") -> authProfile(link, "wireguard")
+        when (protocolOf(link)) {
+            "vless" -> uriProfile(link, "vless")
+            "trojan" -> uriProfile(link, "trojan")
+            "ss" -> ssProfile(link)
+            "vmess" -> vmessProfile(link)
+            "hysteria2" -> authProfile(link, "hysteria2", defaultPort = 443)
+            "tuic" -> authProfile(link, "tuic")
+            "wireguard" -> authProfile(link, "wireguard")
             else -> null
         }
     } catch (e: Exception) {
@@ -89,7 +102,7 @@ object LinkParser {
         val ep = peer["endpoint"] ?: return null
         val host = ep.substringBeforeLast(':')
         val port = ep.substringAfterLast(':').toIntOrNull() ?: return null
-        fun e(v: String) = java.net.URLEncoder.encode(v, "UTF-8").replace("+", "%20")
+        fun e(v: String) = URLEncoder.encode(v, "UTF-8").replace("+", "%20")
         val q = StringBuilder("publickey=${e(pub)}&address=${e(addr.replace(" ", ""))}")
         iface["mtu"]?.let { q.append("&mtu=").append(e(it)) }
         peer["presharedkey"]?.let { q.append("&presharedkey=").append(e(it)) }
@@ -183,8 +196,10 @@ object LinkParser {
         return Ss(method, password, host, port, name.ifEmpty { "$host:$port" })
     }
 
+    fun vmessJson(link: String): JSONObject = JSONObject(decodeB64(link.removePrefix("vmess://"))!!)
+
     private fun vmessProfile(link: String): Profile {
-        val j = org.json.JSONObject(decodeB64(link.removePrefix("vmess://"))!!)
+        val j = vmessJson(link)
         val host = j.getString("add")
         val port = j.get("port").toString().toInt()
         return Profile(j.optString("ps").ifEmpty { "$host:$port" }, "vmess", host, port, link)
@@ -195,9 +210,9 @@ object LinkParser {
     fun describe(link: String): String = describeCache.getOrPut(link) {
         runCatching {
             val parts = mutableListOf<String>()
-            when {
-                link.startsWith("vless://") || link.startsWith("trojan://") -> {
-                    val vless = link.startsWith("vless://")
+            when (val protocol = protocolOf(link)) {
+                "vless", "trojan" -> {
+                    val vless = protocol == "vless"
                     parts += if (vless) "VLESS" else "Trojan"
                     val q = query(URI(link))
                     val net = (q["type"] ?: "tcp").lowercase()
@@ -205,17 +220,17 @@ object LinkParser {
                     if (net != "tcp") parts += net.uppercase()
                     when (sec) { "reality" -> parts += "Reality"; "tls" -> parts += "TLS"; "xtls" -> parts += "XTLS" }
                 }
-                link.startsWith("vmess://") -> {
+                "vmess" -> {
                     parts += "VMess"
-                    val j = org.json.JSONObject(decodeB64(link.removePrefix("vmess://"))!!)
+                    val j = vmessJson(link)
                     val net = j.optString("net").lowercase()
                     if (net.isNotEmpty() && net != "tcp") parts += net.uppercase()
                     if (j.optString("tls").lowercase() == "tls") parts += "TLS"
                 }
-                link.startsWith("ss://") -> parts += "Shadowsocks"
-                link.startsWith("hysteria2://") || link.startsWith("hy2://") -> parts += "Hysteria2"
-                link.startsWith("tuic://") -> parts += "TUIC"
-                link.startsWith("wireguard://") || link.startsWith("wg://") -> parts += "WireGuard"
+                "ss" -> parts += "Shadowsocks"
+                "hysteria2" -> parts += "Hysteria2"
+                "tuic" -> parts += "TUIC"
+                "wireguard" -> parts += "WireGuard"
             }
             parts.joinToString(" / ")
         }.getOrDefault("")

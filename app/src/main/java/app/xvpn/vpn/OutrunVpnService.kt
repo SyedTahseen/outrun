@@ -6,15 +6,20 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.graphics.drawable.Icon
+import android.net.IpPrefix
 import android.net.VpnService
 import android.os.Build
 import android.os.ParcelFileDescriptor
+import android.util.Log
 import app.xvpn.MainActivity
+import app.xvpn.data.Choices
 import app.xvpn.data.ConfigBuilder
 import app.xvpn.data.LinkParser
 import app.xvpn.data.Session
 import app.xvpn.data.Store
 import app.xvpn.data.Usage
+import app.xvpn.data.openConnection
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -28,30 +33,27 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
-import java.net.HttpURLConnection
-import java.net.InetSocketAddress
-import java.net.Proxy
-import java.net.URL
+import java.net.InetAddress
 
-class SingBoxVpnService : VpnService() {
-
+class OutrunVpnService : VpnService() {
     companion object {
         const val ACTION_START = "app.xvpn.START"
         const val ACTION_STOP = "app.xvpn.STOP"
         const val ACTION_NEXT = "app.xvpn.NEXT"
         const val EXTRA_LINK = "link"
+        private const val TAG = "OutrunVpnService"
         private const val MTU = 1500
-
         private const val VERIFY_TIMEOUT_MS = 20_000L
-        private val PROBE_URLS = listOf("https://www.gstatic.com/generate_204", "https://cp.cloudflare.com/generate_204")
+        private val PROBE_URLS = Choices.testUrls.take(2).map { it.url }
         private const val CHANNEL = "vpn"
+        private const val NOTIFICATION_ID = 1
 
         fun start(ctx: Context, link: String) = ctx.startForegroundService(
-            Intent(ctx, SingBoxVpnService::class.java).setAction(ACTION_START).putExtra(EXTRA_LINK, link)
+            Intent(ctx, OutrunVpnService::class.java).setAction(ACTION_START).putExtra(EXTRA_LINK, link)
         )
 
         fun stop(ctx: Context) = ctx.startService(
-            Intent(ctx, SingBoxVpnService::class.java).setAction(ACTION_STOP)
+            Intent(ctx, OutrunVpnService::class.java).setAction(ACTION_STOP)
         )
     }
 
@@ -70,9 +72,11 @@ class SingBoxVpnService : VpnService() {
     private var pendUp = 0L
     private var pendDown = 0L
 
+    private val notificationManager: NotificationManager get() = getSystemService(NotificationManager::class.java)
+
     override fun onCreate() {
         super.onCreate()
-        getSystemService(NotificationManager::class.java)
+        notificationManager
             .createNotificationChannel(NotificationChannel(CHANNEL, "VPN", NotificationManager.IMPORTANCE_LOW))
     }
 
@@ -82,7 +86,7 @@ class SingBoxVpnService : VpnService() {
             ACTION_NEXT -> switchNext()
             ACTION_START -> {
                 val link = intent.getStringExtra(EXTRA_LINK) ?: return START_NOT_STICKY
-                startForeground(1, notification("SingBox VPN", "Connecting…"))
+                startForeground(NOTIFICATION_ID, notification("Outrun", "Connecting…"))
                 val prev = connectJob
 
                 connectJob = scope.launch { prev?.cancelAndJoin(); connect(link) }
@@ -103,7 +107,7 @@ class SingBoxVpnService : VpnService() {
     private fun switchNext() {
         val next = nextLink() ?: return
         val name = LinkParser.parse(next)?.name ?: ""
-        getSystemService(NotificationManager::class.java).notify(1, notification("SingBox VPN", "Switching to $name…"))
+        notificationManager.notify(NOTIFICATION_ID, notification("Outrun", "Switching to $name…"))
         val prev = connectJob
         connectJob = scope.launch { prev?.cancelAndJoin(); connect(next) }
     }
@@ -155,9 +159,9 @@ class SingBoxVpnService : VpnService() {
             val b = Builder()
                 .setSession(profile.name)
                 .setMtu(MTU)
-                .addAddress("10.10.14.1", 30)
+                .addAddress(Tun2Socks.TUN_IPV4, 30)
             val v6 = settings.ipv6Mode != "block"
-            if (v6) b.addAddress("fd00:10:10:14::1", 126)
+            if (v6) b.addAddress(Tun2Socks.TUN_IPV6, 126)
             dns.forEach { b.addDnsServer(it) }
 
             val include = settings.splitEnabled && settings.splitMode == "include"
@@ -170,8 +174,8 @@ class SingBoxVpnService : VpnService() {
             }
             if (exclude && Build.VERSION.SDK_INT >= 33) settings.splitExcludeIps.forEach { ip ->
                 runCatching {
-                    b.excludeRoute(android.net.IpPrefix(
-                        java.net.InetAddress.getByName(ip.substringBefore('/')),
+                    b.excludeRoute(IpPrefix(
+                        InetAddress.getByName(ip.substringBefore('/')),
                         ip.substringAfter('/', if (':' in ip) "128" else "32").toInt(),
                     ))
                 }
@@ -193,7 +197,6 @@ class SingBoxVpnService : VpnService() {
             }
             var started = Tun2Socks.TProxyStartService(cfg.absolutePath, pfd.fd)
             if (!started) {
-
                 runCatching { Tun2Socks.TProxyStopService() }
                 delay(400)
                 started = Tun2Socks.TProxyStartService(cfg.absolutePath, pfd.fd)
@@ -213,15 +216,15 @@ class SingBoxVpnService : VpnService() {
                 VpnState.alwaysOn.value = isAlwaysOn
                 VpnState.lockdown.value = isLockdownEnabled
             }
-            getSystemService(NotificationManager::class.java).notify(1, notification("Connected · ${profile.name}", "↓ 0 KB/s   ↑ 0 KB/s"))
+            notificationManager.notify(NOTIFICATION_ID, notification("Connected · ${profile.name}", "↓ 0 KB/s   ↑ 0 KB/s"))
             startStats()
         } catch (e: Throwable) {
             if (!currentCoroutineContext().isActive) {
-
                 if (tunStarted) runCatching { Tun2Socks.TProxyStopService() }
                 runCatching { x?.stop() }
                 runCatching { pfd?.close() }
             } else {
+                Log.w(TAG, "connect failed: ${e.javaClass.simpleName}")
                 VpnState.error.value = e.message ?: e.javaClass.simpleName
                 shutdown()
             }
@@ -240,10 +243,8 @@ class SingBoxVpnService : VpnService() {
     }
 
     private fun probe(port: Int, url: String): Boolean = runCatching {
-        val c = URL(url).openConnection(Proxy(Proxy.Type.SOCKS, InetSocketAddress("127.0.0.1", port))) as HttpURLConnection
+        val c = openConnection(url, port, timeoutMs = 5000)
         try {
-            c.connectTimeout = 5000
-            c.readTimeout = 5000
             c.instanceFollowRedirects = false
             c.responseCode.let { it == 204 || it == 200 }
         } finally { c.disconnect() }
@@ -267,14 +268,14 @@ class SingBoxVpnService : VpnService() {
                     (VpnState.speedHistory.value + (VpnState.upBytesPerSec.value to VpnState.downBytesPerSec.value)).takeLast(60)
                 val dUp = (up - lastUp).coerceAtLeast(0); val dDown = (down - lastDown).coerceAtLeast(0)
                 lastUp = up; lastDown = down
-                synchronized(this@SingBoxVpnService) {
+                synchronized(this@OutrunVpnService) {
                     sessUp += dUp; sessDown += dDown; pendUp += dUp; pendDown += dDown
                     VpnState.sessionUp.value = sessUp; VpnState.sessionDown.value = sessDown
                 }
                 if (++ticks % 10 == 0) flushUsage()
                 if (VpnState.status.value == Status.Connected) {
-                    getSystemService(NotificationManager::class.java).notify(
-                        1, notification("Connected · $currentName", "↓ ${rate(VpnState.downBytesPerSec.value)}   ↑ ${rate(VpnState.upBytesPerSec.value)}"),
+                    notificationManager.notify(
+                        NOTIFICATION_ID, notification("Connected · $currentName", "↓ ${rate(VpnState.downBytesPerSec.value)}   ↑ ${rate(VpnState.upBytesPerSec.value)}"),
                     )
                 }
             }
@@ -297,17 +298,7 @@ class SingBoxVpnService : VpnService() {
 
     private fun shutdown() {
         connectJob?.cancel()
-        statsJob?.cancel()
-        finishSession()
-        runCatching { Tun2Socks.TProxyStopService() }
-        runCatching { core?.stop() }
-        core = null
-        runCatching { tun?.close() }
-        tun = null
-        VpnState.upBytesPerSec.value = 0
-        VpnState.downBytesPerSec.value = 0
-        VpnState.speedHistory.value = emptyList()
-        VpnState.socksPort.value = 0
+        teardownSession()
         VpnState.status.value = Status.Disconnected
         VpnState.activeLink.value = null
         VpnState.sessionUp.value = 0; VpnState.sessionDown.value = 0
@@ -326,10 +317,10 @@ class SingBoxVpnService : VpnService() {
 
     private fun action(title: String, act: String, req: Int, icon: Int): Notification.Action {
         val pi = PendingIntent.getService(
-            this, req, Intent(this, SingBoxVpnService::class.java).setAction(act),
+            this, req, Intent(this, OutrunVpnService::class.java).setAction(act),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
-        return Notification.Action.Builder(android.graphics.drawable.Icon.createWithResource(this, icon), title, pi).build()
+        return Notification.Action.Builder(Icon.createWithResource(this, icon), title, pi).build()
     }
 
     private fun notification(title: String, text: String): Notification {

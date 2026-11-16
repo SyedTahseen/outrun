@@ -12,5 +12,5 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-rootProject.name = "SingBoxVpn"
+rootProject.name = "OutrunVpn"
 include(":app")

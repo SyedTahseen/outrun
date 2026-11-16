@@ -2,15 +2,12 @@ package app.xvpn.data
 
 import android.content.Context
 import android.net.ConnectivityManager
+import android.net.LinkProperties
 import android.net.NetworkCapabilities
 import android.os.Build
 import app.xvpn.vpn.VpnState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.net.HttpURLConnection
-import java.net.InetSocketAddress
-import java.net.Proxy
-import java.net.URL
 
 enum class Level { Ok, Warn, Fail, Info }
 
@@ -20,18 +17,14 @@ object LeakTest {
     private val ipChars = Regex("^[0-9a-fA-F:.]{3,45}$")
 
     private fun fetch(url: String, socksPort: Int): String? = runCatching {
-        val u = URL(url)
-        val c = (if (socksPort > 0) u.openConnection(Proxy(Proxy.Type.SOCKS, InetSocketAddress("127.0.0.1", socksPort)))
-        else u.openConnection()) as HttpURLConnection
+        val c = openConnection(url, socksPort)
         try {
-            c.connectTimeout = 8000
-            c.readTimeout = 8000
             c.inputStream.bufferedReader().use { it.readText() }.trim().takeIf { ipChars.matches(it) }
         } finally { c.disconnect() }
     }.getOrNull()
 
     @Suppress("DEPRECATION")
-    private fun vpnLink(ctx: Context): android.net.LinkProperties? {
+    private fun vpnLink(ctx: Context): LinkProperties? {
         val cm = ctx.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         val n = cm.allNetworks.firstOrNull { cm.getNetworkCapabilities(it)?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) == true }
         return n?.let { cm.getLinkProperties(it) }
