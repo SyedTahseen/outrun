@@ -28,6 +28,7 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -89,6 +90,7 @@ import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontFamily
@@ -98,6 +100,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.xvpn.R
 import app.xvpn.data.SpeedConfig
 import app.xvpn.data.SpeedPhase
 import app.xvpn.data.SpeedResult
@@ -362,53 +365,17 @@ private fun ModePicker(selected: TransmitMode, onSelect: (TransmitMode) -> Unit)
     }
 }
 
-// Ring colors sampled from the design: orange, blue, purple, green and a dusty pink where purple meets blue.
-private val RingOrange = Color(0xFFFF6A2A)
-private val RingBlue = Color(0xFF2F6FEA)
-private val RingPurple = Color(0xFF8E63E6)
-private val RingGreen = Color(0xFF2E9E78)
-private val RingPink = Color(0xFFD08A70)
-
-// Positions run clockwise from 3 o'clock; first and last color match so the sweep has no seam.
-private val RingStops = arrayOf(
-    0f to RingGreen, 0.12f to RingGreen, 0.27f to RingBlue, 0.40f to RingPurple, 0.51f to RingOrange,
-    0.62f to RingBlue, 0.70f to RingPink, 0.76f to RingPurple, 0.88f to RingOrange, 1f to RingGreen,
-)
-
-/** The START button from the design: a thick multicolor ring on a dark face with a soft, tight glow that turns with the ring. */
+/** The START button: the ring and glow come straight from the design image (res/drawable-nodpi/start_ring.png), the label is live text. */
 @Composable
 private fun StartRing(enabled: Boolean, onClick: () -> Unit) {
-    val spin = rememberInfiniteTransition(label = "ring")
-    val angle by spin.animateFloat(0f, 360f, infiniteRepeatable(tween(9000, easing = LinearEasing)), label = "ringAngle")
-    // The glow gently breathes while it travels around the ring.
-    val breathe by spin.animateFloat(
-        0.82f, 1f, infiniteRepeatable(tween(2400, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "ringBreathe",
-    )
     val on by animateFloatAsState(if (enabled) 1f else 0.35f, tween(Motion.Medium), label = "ringOn")
     val tick = rememberTick(strong = true)
     Box(Modifier.size(250.dp), contentAlignment = Alignment.Center) {
-        Canvas(Modifier.fillMaxSize()) {
-            val r = 88.dp.toPx()
-            val ringW = 8.dp.toPx()
-            val spread = 30.dp.toPx()
-            val brush = Brush.sweepGradient(*RingStops, center = center)
-            rotate(angle, pivot = center) {
-                // Glow: the ring itself redrawn a bit wider each time and very faint, so the halo is smooth,
-                // hugs the ring and always carries the ring's own colors (no separate blobs).
-                val layers = 14
-                for (i in layers downTo 1) {
-                    val reach = spread * sqrt(i.toFloat() / layers)
-                    drawCircle(
-                        brush = brush, radius = r, center = center,
-                        alpha = 0.036f * on * breathe,
-                        style = Stroke(ringW + 2f * reach),
-                    )
-                }
-                drawCircle(brush = brush, radius = r, center = center, alpha = on, style = Stroke(ringW))
-            }
-            // Dark face keeps the glow outside the ring, as in the design.
-            drawCircle(color = C.Bg, radius = r - ringW / 2f, center = center)
-        }
+        Image(
+            painter = painterResource(R.drawable.start_ring),
+            contentDescription = null,
+            modifier = Modifier.size(247.dp).graphicsLayer { alpha = on },
+        )
         Box(
             Modifier.size(170.dp).pressable(CircleShape, 0.94f, enabled = enabled, ripple = false) { tick(); onClick() },
             contentAlignment = Alignment.Center,
