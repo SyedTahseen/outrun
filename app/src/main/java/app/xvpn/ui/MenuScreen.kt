@@ -546,11 +546,11 @@ private fun LogsPage(
     val ctx = LocalContext.current
     val logs by produceState<String?>(null) { value = readLogs() }
     BackHandler(true) { onBack() }
-    // Full-screen page: hide the bottom bar and tint the status strip like the header.
-    ReportScrolled(true, onScrolledChange)
+    // Full-screen page: hide the bottom bar; header and status strip keep the app background.
+    ReportScrolled(false, onScrolledChange)
     DisposableEffect(Unit) { onFullScreenChange(true); onDispose { onFullScreenChange(false) } }
     Column(Modifier.fillMaxSize()) {
-        Column(Modifier.fillMaxWidth().background(C.Card)) {
+        Column(Modifier.fillMaxWidth().background(C.Bg)) {
             Spacer(Modifier.height(20.dp))
             HeaderRow {
                 HeaderIcon(Icons.AutoMirrored.Filled.ArrowBack, "Back", onClick = onBack)
@@ -566,7 +566,6 @@ private fun LogsPage(
             }
             Spacer(Modifier.height(8.dp))
         }
-        Box(Modifier.fillMaxWidth().height(1.dp).background(C.CardBorder))
         Text(
             logs ?: "Loading…", color = if (logs == null) C.Muted else C.Text, fontSize = 14.sp,
             modifier = Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(bottom = 16.dp),
