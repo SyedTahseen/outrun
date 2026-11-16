@@ -321,7 +321,7 @@ private fun OutlineButton(label: String, onClick: () -> Unit) {
     val tick = rememberTick()
     Box(
         Modifier.fillMaxWidth().height(54.dp).pressable(RoundedCornerShape(Radius.Small), 0.97f) { tick(); onClick() }
-            .border(1.dp, Color(0xFF4F4D5C), RoundedCornerShape(Radius.Small)),
+            .border(1.dp, Color(0xFF33425E), RoundedCornerShape(Radius.Small)),
         contentAlignment = Alignment.Center,
     ) { Text(label, color = C.Text, fontSize = 19.sp, fontWeight = FontWeight.Medium) }
 }
