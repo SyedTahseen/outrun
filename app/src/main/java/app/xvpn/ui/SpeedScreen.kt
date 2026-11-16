@@ -12,6 +12,8 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutLinearInEasing
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.animateFloat
@@ -111,6 +113,7 @@ import java.util.Date
 import java.util.Locale
 import kotlin.math.cos
 import kotlin.math.sin
+import kotlin.math.sqrt
 
 // Colors sampled from the design video.
 private val DownColor = Color(0xFFEE6B3B)   // orange
@@ -359,36 +362,52 @@ private fun ModePicker(selected: TransmitMode, onSelect: (TransmitMode) -> Unit)
     }
 }
 
+// Ring colors sampled from the design: orange, blue, purple, green and a dusty pink where purple meets blue.
+private val RingOrange = Color(0xFFFF6A2A)
+private val RingBlue = Color(0xFF2F6FEA)
+private val RingPurple = Color(0xFF8E63E6)
+private val RingGreen = Color(0xFF2E9E78)
+private val RingPink = Color(0xFFD08A70)
+
+// Positions run clockwise from 3 o'clock; first and last color match so the sweep has no seam.
 private val RingStops = arrayOf(
-    0f to UpColor, 0.14f to DownColor, 0.32f to GreenTip, 0.5f to BlueTip,
-    0.63f to UpColor, 0.76f to DownColor, 0.89f to BlueTip, 1f to UpColor,
+    0f to RingGreen, 0.12f to RingGreen, 0.27f to RingBlue, 0.40f to RingPurple, 0.51f to RingOrange,
+    0.62f to RingBlue, 0.70f to RingPink, 0.76f to RingPurple, 0.88f to RingOrange, 1f to RingGreen,
 )
 
+/** The START button from the design: a thick multicolor ring on a dark face with a soft, tight glow that turns with the ring. */
 @Composable
 private fun StartRing(enabled: Boolean, onClick: () -> Unit) {
     val spin = rememberInfiniteTransition(label = "ring")
-    val angle by spin.animateFloat(0f, 360f, infiniteRepeatable(tween(16000, easing = LinearEasing)), label = "ringAngle")
+    val angle by spin.animateFloat(0f, 360f, infiniteRepeatable(tween(9000, easing = LinearEasing)), label = "ringAngle")
+    // The glow gently breathes while it travels around the ring.
+    val breathe by spin.animateFloat(
+        0.82f, 1f, infiniteRepeatable(tween(2400, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "ringBreathe",
+    )
     val on by animateFloatAsState(if (enabled) 1f else 0.35f, tween(Motion.Medium), label = "ringOn")
     val tick = rememberTick(strong = true)
     Box(Modifier.size(250.dp), contentAlignment = Alignment.Center) {
         Canvas(Modifier.fillMaxSize()) {
             val r = 88.dp.toPx()
-            rotate(angle, pivot = center) {
-                // Smoke-like haze around the ring, tinted by the ring's own colors.
-                val n = 18
-                for (k in 0 until n) {
-                    val deg = 360f * k / n
-                    val rad = Math.toRadians(deg.toDouble())
-                    val p = Offset(center.x + (cos(rad) * r).toFloat(), center.y + (sin(rad) * r).toFloat())
-                    haze(p, 66.dp.toPx(), colorAt(RingStops, deg / 360f), 0.15f * on)
-                }
-            }
-            // Dark button face so the haze stays outside the ring.
-            drawCircle(color = C.Bg, radius = r - 3.dp.toPx(), center = center)
+            val ringW = 8.dp.toPx()
+            val spread = 30.dp.toPx()
             val brush = Brush.sweepGradient(*RingStops, center = center)
             rotate(angle, pivot = center) {
-                drawCircle(brush = brush, radius = r, alpha = on, style = Stroke(7.dp.toPx()))
+                // Glow: the ring itself redrawn a bit wider each time and very faint, so the halo is smooth,
+                // hugs the ring and always carries the ring's own colors (no separate blobs).
+                val layers = 14
+                for (i in layers downTo 1) {
+                    val reach = spread * sqrt(i.toFloat() / layers)
+                    drawCircle(
+                        brush = brush, radius = r, center = center,
+                        alpha = 0.036f * on * breathe,
+                        style = Stroke(ringW + 2f * reach),
+                    )
+                }
+                drawCircle(brush = brush, radius = r, center = center, alpha = on, style = Stroke(ringW))
             }
+            // Dark face keeps the glow outside the ring, as in the design.
+            drawCircle(color = C.Bg, radius = r - ringW / 2f, center = center)
         }
         Box(
             Modifier.size(170.dp).pressable(CircleShape, 0.94f, enabled = enabled, ripple = false) { tick(); onClick() },
