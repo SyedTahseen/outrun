@@ -1,10 +1,26 @@
 package app.xvpn.ui
 
+import android.Manifest
+import android.appwidget.AppWidgetManager
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.net.Uri
+import android.os.Build
 import android.provider.Settings
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.LifecycleOwner
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
@@ -50,8 +66,10 @@ import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.BugReport
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Dns
+import androidx.compose.material.icons.outlined.Email
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Language
+import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.PhoneAndroid
 import androidx.compose.material.icons.outlined.PowerSettingsNew
 import androidx.compose.material.icons.outlined.RemoveCircleOutline
@@ -60,11 +78,13 @@ import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material.icons.outlined.Terminal
 import androidx.compose.material.icons.outlined.Tune
+import androidx.compose.material.icons.outlined.Widgets
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.derivedStateOf
@@ -87,6 +107,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -97,6 +118,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import app.xvpn.data.Choices
 import app.xvpn.data.Store
+import app.xvpn.widget.OutrunWidget
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -106,7 +128,7 @@ private class AppInfo(val label: String, val pkg: String)
 fun MenuScreen(
     store: Store,
     onExport: () -> Unit,
-    onDebugInfo: () -> Unit,
+    debugInfo: () -> String,
     onScrolledChange: (Boolean) -> Unit = {},
 ) {
     val pageState = remember { mutableStateOf("main") }
@@ -117,7 +139,7 @@ fun MenuScreen(
         modifier = Modifier.fillMaxSize(),
         transitionSpec = { axisTransition(forward = pageDepth(targetState) >= pageDepth(initialState), distance = 0.2f) },
         label = "settingsPage",
-    ) { shown -> MenuPage(store, onExport, onDebugInfo, onScrolledChange, pageState, scroll, shown) }
+    ) { shown -> MenuPage(store, onExport, debugInfo, onScrolledChange, pageState, scroll, shown) }
 }
 
 private fun pageDepth(p: String) = when (p) {
@@ -136,7 +158,7 @@ private fun pageParent(p: String) = when (p) {
 private fun MenuPage(
     store: Store,
     onExport: () -> Unit,
-    onDebugInfo: () -> Unit,
+    debugInfo: () -> String,
     onScrolledChange: (Boolean) -> Unit,
     pageState: MutableState<String>,
     scroll: ScrollState,
@@ -144,6 +166,22 @@ private fun MenuPage(
 ) {
     val ctx = LocalContext.current
     var page by pageState
+
+    // General: notification permission and home-screen widget state, re-read whenever the app resumes
+    // (the user may have changed them in system settings or from the launcher).
+    var notifOn by remember { mutableStateOf(ctx.notificationsEnabled()) }
+    var widgetCount by remember { mutableStateOf(ctx.widgetCount()) }
+    DisposableEffect(ctx) {
+        val owner = ctx as? LifecycleOwner
+        val observer = LifecycleEventObserver { _, e ->
+            if (e == Lifecycle.Event.ON_RESUME) { notifOn = ctx.notificationsEnabled(); widgetCount = ctx.widgetCount() }
+        }
+        owner?.lifecycle?.addObserver(observer)
+        onDispose { owner?.lifecycle?.removeObserver(observer) }
+    }
+    val notifLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
+        notifOn = ctx.notificationsEnabled()
+    }
 
     var splitOn by remember { mutableStateOf(store.splitEnabled) }
     var dns by remember { mutableStateOf(store.dnsChoice) }
@@ -249,6 +287,10 @@ private fun MenuPage(
         }
         "usage" -> {
             UsagePage { page = "main" }
+            return
+        }
+        "logs" -> {
+            LogsPage(info = debugInfo(), onBack = { page = "main" })
             return
         }
         "test" -> {
@@ -360,7 +402,20 @@ private fun MenuPage(
             Spacer(Modifier.height(8.dp))
         }
         Column(Modifier.weight(1f).fillMaxWidth().verticalScrollbar(scroll).verticalScroll(scroll)) {
-            Section("Features", first = true)
+            Section("General", first = true)
+            SettingRow(Icons.Outlined.Notifications, "Notifications", if (notifOn) "On" else "Off") {
+                val asked = ctx.uiPrefs().getBoolean(KEY_NOTIF_ASKED, false)
+                if (!notifOn && Build.VERSION.SDK_INT >= 33 && !asked) {
+                    ctx.uiPrefs().edit().putBoolean(KEY_NOTIF_ASKED, true).apply()
+                    notifLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                } else ctx.openNotificationSettings()
+            }
+            SettingRow(
+                Icons.Outlined.Widgets, "Widget",
+                if (widgetCount > 0) "Added to home screen" else "Add to home screen",
+            ) { ctx.requestPinWidget(); widgetCount = ctx.widgetCount() }
+
+            Section("Features")
             SettingRow(
                 Icons.Outlined.AltRoute, "Split tunneling",
                 if (!splitOn) "Off" else "On",
@@ -379,12 +434,18 @@ private fun MenuPage(
             SettingRow(Icons.Outlined.ContentCopy, "Export servers") { onExport() }
 
             Section("Support")
-            SettingRow(Icons.Outlined.BugReport, "Copy debug info") { onDebugInfo() }
+            SettingRow(Icons.Outlined.Email, "Support contact", SUPPORT_EMAIL, external = true) { ctx.emailSupport() }
+            SettingRow(Icons.Outlined.BugReport, "Report an issue", external = true) { ctx.reportIssue(debugInfo()) }
+            SettingRow(Icons.Outlined.Terminal, "Debug logs") { page = "logs" }
 
             Spacer(Modifier.height(28.dp))
             Text(
                 "App version: $version", color = C.Muted, fontSize = 15.sp, textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth(),
+            )
+            Text(
+                "Third party licenses", color = C.Accent, fontSize = 15.sp, textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().clickable { ctx.openUrl(LICENSE_URL) }.padding(vertical = 10.dp),
             )
             Spacer(Modifier.height(28.dp))
         }
@@ -394,6 +455,7 @@ private fun MenuPage(
 @Composable
 private fun SettingRow(
     icon: ImageVector, title: String, subtitle: String? = null,
+    external: Boolean = false,
     onClick: () -> Unit,
 ) {
     Row(
@@ -405,6 +467,109 @@ private fun SettingRow(
         Column(Modifier.weight(1f)) {
             Text(title, color = C.Text, fontSize = 17.sp)
             if (subtitle != null) Text(subtitle, color = C.Muted, fontSize = 16.sp, maxLines = 2)
+        }
+        if (external) {
+            Spacer(Modifier.width(12.dp))
+            Icon(Icons.AutoMirrored.Outlined.OpenInNew, null, tint = C.Muted, modifier = Modifier.size(22.dp))
+        }
+    }
+}
+
+private const val REPO_URL = "https://github.com/syedtahseen/outrun"
+private const val LICENSE_URL = "$REPO_URL/blob/HEAD/LICENSE"
+private const val SUPPORT_EMAIL = "itxtahseen@gmail.com"
+private const val KEY_NOTIF_ASKED = "notif_asked"
+
+private fun Context.uiPrefs() = getSharedPreferences("ui", Context.MODE_PRIVATE)
+
+private fun Context.toast(msg: String) = Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
+
+private fun Context.launch(intent: Intent, failMsg: String) {
+    runCatching { startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.onFailure { toast(failMsg) }
+}
+
+private fun Context.openUrl(url: String) = launch(Intent(Intent.ACTION_VIEW, Uri.parse(url)), "No app can open this link")
+
+private fun Context.notificationsEnabled(): Boolean = NotificationManagerCompat.from(this).areNotificationsEnabled()
+
+private fun Context.openNotificationSettings() {
+    val intent = if (Build.VERSION.SDK_INT >= 26) {
+        Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+    } else {
+        Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName"))
+    }
+    launch(intent, "Couldn't open notification settings")
+}
+
+private fun Context.widgetCount(): Int =
+    runCatching { AppWidgetManager.getInstance(this).getAppWidgetIds(ComponentName(this, OutrunWidget::class.java)).size }
+        .getOrDefault(0)
+
+/** Asks the launcher to pin the widget; launchers without pinning support get manual instructions instead. */
+private fun Context.requestPinWidget() {
+    val manager = AppWidgetManager.getInstance(this)
+    val supported = Build.VERSION.SDK_INT >= 26 && manager.isRequestPinAppWidgetSupported
+    val requested = supported && runCatching {
+        manager.requestPinAppWidget(ComponentName(this, OutrunWidget::class.java), null, null)
+    }.getOrDefault(false)
+    if (!requested) toast("Long-press your home screen, then choose Widgets and Outrun VPN")
+}
+
+private fun Context.emailSupport() {
+    val intent = Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:"))
+        .putExtra(Intent.EXTRA_EMAIL, arrayOf(SUPPORT_EMAIL))
+        .putExtra(Intent.EXTRA_SUBJECT, "Outrun VPN support")
+    launch(intent, "No email app found. Write to $SUPPORT_EMAIL")
+}
+
+/** Opens a new GitHub issue with the device details already filled in. */
+private fun Context.reportIssue(info: String) {
+    val body = "**What happened?**\n\n\n\n**Environment**\n```\n$info\n```\n"
+    openUrl("$REPO_URL/issues/new?body=${Uri.encode(body)}")
+}
+
+private fun Context.copyText(label: String, text: String) {
+    (getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(ClipData.newPlainText(label, text))
+}
+
+/** The app's own recent log output (apps can only read their own entries). */
+private suspend fun readLogs(): String = withContext(Dispatchers.IO) {
+    runCatching {
+        val p = ProcessBuilder("logcat", "-d", "-t", "400", "-v", "time").redirectErrorStream(true).start()
+        val text = p.inputStream.bufferedReader().use { it.readText() }
+        p.destroy()
+        text.trim().ifEmpty { "No log entries yet." }
+    }.getOrElse { "Couldn't read logs: ${it.message}" }
+}
+
+@Composable
+private fun LogsPage(info: String, onBack: () -> Unit) {
+    val ctx = LocalContext.current
+    val logs by produceState<String?>(null) { value = readLogs() }
+    val full = info + "\n\n" + (logs ?: "")
+    SubPage(
+        null, onBack,
+        bottom = {
+            ActionButton("Copy logs", filled = true) {
+                if (logs != null) { ctx.copyText("debug logs", full); ctx.toast("Logs copied") }
+            }
+            Spacer(Modifier.height(12.dp))
+            ActionButton("Share", filled = false) {
+                if (logs != null) {
+                    val send = Intent(Intent.ACTION_SEND).setType("text/plain")
+                        .putExtra(Intent.EXTRA_SUBJECT, "Outrun VPN debug logs").putExtra(Intent.EXTRA_TEXT, full)
+                    ctx.launch(Intent.createChooser(send, "Share logs"), "Couldn't share logs")
+                }
+            }
+        },
+    ) {
+        Hero(Icons.Outlined.Terminal)
+        PageHeading("Debug logs", "Device info and recent app logs. They may include server addresses, so check them before sharing.")
+        Column(Modifier.padding(horizontal = 20.dp).fillMaxWidth().clip(RoundedCornerShape(Radius.Card)).background(C.Card).padding(14.dp)) {
+            val mono = TextStyle(color = C.Text, fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+            Text(info, style = mono)
+            Spacer(Modifier.height(12.dp))
+            Text(logs ?: "Loading logs…", style = mono.copy(color = if (logs == null) C.Muted else C.Text))
         }
     }
 }

@@ -384,14 +384,12 @@ private fun App() {
                                 copyToClipboard("servers", profiles.joinToString("\n") { it.link })
                                 toast("Copied ${profiles.size} server link${if (profiles.size == 1) "" else "s"}")
                             },
-                            onDebugInfo = {
-                                val info = "App ${ctx.appVersionName()}\n" +
+                            debugInfo = {
+                                "App ${ctx.appVersionName()}\n" +
                                     "Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})\n" +
                                     "Device ${Build.MANUFACTURER} ${Build.MODEL}\n" +
                                     "Status $status\nServers ${profiles.size}\nSubscriptions ${subs.size}\n" +
                                     "Last error ${VpnState.error.value ?: "none"}"
-                                copyToClipboard("debug", info)
-                                toast("Debug info copied")
                             },
                             onScrolledChange = { serversScrolled = it },
                         )
