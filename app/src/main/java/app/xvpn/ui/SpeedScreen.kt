@@ -573,50 +573,80 @@ private fun dialStops(upload: Boolean): Array<Pair<Float, Color>> {
     )
 }
 
-/** Half-circle gauge like the design: a gradient arc inside a cloud of colored haze, ten numbers, a thin needle. No tick marks. */
+/** Where the gauge's arc sits inside a canvas of [size]: hub (center of the half circle) and radius. */
+private fun DrawScope.dialHub() = Offset(size.width / 2, size.height - 30.dp.toPx())
+private fun DrawScope.dialRadius() = size.width * 0.375f
+
+/** The filled part of the gauge arc, drawn on its own so the caller can blur it into a glow. Same geometry as [SpeedDial]. */
+@Composable
+private fun DialGlowLayer(modifier: Modifier, frac: Float, upload: Boolean, strokeDp: Float, alpha: Float) {
+    Canvas(modifier.fillMaxSize()) {
+        val sweep = DIAL_START + DIAL_SWEEP * frac - 180f
+        if (sweep <= 0.5f) return@Canvas
+        val hub = dialHub()
+        val r = dialRadius()
+        drawArc(
+            brush = Brush.sweepGradient(*dialStops(upload), center = hub), startAngle = 180f, sweepAngle = sweep, useCenter = false,
+            topLeft = Offset(hub.x - r, hub.y - r), size = Size(2 * r, 2 * r), alpha = alpha,
+            style = Stroke(strokeDp.dp.toPx(), cap = StrokeCap.Round),
+        )
+    }
+}
+
+/**
+ * Half-circle gauge like the design: a gradient arc with a real blurred copy of itself as the glow (same technique as the START ring),
+ * ten numbers, a thin needle. No tick marks. Blur needs Android 12; older phones keep the soft round hazes.
+ */
 @Composable
 private fun SpeedDial(value: Double, max: Double, upload: Boolean, modifier: Modifier = Modifier) {
     val frac by animateFloatAsState((value / max).toFloat().coerceIn(0f, 1f), tween(320, easing = Motion.Standard), label = "dial")
     val measurer = rememberTextMeasurer()
     val labelStyle = remember { TextStyle(color = Color(0xFFC4C3CB), fontSize = 11.sp, fontWeight = FontWeight.Medium, letterSpacing = 0.4.sp) }
-    Canvas(modifier.fillMaxWidth().aspectRatio(2f)) {
-        val hub = Offset(size.width / 2, size.height - 30.dp.toPx())
-        val r = size.width * 0.375f
-        val topLeft = Offset(hub.x - r, hub.y - r)
-        val arc = Size(2 * r, 2 * r)
-        val stops = dialStops(upload)
-        val brush = Brush.sweepGradient(*stops, center = hub)
-        fun onArc(deg: Float, rad: Float): Offset {
-            val a = Math.toRadians(deg.toDouble())
-            return Offset(hub.x + (cos(a) * rad).toFloat(), hub.y + (sin(a) * rad).toFloat())
+    val blurOk = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+    Box(modifier.fillMaxWidth().aspectRatio(2f)) {
+        if (blurOk) {
+            DialGlowLayer(Modifier.blur(26.dp, BlurredEdgeTreatment.Unbounded), frac, upload, 9f, 0.55f)
+            DialGlowLayer(Modifier.blur(10.dp, BlurredEdgeTreatment.Unbounded), frac, upload, 6f, 0.9f)
         }
-
-        val sweep = DIAL_START + DIAL_SWEEP * frac - 180f
-        if (sweep > 0.5f) {
-            // Smoke: soft hazes along the filled arc in the arc's own colors, with a bigger bloom at the tip.
-            val n = (sweep / 7f).toInt() + 1
-            for (k in 0..n) {
-                val deg = 180f + minOf(sweep, k * 7f)
-                val tip = k == n
-                haze(onArc(deg, r), (if (tip) 100 else 60).dp.toPx(), colorAt(stops, deg / 360f), if (tip) 0.28f else 0.05f)
+        Canvas(Modifier.fillMaxSize()) {
+            val hub = dialHub()
+            val r = dialRadius()
+            val topLeft = Offset(hub.x - r, hub.y - r)
+            val arc = Size(2 * r, 2 * r)
+            val stops = dialStops(upload)
+            val brush = Brush.sweepGradient(*stops, center = hub)
+            fun onArc(deg: Float, rad: Float): Offset {
+                val a = Math.toRadians(deg.toDouble())
+                return Offset(hub.x + (cos(a) * rad).toFloat(), hub.y + (sin(a) * rad).toFloat())
             }
-        }
 
-        drawArc(color = Color(0xFF2A2933), startAngle = 180f, sweepAngle = 180f, useCenter = false, topLeft = topLeft, size = arc, style = Stroke(1.dp.toPx()))
-        if (sweep > 0.5f) {
-            drawArc(brush = brush, startAngle = 180f, sweepAngle = sweep, useCenter = false, topLeft = topLeft, size = arc, style = Stroke(3.5f.dp.toPx(), cap = StrokeCap.Round))
-        }
+            val sweep = DIAL_START + DIAL_SWEEP * frac - 180f
+            if (!blurOk && sweep > 0.5f) {
+                // Fallback smoke for Android 11 and older: soft hazes along the filled arc, with a bigger bloom at the tip.
+                val n = (sweep / 7f).toInt() + 1
+                for (k in 0..n) {
+                    val deg = 180f + minOf(sweep, k * 7f)
+                    val tip = k == n
+                    haze(onArc(deg, r), (if (tip) 100 else 60).dp.toPx(), colorAt(stops, deg / 360f), if (tip) 0.28f else 0.05f)
+                }
+            }
 
-        val lr = r * 0.76f
-        for (i in 1..10) {
-            val layout = measurer.measure((max * i / 10).toInt().toString(), labelStyle)
-            val p = onArc(DIAL_START + DIAL_SWEEP * i / 10f, lr)
-            drawText(layout, topLeft = Offset(p.x - layout.size.width / 2f, p.y - layout.size.height / 2f))
-        }
+            drawArc(color = Color(0xFF2A2933), startAngle = 180f, sweepAngle = 180f, useCenter = false, topLeft = topLeft, size = arc, style = Stroke(1.dp.toPx()))
+            if (sweep > 0.5f) {
+                drawArc(brush = brush, startAngle = 180f, sweepAngle = sweep, useCenter = false, topLeft = topLeft, size = arc, style = Stroke(3.5f.dp.toPx(), cap = StrokeCap.Round))
+            }
 
-        val tipPoint = onArc(DIAL_START + DIAL_SWEEP * frac, r * 0.6f)
-        drawLine(color = Color.White, start = hub, end = tipPoint, strokeWidth = 1.5f.dp.toPx(), cap = StrokeCap.Round)
-        drawCircle(Color.White, 3.5f.dp.toPx(), hub)
+            val lr = r * 0.76f
+            for (i in 1..10) {
+                val layout = measurer.measure((max * i / 10).toInt().toString(), labelStyle)
+                val p = onArc(DIAL_START + DIAL_SWEEP * i / 10f, lr)
+                drawText(layout, topLeft = Offset(p.x - layout.size.width / 2f, p.y - layout.size.height / 2f))
+            }
+
+            val tipPoint = onArc(DIAL_START + DIAL_SWEEP * frac, r * 0.6f)
+            drawLine(color = Color.White, start = hub, end = tipPoint, strokeWidth = 1.5f.dp.toPx(), cap = StrokeCap.Round)
+            drawCircle(Color.White, 3.5f.dp.toPx(), hub)
+        }
     }
 }
 
