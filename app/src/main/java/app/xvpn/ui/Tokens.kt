@@ -21,14 +21,14 @@ object Space {
     val Gutter = Xl
 }
 
-/** Corner radii: one value (7dp) for everything except the tiny flag badge. */
+/** Corner radii: 9dp for everything except the flag badge (4dp) and the round tab indicator (16dp). */
 object Radius {
     val Badge = 4.dp    // flags only
-    val Small = 7.dp
-    val Control = 7.dp  // buttons, chips, inputs
-    val Card = 7.dp     // cards, tiles, menus
-    val Sheet = 7.dp    // dialogs, sheets
-    val Pill = 7.dp     // selected-tab indicator
+    val Small = 9.dp
+    val Control = 9.dp  // buttons, chips, inputs
+    val Card = 9.dp     // cards, tiles, menus
+    val Sheet = 9.dp    // dialogs, sheets
+    val Pill = 16.dp    // selected-tab indicator: fully round, as originally
 }
 
 /** Fixed dimensions shared by components. */

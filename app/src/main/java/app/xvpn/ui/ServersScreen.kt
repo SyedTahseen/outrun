@@ -207,7 +207,7 @@ fun ServersScreen(
                             }
                             Box {
                                 IconAction(Icons.Filled.MoreVert, "More") { menuPage = "main"; moreMenu = true }
-                                AppDropdownMenu(moreMenu, { moreMenu = false }, Modifier.widthIn(min = 220.dp).heightIn(min = 264.dp)) {
+                                AppDropdownMenu(moreMenu, { moreMenu = false }, Modifier.widthIn(min = 220.dp)) {
                                     when (menuPage) {
                                         "sort" -> {
                                             AppMenuHeader("Sort") { menuPage = "main" }

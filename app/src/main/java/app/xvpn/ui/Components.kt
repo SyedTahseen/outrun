@@ -2,6 +2,7 @@ package app.xvpn.ui
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -48,6 +49,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
@@ -294,23 +296,22 @@ fun AppDialog(
     content: @Composable ColumnScope.() -> Unit = {},
 ) {
     Dialog(onDismissRequest = onDismiss) {
-        var visible by remember { mutableStateOf(false) }
-        LaunchedEffect(Unit) { visible = true }
+        // Laid out at full size from the first frame (so the window is centered immediately); only alpha/scale animate.
+        val enter = remember { Animatable(0f) }
+        LaunchedEffect(Unit) { enter.animateTo(1f, tween(Motion.Short, easing = Motion.Enter)) }
         val shape = RoundedCornerShape(Radius.Sheet)
-        AnimatedVisibility(
-            visible = visible,
-            enter = fadeIn(tween(Motion.Short)) + scaleIn(spring(dampingRatio = 0.8f, stiffness = 500f), initialScale = 0.9f),
-            exit = fadeOut(tween(Motion.Fast)),
+        Column(
+            Modifier.fillMaxWidth()
+                .graphicsLayer { alpha = enter.value; scaleX = 0.92f + 0.08f * enter.value; scaleY = 0.92f + 0.08f * enter.value }
+                .clip(shape).background(C.Card).padding(Space.Xl),
         ) {
-            Column(Modifier.fillMaxWidth().clip(shape).background(C.Card).padding(Space.Xl)) {
-                Text(title, style = Type.Subtitle, color = C.Text)
-                Spacer(Modifier.height(Space.Md))
-                content()
-                Spacer(Modifier.height(Space.Md))
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                    if (dismissLabel != null) TextAction(dismissLabel, onDismiss, color = C.Muted)
-                    if (confirmLabel != null) TextAction(confirmLabel, onConfirm, color = confirmColor)
-                }
+            Text(title, style = Type.Subtitle, color = C.Text)
+            Spacer(Modifier.height(Space.Md))
+            content()
+            Spacer(Modifier.height(Space.Md))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                if (dismissLabel != null) TextAction(dismissLabel, onDismiss, color = C.Muted)
+                if (confirmLabel != null) TextAction(confirmLabel, onConfirm, color = confirmColor)
             }
         }
     }
