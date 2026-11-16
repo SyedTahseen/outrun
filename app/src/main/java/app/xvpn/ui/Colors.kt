@@ -15,7 +15,7 @@ object C {
     val CardOverlay = Color(0xEB282731) // Card over the map (92 %)
     val Control = Color(0xFF282731)     // unselected chips, secondary buttons: same color as Card
     val Border = Color(0xFF3A3944)      // 1dp hairlines: card borders, dividers, chart grid
-    val Divider = Color(0x14FFFFFF)     // hairlines between rows (8 % white: subtle on both Bg and Card)
+    val Divider = Color(0x0AFFFFFF)     // hairlines between rows (4 % white: subtle on both Bg and Card)
     val Outline = Color(0xFF4F4D5C)     // border of outlined buttons
     val Track = Color(0xFF2A2933)       // faint guide lines on dark (gauge track)
     val Scrim = Color(0x66000000)       // dark chip over the map

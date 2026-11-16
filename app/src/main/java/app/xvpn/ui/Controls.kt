@@ -134,7 +134,8 @@ fun SelectableBox(
     Box(
         modifier.height(Sizes.Control)
             .pressable(RoundedCornerShape(Radius.Control), Press.Control, enabled, onLongClick = onLongClick) { if (!selected) tick(); onClick() }
-            .background(bg),
+            .background(bg)
+            .border(1.dp, if (selected) Color.Transparent else C.Border, RoundedCornerShape(Radius.Control)),
         contentAlignment = Alignment.Center,
         content = content,
     )

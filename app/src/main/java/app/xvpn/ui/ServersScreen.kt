@@ -259,7 +259,7 @@ fun ServersScreen(
                 horizontalArrangement = Arrangement.spacedBy(Space.Sm),
             ) {
                 SelectChip("All", f == null) { onFilterChange(null) }
-                if (hasFav) SelectChip("★ Favorites", f == "fav") { onFilterChange("fav") }
+                if (hasFav) SelectChip("Favorites", f == "fav") { onFilterChange("fav") }
                 SelectChip("Default", f == "default") { onFilterChange("default") }
                 subscriptions.forEach { url ->
                     val n = sources.count { it.value == url }
