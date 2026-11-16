@@ -13,6 +13,7 @@ import android.os.Build
 import android.os.ParcelFileDescriptor
 import android.util.Log
 import app.xvpn.MainActivity
+import app.xvpn.R
 import app.xvpn.data.Choices
 import app.xvpn.data.ConfigBuilder
 import app.xvpn.data.LinkParser
@@ -330,7 +331,7 @@ class OutrunVpnService : VpnService() {
         val b = Notification.Builder(this, CHANNEL)
             .setContentTitle(title)
             .setContentText(text)
-            .setSmallIcon(android.R.drawable.ic_lock_lock)
+            .setSmallIcon(R.drawable.ic_stat_outrun)
             .setContentIntent(pi)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
