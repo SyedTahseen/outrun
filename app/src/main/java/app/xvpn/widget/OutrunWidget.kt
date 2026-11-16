@@ -6,6 +6,8 @@ import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.os.Bundle
+import android.view.View
 import android.net.VpnService
 import android.widget.RemoteViews
 import app.xvpn.MainActivity
@@ -20,8 +22,14 @@ import app.xvpn.vpn.VpnState
 class OutrunWidget : AppWidgetProvider() {
 
     override fun onUpdate(context: Context, manager: AppWidgetManager, appWidgetIds: IntArray) {
-        val views = build(context)
-        appWidgetIds.forEach { manager.updateAppWidget(it, views) }
+        appWidgetIds.forEach { manager.updateAppWidget(it, build(context, manager, it)) }
+    }
+
+    /** Called by the launcher while the widget is being resized, so the layout can adapt to the new size. */
+    override fun onAppWidgetOptionsChanged(
+        context: Context, manager: AppWidgetManager, appWidgetId: Int, newOptions: Bundle,
+    ) {
+        manager.updateAppWidget(appWidgetId, build(context, manager, appWidgetId))
     }
 
     override fun onReceive(context: Context, intent: Intent) {
@@ -42,10 +50,14 @@ class OutrunWidget : AppWidgetProvider() {
             val manager = AppWidgetManager.getInstance(app)
             val ids = manager.getAppWidgetIds(ComponentName(app, OutrunWidget::class.java))
             if (ids.isEmpty()) return
-            manager.updateAppWidget(ids, build(app))
+            ids.forEach { manager.updateAppWidget(it, build(app, manager, it)) }
         }
 
-        private fun build(ctx: Context): RemoteViews {
+        private fun build(ctx: Context, manager: AppWidgetManager, widgetId: Int): RemoteViews {
+            // Current size of this widget in dp (portrait min-height is the safe lower bound).
+            val heightDp = manager.getAppWidgetOptions(widgetId)
+                .getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 0)
+            val compact = heightDp in 1..64
             val status = VpnState.status.value
             val link = VpnState.activeLink.value ?: Store(ctx).selected
             val profile = link?.let { LinkParser.parse(it) }
@@ -67,6 +79,8 @@ class OutrunWidget : AppWidgetProvider() {
             val views = RemoteViews(ctx.packageName, R.layout.widget_outrun)
             views.setTextViewText(R.id.widget_title, title)
             views.setTextViewText(R.id.widget_sub, sub)
+            // Very short (1-row) widgets: hide the server line so nothing is clipped.
+            views.setViewVisibility(R.id.widget_sub, if (compact) View.GONE else View.VISIBLE)
             views.setImageViewResource(
                 R.id.widget_art,
                 if (status == Status.Disconnected) R.drawable.widget_art_off else R.drawable.widget_art_on,
