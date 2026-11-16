@@ -4,6 +4,7 @@ import android.content.Intent
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
@@ -12,6 +13,7 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -31,7 +33,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.IosShare
 import androidx.compose.material.icons.outlined.Speed
@@ -45,6 +47,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -68,6 +71,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.xvpn.data.SpeedPhase
+import app.xvpn.data.SpeedResult
 import app.xvpn.data.SpeedTest
 import app.xvpn.data.SpeedUi
 import app.xvpn.data.running
@@ -75,11 +79,18 @@ import app.xvpn.vpn.Status
 import app.xvpn.vpn.VpnState
 import kotlinx.coroutines.delay
 import kotlin.math.cos
-import kotlin.math.ln
+import java.text.SimpleDateFormat
+import java.util.Locale
 import kotlin.math.sin
 
-private val DownColor = C.Amber
-private val UpColor = C.Accent
+// Colors sampled from the design video.
+private val DownColor = Color(0xFFEE6B3B)   // orange
+private val UpColor = Color(0xFF7C5CFF)     // purple
+private val PinkTip = Color(0xFFC85AA0)
+private val BlueTip = Color(0xFF2F7BF0)
+private val AmberTip = Color(0xFFF0B04A)
+private val GreenTip = Color(0xFF3DDC97)
+private val Dim = Color(0xFF6C6B78)         // label of a tile that isn't being measured
 private val Mono = FontFamily.Monospace
 
 private enum class SpeedView { Start, Running, Done }
@@ -94,6 +105,7 @@ fun SpeedScreen(serverName: String?, onFullScreenChange: (Boolean) -> Unit = {})
     val connecting = status == Status.Connecting
     val connection = if (viaVpn) "VPN" + (serverName?.let { " · $it" } ?: "") else "Direct (VPN off)"
     var mode by remember { mutableIntStateOf(0) } // 0 = gauge / chart, 1 = log
+    LaunchedEffect(Unit) { SpeedTest.attach(ctx) }
 
     val view = when {
         ui.phase.running -> SpeedView.Running
@@ -153,21 +165,27 @@ private fun StartView(ui: SpeedUi, connecting: Boolean, connection: String, onSt
 @Composable
 private fun StartRing(enabled: Boolean, onClick: () -> Unit) {
     val spin = rememberInfiniteTransition(label = "ring")
-    val angle by spin.animateFloat(0f, 360f, infiniteRepeatable(tween(9000, easing = LinearEasing)), label = "ringAngle")
-    Box(Modifier.size(250.dp), contentAlignment = Alignment.Center) {
+    val angle by spin.animateFloat(0f, 360f, infiniteRepeatable(tween(14000, easing = LinearEasing)), label = "ringAngle")
+    Box(Modifier.size(240.dp), contentAlignment = Alignment.Center) {
         Canvas(Modifier.fillMaxSize()) {
-            val brush = Brush.sweepGradient(listOf(C.Accent, C.Green, C.Amber, C.Red, C.Accent), center)
-            val r = 105.dp.toPx()
+            val brush = Brush.sweepGradient(
+                0f to UpColor, 0.14f to DownColor, 0.32f to GreenTip, 0.5f to BlueTip,
+                0.63f to UpColor, 0.76f to DownColor, 0.89f to BlueTip, 1f to UpColor,
+                center = center,
+            )
+            val r = 92.dp.toPx()
+            val on = if (enabled) 1f else 0.35f
             rotate(angle, pivot = center) {
-                drawCircle(brush = brush, radius = r, alpha = if (enabled) 0.2f else 0.08f, style = Stroke(24.dp.toPx()))
-                drawCircle(brush = brush, radius = r, alpha = if (enabled) 1f else 0.4f, style = Stroke(6.dp.toPx()))
+                drawCircle(brush = brush, radius = r, alpha = 0.07f * on, style = Stroke(38.dp.toPx()))
+                drawCircle(brush = brush, radius = r, alpha = 0.13f * on, style = Stroke(22.dp.toPx()))
+                drawCircle(brush = brush, radius = r, alpha = on, style = Stroke(7.dp.toPx()))
             }
         }
         Box(
-            Modifier.size(200.dp).clip(CircleShape).clickable(enabled = enabled, onClick = onClick),
+            Modifier.size(170.dp).clip(CircleShape).clickable(enabled = enabled, onClick = onClick),
             contentAlignment = Alignment.Center,
         ) {
-            Text("START", color = if (enabled) Color.White else C.Muted, fontSize = 26.sp, fontWeight = FontWeight.Bold)
+            Text("START", color = if (enabled) Color.White else Dim, fontSize = 18.sp, fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -178,93 +196,118 @@ private fun StartRing(enabled: Boolean, onClick: () -> Unit) {
 private fun RunningView(ui: SpeedUi, mode: Int, onMode: (Int) -> Unit, connection: String) {
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(Unit) { while (true) { now = System.currentTimeMillis(); delay(250) } }
-    val secs = ((now - ui.startedAt) / 1000).coerceAtLeast(0)
-    val phaseName = when (ui.phase) {
-        SpeedPhase.Download -> "Download"
-        SpeedPhase.Upload -> "Upload"
-        else -> "Latency"
-    }
+    // Like the design: the phase length ("07s") and how far into the current phase we are ("00:03s").
+    val secs = if (ui.phase == SpeedPhase.Ping) 0L
+    else ((now - ui.phaseStartedAt) / 1000).coerceIn(0, SpeedTest.PHASE_SECONDS.toLong())
     val live = if (ui.phase == SpeedPhase.Download || ui.phase == SpeedPhase.Upload) ui.live else 0.0
+    val series = if (ui.phase == SpeedPhase.Upload) ui.upSeries else ui.downSeries
+    val dialMax = dialMax(maxOf(live, series.maxOrNull()?.toDouble() ?: 0.0))
 
-    Column(Modifier.fillMaxSize()) {
-        Spacer(Modifier.height(20.dp))
-        TitleBar(
-            left = { HeaderIcon(Icons.AutoMirrored.Filled.ArrowBack, "Back") { SpeedTest.stop() } },
-            right = {
-                Text(
-                    "Stop", color = C.Muted, fontSize = 17.sp,
-                    modifier = Modifier.clip(RoundedCornerShape(Radius.Small)).clickable { SpeedTest.stop() }.padding(horizontal = 8.dp, vertical = 10.dp),
-                )
-            },
-        )
-        Spacer(Modifier.height(8.dp))
-        Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp), verticalAlignment = Alignment.Top) {
-            Column(Modifier.weight(1f)) {
-                Text(phaseName, color = C.Muted, fontSize = 14.sp, fontFamily = Mono)
-                Spacer(Modifier.height(4.dp))
-                Text("%02d:%02ds".format(secs / 60, secs % 60), color = C.Text, fontSize = 14.sp, fontFamily = Mono)
+    Box(Modifier.fillMaxSize()) {
+        Column(Modifier.fillMaxSize()) {
+            Spacer(Modifier.height(20.dp))
+            TitleBar(
+                left = { HeaderIcon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, "Back") { SpeedTest.stop() } },
+                right = {
+                    Text(
+                        "Stop", color = C.Muted, fontSize = 17.sp,
+                        modifier = Modifier.clip(RoundedCornerShape(Radius.Small)).clickable { SpeedTest.stop() }.padding(horizontal = 8.dp, vertical = 10.dp),
+                    )
+                },
+            )
+            Spacer(Modifier.height(8.dp))
+            Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp), verticalAlignment = Alignment.Top) {
+                Column(Modifier.weight(1f)) {
+                    Text("%02ds".format(SpeedTest.PHASE_SECONDS), color = C.Muted, fontSize = 13.sp, fontFamily = Mono)
+                    Spacer(Modifier.height(4.dp))
+                    Text("%02d:%02ds".format(secs / 60, secs % 60), color = C.Text, fontSize = 13.sp, fontFamily = Mono)
+                }
+                ModeToggle(mode, onMode)
             }
-            ModeToggle(mode, onMode)
+            Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)) {
+                Spacer(Modifier.height(8.dp))
+                if (mode == 0) SpeedDial(live, dialMax, upload = ui.phase == SpeedPhase.Upload) else LogCard(ui.log)
+                Spacer(Modifier.height(10.dp))
+                StatGrid(ui, highlightDown = ui.phase == SpeedPhase.Download, highlightUp = ui.phase == SpeedPhase.Upload)
+                Spacer(Modifier.height(16.dp))
+                InfoRows(connection)
+                Spacer(Modifier.height(SheetClearance))
+            }
         }
-        Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)) {
-            Spacer(Modifier.height(12.dp))
-            if (mode == 0) SpeedDial(live, upload = ui.phase == SpeedPhase.Upload) else LogCard(ui.log)
-            Spacer(Modifier.height(12.dp))
-            StatGrid(ui, highlightDown = ui.phase == SpeedPhase.Download, highlightUp = ui.phase == SpeedPhase.Upload)
-            Spacer(Modifier.height(16.dp))
-            InfoRows(connection)
-            Spacer(Modifier.height(16.dp))
-        }
+        HistorySheet(Modifier.align(Alignment.BottomCenter))
     }
 }
 
-/** 0..1 position on the dial. Logarithmic, so slow and fast connections both use the whole 0 to 1000 Mbps scale. */
-private fun dialFraction(mbps: Double): Float =
-    (ln(1.0 + mbps.coerceAtLeast(0.0)) / ln(1001.0)).toFloat().coerceIn(0f, 1f)
+private val SheetClearance = 76.dp
 
-private val DialMarks = listOf(0, 10, 25, 50, 100, 250, 500, 1000)
+// The needle sits at DIAL_START degrees at 0 Mbps and sweeps DIAL_SWEEP degrees to the full scale (clockwise from 3 o'clock),
+// so the first label (1/10 of the scale) lands exactly on the left horizontal and the last one on the right, as in the design.
+private const val DIAL_START = 160f
+private const val DIAL_SWEEP = 200f
+private val DialSteps = doubleArrayOf(100.0, 200.0, 500.0, 1000.0, 2000.0, 5000.0, 10000.0)
 
-/** Half-circle gauge with a gradient arc, scale numbers and a needle. */
+/** Full-scale value of the dial: the smallest step that still leaves headroom above [peak]. 1000 gives the 100..1000 scale of the design. */
+private fun dialMax(peak: Double): Double = DialSteps.firstOrNull { peak <= it * 0.92 } ?: DialSteps.last()
+
+/** Gradient colors are tied to the position on the dial, so the arc keeps its colors as it grows. */
+private fun dialStops(upload: Boolean): Array<Pair<Float, Color>> {
+    fun at(f: Float) = (DIAL_START + DIAL_SWEEP * f) / 360f
+    return if (upload) arrayOf(
+        0f to UpColor, at(0.28f) to UpColor, at(0.48f) to AmberTip, at(0.68f) to GreenTip, 1f to GreenTip,
+    ) else arrayOf(
+        0f to DownColor, at(0.12f) to DownColor, at(0.33f) to PinkTip, at(0.58f) to BlueTip, 1f to BlueTip,
+    )
+}
+
+/** Half-circle gauge: linear scale with ten labels and ticks, a glowing gradient arc and a thin needle. */
 @Composable
-private fun SpeedDial(value: Double, upload: Boolean, modifier: Modifier = Modifier) {
-    val frac by animateFloatAsState(dialFraction(value), tween(250), label = "dial")
+private fun SpeedDial(value: Double, max: Double, upload: Boolean, modifier: Modifier = Modifier) {
+    val frac by animateFloatAsState((value / max).toFloat().coerceIn(0f, 1f), tween(250), label = "dial")
     val measurer = rememberTextMeasurer()
-    val labelStyle = TextStyle(color = C.Text, fontSize = 10.sp, fontFamily = Mono)
-    Canvas(modifier.fillMaxWidth().aspectRatio(2f)) {
-        val hub = Offset(size.width / 2, size.height - 10.dp.toPx())
+    val labelStyle = TextStyle(color = C.Text.copy(alpha = 0.9f), fontSize = 11.sp, fontFamily = Mono)
+    Canvas(modifier.fillMaxWidth().aspectRatio(1.8f)) {
+        val hub = Offset(size.width / 2, size.height - 34.dp.toPx())
         val r = size.width / 2 - 22.dp.toPx()
         val topLeft = Offset(hub.x - r, hub.y - r)
         val arc = Size(2 * r, 2 * r)
-        val colors = if (upload) listOf(C.Accent, C.Red, C.Amber) else listOf(C.Amber, C.Red, C.Accent)
-        val brush = Brush.sweepGradient(0.5f to colors[0], 0.75f to colors[1], 1f to colors[2], center = hub)
+        val brush = Brush.sweepGradient(*dialStops(upload), center = hub)
 
-        drawArc(color = C.CardBorder, startAngle = 180f, sweepAngle = 180f, useCenter = false, topLeft = topLeft, size = arc, style = Stroke(1.dp.toPx()))
-        if (frac > 0.005f) {
-            drawArc(brush = brush, startAngle = 180f, sweepAngle = 180f * frac, useCenter = false, topLeft = topLeft, size = arc, alpha = 0.2f, style = Stroke(18.dp.toPx(), cap = StrokeCap.Round))
-            drawArc(brush = brush, startAngle = 180f, sweepAngle = 180f * frac, useCenter = false, topLeft = topLeft, size = arc, style = Stroke(3.dp.toPx(), cap = StrokeCap.Round))
+        drawArc(color = Color(0xFF34333E), startAngle = 180f, sweepAngle = 180f, useCenter = false, topLeft = topLeft, size = arc, style = Stroke(1.dp.toPx()))
+        val sweep = DIAL_START + DIAL_SWEEP * frac - 180f
+        if (sweep > 0.5f) {
+            // Soft glow: a few wider, fainter strokes under the arc.
+            listOf(30.dp to 0.05f, 20.dp to 0.09f, 10.dp to 0.16f).forEach { (w, a) ->
+                drawArc(brush = brush, startAngle = 180f, sweepAngle = sweep, useCenter = false, topLeft = topLeft, size = arc, alpha = a, style = Stroke(w.toPx(), cap = StrokeCap.Round))
+            }
+            drawArc(brush = brush, startAngle = 180f, sweepAngle = sweep, useCenter = false, topLeft = topLeft, size = arc, style = Stroke(3.dp.toPx(), cap = StrokeCap.Round))
         }
 
-        val labelRadius = r - 24.dp.toPx()
-        for (mark in DialMarks) {
-            val a = Math.PI * (1 + dialFraction(mark.toDouble()))
-            val layout = measurer.measure(mark.toString(), labelStyle)
+        for (i in 1..10) {
+            val ang = Math.toRadians((DIAL_START + DIAL_SWEEP * i / 10f).toDouble())
+            val dx = cos(ang).toFloat()
+            val dy = sin(ang).toFloat()
+            drawLine(
+                color = Color(0xFF5A5964),
+                start = Offset(hub.x + dx * (r - 17.dp.toPx()), hub.y + dy * (r - 17.dp.toPx())),
+                end = Offset(hub.x + dx * (r - 10.dp.toPx()), hub.y + dy * (r - 10.dp.toPx())),
+                strokeWidth = 1.5f.dp.toPx(),
+            )
+            val layout = measurer.measure((max * i / 10).toInt().toString(), labelStyle)
+            val lr = r - 34.dp.toPx()
             drawText(
                 layout,
-                topLeft = Offset(
-                    hub.x + (cos(a) * labelRadius).toFloat() - layout.size.width / 2f,
-                    hub.y + (sin(a) * labelRadius).toFloat() - layout.size.height / 2f,
-                ),
+                topLeft = Offset(hub.x + dx * lr - layout.size.width / 2f, hub.y + dy * lr - layout.size.height / 2f),
             )
         }
 
-        val a = Math.PI * (1 + frac)
+        val a = Math.toRadians((DIAL_START + DIAL_SWEEP * frac).toDouble())
         val len = r * 0.62f
         drawLine(
             color = Color.White, start = hub,
             end = Offset(hub.x + (cos(a) * len).toFloat(), hub.y + (sin(a) * len).toFloat()),
-            strokeWidth = 2.dp.toPx(), cap = StrokeCap.Round,
+            strokeWidth = 1.5f.dp.toPx(), cap = StrokeCap.Round,
         )
-        drawCircle(Color.White, 4.dp.toPx(), hub)
+        drawCircle(Color.White, 3.5f.dp.toPx(), hub)
     }
 }
 
@@ -272,45 +315,91 @@ private fun SpeedDial(value: Double, upload: Boolean, modifier: Modifier = Modif
 
 @Composable
 private fun DoneView(ui: SpeedUi, mode: Int, onMode: (Int) -> Unit, connection: String, onShare: () -> Unit) {
-    Column(Modifier.fillMaxSize()) {
-        Spacer(Modifier.height(20.dp))
-        TitleBar(
-            left = { HeaderIcon(Icons.Outlined.IosShare, "Share result", onClick = onShare) },
-            right = { HeaderIcon(Icons.Filled.Close, "Close") { SpeedTest.reset() } },
-        )
-        Spacer(Modifier.height(8.dp))
-        Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp), horizontalArrangement = Arrangement.End) { ModeToggle(mode, onMode) }
-        Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)) {
-            Spacer(Modifier.height(12.dp))
-            if (mode == 0) {
-                Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(Radius.Card)).background(C.Card)) {
-                    Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 20.dp)) {
-                        BigStat("Download", DownColor, mbps(ui.downMbps), "Mbps", Modifier.weight(1f))
-                        BigStat("Upload", UpColor, mbps(ui.upMbps), "Mbps", Modifier.weight(1f))
-                    }
-                    Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 16.dp)) {
-                        BigStat("Ping", C.Muted, ms(ui.pingMs), "ms", Modifier.weight(1f))
-                        BigStat("Jitter", C.Muted, ms(ui.jitterMs), "ms", Modifier.weight(1f))
-                    }
-                    Spacer(Modifier.height(16.dp))
-                    SpeedChart(ui.downSeries, ui.upSeries, Modifier.fillMaxWidth().height(110.dp))
-                }
-            } else {
-                LogCard(ui.log)
+    Box(Modifier.fillMaxSize()) {
+        Column(Modifier.fillMaxSize()) {
+            Spacer(Modifier.height(20.dp))
+            TitleBar(
+                left = { HeaderIcon(Icons.Outlined.IosShare, "Share result", onClick = onShare) },
+                right = { HeaderIcon(Icons.Filled.Close, "Close") { SpeedTest.reset() } },
+            )
+            Spacer(Modifier.height(8.dp))
+            Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp), horizontalArrangement = Arrangement.End) { ModeToggle(mode, onMode) }
+            Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)) {
                 Spacer(Modifier.height(12.dp))
-                StatGrid(ui, highlightDown = true, highlightUp = true)
+                if (mode == 0) {
+                    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(Radius.Card)).background(C.Card)) {
+                        Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 20.dp)) {
+                            BigStat("Download", DownColor, mbps(ui.downMbps), "Mbps", Modifier.weight(1f))
+                            BigStat("Upload", UpColor, mbps(ui.upMbps), "Mbps", Modifier.weight(1f))
+                        }
+                        Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 18.dp)) {
+                            BigStat("Ping", Dim, ms(ui.pingMs), "ms", Modifier.weight(1f))
+                            BigStat("Jitter", Dim, ms(ui.jitterMs), "ms", Modifier.weight(1f))
+                        }
+                        Spacer(Modifier.height(16.dp))
+                        SpeedChart(ui.downSeries, ui.upSeries, Modifier.fillMaxWidth().height(96.dp))
+                    }
+                } else {
+                    LogCard(ui.log)
+                    Spacer(Modifier.height(10.dp))
+                    StatGrid(ui, highlightDown = true, highlightUp = true)
+                }
+                Spacer(Modifier.height(20.dp))
+                InfoRows(connection)
+                Spacer(Modifier.height(20.dp))
+                Box(
+                    Modifier.align(Alignment.CenterHorizontally).width(176.dp).clip(RoundedCornerShape(26.dp))
+                        .background(Brush.verticalGradient(listOf(Color.White, Color(0xFFD8D8DE))))
+                        .clickable { SpeedTest.start(if (ui.viaVpn) VpnState.socksPort.value else 0) }
+                        .padding(vertical = 14.dp),
+                    contentAlignment = Alignment.Center,
+                ) { Text("Test Again", color = Color.Black, fontSize = 15.sp, fontWeight = FontWeight.Medium) }
+                Spacer(Modifier.height(SheetClearance + 8.dp))
             }
-            Spacer(Modifier.height(20.dp))
-            InfoRows(connection)
-            Spacer(Modifier.height(20.dp))
-            Box(
-                Modifier.align(Alignment.CenterHorizontally).clip(RoundedCornerShape(Radius.Pill + 8.dp)).background(Color.White)
-                    .clickable { SpeedTest.start(if (ui.viaVpn) VpnState.socksPort.value else 0) }
-                    .padding(horizontal = 40.dp, vertical = 14.dp),
-                contentAlignment = Alignment.Center,
-            ) { Text("Test again", color = Color.Black, fontSize = 16.sp, fontWeight = FontWeight.Medium) }
-            Spacer(Modifier.height(24.dp))
         }
+        HistorySheet(Modifier.align(Alignment.BottomCenter))
+    }
+}
+
+/** The "Client history" sheet that peeks in from the bottom; tap it to open the list of earlier tests. */
+@Composable
+private fun HistorySheet(modifier: Modifier = Modifier) {
+    val items by SpeedTest.history.collectAsState()
+    var open by remember { mutableStateOf(false) }
+    val shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+    Column(
+        modifier.fillMaxWidth().clip(shape).background(C.Card).border(1.dp, C.CardBorder.copy(alpha = 0.5f), shape)
+            .animateContentSize(tween(Motion.Medium, easing = Motion.Standard)),
+    ) {
+        Column(Modifier.fillMaxWidth().clickable { open = !open }.padding(top = 8.dp, bottom = 16.dp)) {
+            Box(Modifier.align(Alignment.CenterHorizontally).size(width = 36.dp, height = 4.dp).clip(CircleShape).background(C.ButtonGrey))
+            Spacer(Modifier.height(10.dp))
+            Text("Client history", color = C.Text, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 20.dp))
+        }
+        if (open) {
+            val fmt = remember { SimpleDateFormat("d MMM · HH:mm", Locale.getDefault()) }
+            Column(Modifier.fillMaxWidth().heightIn(max = 300.dp).verticalScroll(rememberScrollState()).padding(start = 20.dp, end = 20.dp, bottom = 16.dp)) {
+                if (items.isEmpty()) {
+                    Text("No tests yet.", color = C.Muted, fontSize = 14.sp, modifier = Modifier.padding(vertical = 8.dp))
+                } else {
+                    items.forEach { HistoryRow(it, fmt.format(java.util.Date(it.at))) }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun HistoryRow(r: SpeedResult, whenText: String) {
+    Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            Text(whenText, color = C.Text, fontSize = 14.sp)
+            Text(if (r.viaVpn) "VPN" else "Direct", color = C.Muted, fontSize = 12.sp)
+        }
+        Text(
+            "${mbps(r.downMbps)} \u2193  ${mbps(r.upMbps)} \u2191  ${ms(r.pingMs)} ms",
+            color = C.Text, fontSize = 13.sp, fontFamily = Mono, textAlign = TextAlign.End,
+        )
     }
 }
 
@@ -321,7 +410,7 @@ private fun DoneView(ui: SpeedUi, mode: Int, onMode: (Int) -> Unit, connection: 
 private fun TitleBar(left: @Composable () -> Unit, right: @Composable () -> Unit) {
     Box(Modifier.fillMaxWidth().padding(horizontal = 20.dp).height(44.dp)) {
         Box(Modifier.align(Alignment.CenterStart)) { left() }
-        Text("Speed test", color = C.Text, fontSize = 20.sp, modifier = Modifier.align(Alignment.Center))
+        Text("Speed test", color = C.Text, fontSize = 17.sp, modifier = Modifier.align(Alignment.Center))
         Box(Modifier.align(Alignment.CenterEnd)) { right() }
     }
 }
@@ -341,32 +430,36 @@ private fun ModeToggle(mode: Int, onMode: (Int) -> Unit) {
     }
 }
 
-/** Download / Upload on top, Ping / Jitter below, as tightly packed tiles. The active phase gets a colored label. */
+/** Download / Upload on top, Ping / Jitter below, as tightly packed tiles. The tile being measured gets a colored label, the others are dimmed. */
 @Composable
 private fun StatGrid(ui: SpeedUi, highlightDown: Boolean, highlightUp: Boolean) {
     val down = if (ui.phase == SpeedPhase.Download) ui.live else ui.downMbps
     val up = if (ui.phase == SpeedPhase.Upload) ui.live else ui.upMbps
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-            StatTile("Download", if (highlightDown) DownColor else C.Muted, mbps(down.coerceAtLeast(0.0)), "Mbps", Modifier.weight(1f))
-            StatTile("Upload", if (highlightUp) UpColor else C.Muted, mbps(up.coerceAtLeast(0.0)), "Mbps", Modifier.weight(1f))
+            StatTile("Download", if (highlightDown) DownColor else Dim, mbps(down.coerceAtLeast(0.0)), "Mbps", true, Modifier.weight(1f))
+            StatTile("Upload", if (highlightUp) UpColor else Dim, mbps(up.coerceAtLeast(0.0)), "Mbps", true, Modifier.weight(1f))
         }
         Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-            StatTile("Ping", C.Muted, ms(ui.pingMs.coerceAtLeast(0)), "ms", Modifier.weight(1f))
-            StatTile("Jitter", C.Muted, ms(ui.jitterMs.coerceAtLeast(0)), "ms", Modifier.weight(1f))
+            StatTile("Ping", Dim, ms(ui.pingMs.coerceAtLeast(0)), "ms", false, Modifier.weight(1f))
+            StatTile("Jitter", Dim, ms(ui.jitterMs.coerceAtLeast(0)), "ms", false, Modifier.weight(1f))
         }
     }
 }
 
+/** [bigUnit]: the unit is as large as the value ("560 Mbps"); otherwise it is a small suffix ("10 %"), like in the design. */
 @Composable
-private fun StatTile(label: String, labelColor: Color, value: String, unit: String, modifier: Modifier = Modifier) {
-    Column(modifier.height(84.dp).clip(RoundedCornerShape(14.dp)).background(C.Card).padding(horizontal = 14.dp, vertical = 12.dp)) {
-        Text(label, color = labelColor, fontSize = 13.sp)
+private fun StatTile(label: String, labelColor: Color, value: String, unit: String, bigUnit: Boolean, modifier: Modifier = Modifier) {
+    Column(modifier.height(72.dp).clip(RoundedCornerShape(14.dp)).background(C.Card).padding(horizontal = 14.dp, vertical = 10.dp)) {
+        Text(label, color = labelColor, fontSize = 12.sp)
         Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
             Row(verticalAlignment = Alignment.Bottom) {
-                Text(value, color = C.Text, fontSize = 20.sp, fontFamily = Mono, maxLines = 1)
-                Spacer(Modifier.width(6.dp))
-                Text(unit, color = C.Muted, fontSize = 12.sp, fontFamily = Mono, modifier = Modifier.padding(bottom = 2.dp))
+                Text(value, color = C.Text, fontSize = 17.sp, fontFamily = Mono, maxLines = 1)
+                Spacer(Modifier.width(if (bigUnit) 6.dp else 4.dp))
+                Text(
+                    unit, color = C.Text, fontSize = if (bigUnit) 17.sp else 10.sp, fontFamily = Mono,
+                    modifier = if (bigUnit) Modifier else Modifier.padding(bottom = 3.dp),
+                )
             }
         }
     }
@@ -375,12 +468,12 @@ private fun StatTile(label: String, labelColor: Color, value: String, unit: Stri
 @Composable
 private fun BigStat(label: String, labelColor: Color, value: String, unit: String, modifier: Modifier = Modifier) {
     Column(modifier) {
-        Text(label, color = labelColor, fontSize = 14.sp)
+        Text(label, color = labelColor, fontSize = 13.sp)
         Spacer(Modifier.height(6.dp))
         Row(verticalAlignment = Alignment.Bottom) {
-            Text(value, color = C.Text, fontSize = 22.sp, fontFamily = Mono, maxLines = 1)
-            Spacer(Modifier.width(5.dp))
-            Text(unit, color = C.Muted, fontSize = 12.sp, fontFamily = Mono, modifier = Modifier.padding(bottom = 3.dp))
+            Text(value, color = C.Text, fontSize = 20.sp, fontFamily = Mono, maxLines = 1)
+            Spacer(Modifier.width(4.dp))
+            Text(unit, color = C.Text, fontSize = 11.sp, fontFamily = Mono, modifier = Modifier.padding(bottom = 3.dp))
         }
     }
 }
@@ -441,9 +534,9 @@ private fun InfoRows(connection: String) {
 @Composable
 private fun InfoRow(label: String, value: String) {
     Row(Modifier.fillMaxWidth().padding(vertical = 9.dp), verticalAlignment = Alignment.Top) {
-        Text(label, color = C.Muted, fontSize = 14.sp)
+        Text(label, color = C.Muted, fontSize = 13.sp)
         Spacer(Modifier.width(16.dp))
-        Text(value, color = C.Text, fontSize = 14.sp, fontFamily = Mono, textAlign = TextAlign.End, modifier = Modifier.weight(1f))
+        Text(value, color = C.Text, fontSize = 13.sp, fontFamily = Mono, textAlign = TextAlign.End, modifier = Modifier.weight(1f))
     }
 }
 

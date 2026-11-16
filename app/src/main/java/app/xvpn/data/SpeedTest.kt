@@ -1,5 +1,6 @@
 package app.xvpn.data
 
+import android.content.Context
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -13,6 +14,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import org.json.JSONArray
+import org.json.JSONObject
 import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -40,6 +43,18 @@ data class SpeedUi(
     val upSeries: List<Float> = emptyList(),
     val log: List<String> = emptyList(),
     val startedAt: Long = 0L,
+    /** When the current phase began, for the per-phase timer. */
+    val phaseStartedAt: Long = 0L,
+)
+
+/** One finished test, kept for the "Client history" sheet. */
+data class SpeedResult(
+    val at: Long,
+    val downMbps: Double,
+    val upMbps: Double,
+    val pingMs: Int,
+    val jitterMs: Int,
+    val viaVpn: Boolean,
 )
 
 /**
@@ -59,6 +74,37 @@ object SpeedTest {
 
     val state = MutableStateFlow(SpeedUi())
 
+    /** Finished tests, newest first. Call [attach] once so they are loaded and saved. */
+    val history = MutableStateFlow<List<SpeedResult>>(emptyList())
+    private const val PREFS = "xvpn_speed"
+    private const val MAX_HISTORY = 30
+    private var appCtx: Context? = null
+
+    fun attach(ctx: Context) {
+        if (appCtx != null) return
+        appCtx = ctx.applicationContext
+        history.value = runCatching {
+            val arr = JSONArray(appCtx!!.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString("history", "[]") ?: "[]")
+            (0 until arr.length()).map {
+                val o = arr.getJSONObject(it)
+                SpeedResult(o.optLong("t"), o.optDouble("d"), o.optDouble("u"), o.optInt("p", -1), o.optInt("j", -1), o.optBoolean("v"))
+            }
+        }.getOrDefault(emptyList())
+    }
+
+    private fun saveResult(r: SpeedResult) {
+        val list = (listOf(r) + history.value).take(MAX_HISTORY)
+        history.value = list
+        val ctx = appCtx ?: return
+        runCatching {
+            val arr = JSONArray()
+            list.forEach {
+                arr.put(JSONObject().put("t", it.at).put("d", it.downMbps).put("u", it.upMbps).put("p", it.pingMs).put("j", it.jitterMs).put("v", it.viaVpn))
+            }
+            ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString("history", arr.toString()).apply()
+        }
+    }
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var job: Job? = null
 
@@ -72,18 +118,19 @@ object SpeedTest {
     fun start(socksPort: Int) {
         if (job?.isActive == true) return
         job = scope.launch {
-            state.value = SpeedUi(phase = SpeedPhase.Ping, viaVpn = socksPort > 0, startedAt = System.currentTimeMillis())
+            val t0 = System.currentTimeMillis()
+            state.value = SpeedUi(phase = SpeedPhase.Ping, viaVpn = socksPort > 0, startedAt = t0, phaseStartedAt = t0)
             log("Test started " + if (socksPort > 0) "(through VPN)" else "(direct, VPN off)")
             try {
                 val (ping, jitter) = measureLatency(socksPort)
                 log("Latency: ping $ping ms, jitter $jitter ms")
-                state.update { it.copy(pingMs = ping, jitterMs = jitter, phase = SpeedPhase.Download) }
+                state.update { it.copy(pingMs = ping, jitterMs = jitter, phase = SpeedPhase.Download, phaseStartedAt = System.currentTimeMillis()) }
                 log("Download: $STREAMS streams, ${PHASE_SECONDS}s")
                 val down = transfer(socksPort, upload = false) { v ->
                     state.update { it.copy(live = v, downSeries = it.downSeries + v.toFloat()) }
                 }
                 log("Download: " + "%.1f".format(down) + " Mbps")
-                state.update { it.copy(downMbps = down, phase = SpeedPhase.Upload, live = 0.0) }
+                state.update { it.copy(downMbps = down, phase = SpeedPhase.Upload, live = 0.0, phaseStartedAt = System.currentTimeMillis()) }
                 log("Upload: $STREAMS streams, ${PHASE_SECONDS}s")
                 val up = transfer(socksPort, upload = true) { v ->
                     state.update { it.copy(live = v, upSeries = it.upSeries + v.toFloat()) }
@@ -91,6 +138,7 @@ object SpeedTest {
                 log("Upload: " + "%.1f".format(up) + " Mbps")
                 state.update { it.copy(upMbps = up, phase = SpeedPhase.Done, live = 0.0) }
                 log("Finished")
+                saveResult(SpeedResult(System.currentTimeMillis(), down, up, ping, jitter, socksPort > 0))
             } catch (e: CancellationException) {
                 state.update { SpeedUi(log = it.log) }
                 log("Stopped")
