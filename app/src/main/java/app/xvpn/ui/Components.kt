@@ -87,7 +87,7 @@ fun AppCard(
 /** 1dp line between rows. */
 @Composable
 fun HairlineDivider(modifier: Modifier = Modifier) {
-    Box(modifier.fillMaxWidth().height(1.dp).background(C.Border))
+    Box(modifier.fillMaxWidth().height(1.dp).background(C.Divider))
 }
 
 @Composable
@@ -159,15 +159,16 @@ fun ScreenHeader(
                 IconAction(Icons.AutoMirrored.Filled.ArrowBack, "Back", onClick = onBack)
                 Spacer(Modifier.width(Space.Xs))
             }
-            if (title != null) Text(
-                title, style = if (onBack == null) Type.Headline else Type.Title, color = C.Text, maxLines = 1,
-                modifier = Modifier.weight(1f, fill = false),
-            )
-            if (titleTrailing != null) {
-                Spacer(Modifier.width(Space.Md))
-                titleTrailing()
+            Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+                if (title != null) Text(
+                    title, style = if (onBack == null) Type.Headline else Type.Title, color = C.Text, maxLines = 1,
+                    modifier = Modifier.weight(1f, fill = false),
+                )
+                if (titleTrailing != null) {
+                    Spacer(Modifier.width(Space.Md))
+                    titleTrailing()
+                }
             }
-            Spacer(Modifier.weight(1f))
             actions()
         }
         Spacer(Modifier.height(Space.Sm))

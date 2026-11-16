@@ -20,6 +20,7 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -316,6 +317,9 @@ private fun App() {
 
     val stripAlpha by animateFloatAsState(if (homeVisible) 0f else 1f, tween(Motion.Medium), label = "stripAlpha")
 
+    // Room reserved for the bottom bar; animated so screens that hide it (logs, speed test, stats) don't jump.
+    val dockInset by animateDpAsState(if (dockHidden) 0.dp else Sizes.Dock, tween(Motion.Medium, easing = Motion.Standard), label = "dockInset")
+
     Box(Modifier.fillMaxSize().background(C.Bg).imePadding()) {
         Box(Modifier.fillMaxSize()) {
             AnimatedContent(
@@ -328,7 +332,7 @@ private fun App() {
                 Box(
                     Modifier.fillMaxSize()
                         .then(if (s == Screen.Home) Modifier else Modifier.statusBarsPadding())
-                        .then(if (s == Screen.Stats || dockHidden) Modifier.navigationBarsPadding() else Modifier.navigationBarsPadding().padding(bottom = Sizes.Dock)),
+                        .navigationBarsPadding().padding(bottom = if (s == Screen.Stats) 0.dp else dockInset),
                 ) {
                     when (s) {
                         Screen.Stats -> StatsScreen(

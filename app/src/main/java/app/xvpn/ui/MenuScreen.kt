@@ -513,7 +513,7 @@ private fun LogsPage(
     info: String, onScrolledChange: (Boolean) -> Unit, onFullScreenChange: (Boolean) -> Unit, onBack: () -> Unit,
 ) {
     val ctx = LocalContext.current
-    val logs by produceState<String?>(null) { value = readLogs() }
+    val logs by produceState<String?>(null) { kotlinx.coroutines.delay(Motion.Medium.toLong()); value = readLogs() }
     BackHandler(true) { onBack() }
     // Full-screen page: hide the bottom bar; header and status strip keep the app background.
     ReportScrolled(false, onScrolledChange)
