@@ -91,6 +91,7 @@ import app.xvpn.ui.axisTransition
 import app.xvpn.ui.rememberTick
 import app.xvpn.ui.setUpEdgeToEdge
 import app.xvpn.vpn.OutrunVpnService
+import app.xvpn.widget.OutrunWidget
 import app.xvpn.vpn.Status
 import app.xvpn.vpn.VpnState
 import kotlinx.coroutines.Dispatchers
@@ -105,6 +106,17 @@ class MainActivity : ComponentActivity() {
 
         setUpEdgeToEdge()
         setContent { DesignScale { AppIndication { App() } } }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        OutrunWidget.refresh(this)
+    }
+
+    // Pick up a newly selected server / VPN permission when the user leaves the app.
+    override fun onStop() {
+        super.onStop()
+        OutrunWidget.refresh(this)
     }
 }
 

@@ -21,6 +21,7 @@ import app.xvpn.data.Session
 import app.xvpn.data.Store
 import app.xvpn.data.Usage
 import app.xvpn.data.openConnection
+import app.xvpn.widget.OutrunWidget
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -135,6 +136,7 @@ class OutrunVpnService : VpnService() {
     private suspend fun connect(link: String) {
         VpnState.error.value = null
         VpnState.status.value = Status.Connecting
+        OutrunWidget.refresh(this)
 
         val hadSession = tun != null || core != null
         teardownSession()
@@ -210,6 +212,7 @@ class OutrunVpnService : VpnService() {
             VpnState.socksPort.value = port
             VpnState.connectedAt.value = System.currentTimeMillis()
             VpnState.status.value = Status.Connected
+            OutrunWidget.refresh(this)
             currentName = profile.name
             sessionStart = System.currentTimeMillis(); sessUp = 0; sessDown = 0; pendUp = 0; pendDown = 0
             VpnState.sessionUp.value = 0; VpnState.sessionDown.value = 0
@@ -303,6 +306,7 @@ class OutrunVpnService : VpnService() {
         VpnState.status.value = Status.Disconnected
         VpnState.activeLink.value = null
         VpnState.sessionUp.value = 0; VpnState.sessionDown.value = 0
+        OutrunWidget.refresh(this)
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
     }
