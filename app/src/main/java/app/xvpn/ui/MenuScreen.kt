@@ -64,9 +64,8 @@ import androidx.compose.material.icons.outlined.AddCircleOutline
 import androidx.compose.material.icons.outlined.AltRoute
 import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.BugReport
-import androidx.compose.material.icons.outlined.ContentCopy
+import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.Dns
-import androidx.compose.material.icons.outlined.Email
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.Notifications
@@ -74,11 +73,12 @@ import androidx.compose.material.icons.outlined.PhoneAndroid
 import androidx.compose.material.icons.outlined.PowerSettingsNew
 import androidx.compose.material.icons.outlined.RemoveCircleOutline
 import androidx.compose.material.icons.outlined.Shield
+import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.Speed
+import androidx.compose.material.icons.outlined.Support
 import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material.icons.outlined.Terminal
 import androidx.compose.material.icons.outlined.Tune
-import androidx.compose.material.icons.outlined.Widgets
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -127,7 +127,6 @@ private class AppInfo(val label: String, val pkg: String)
 @Composable
 fun MenuScreen(
     store: Store,
-    onExport: () -> Unit,
     debugInfo: () -> String,
     onScrolledChange: (Boolean) -> Unit = {},
 ) {
@@ -139,7 +138,7 @@ fun MenuScreen(
         modifier = Modifier.fillMaxSize(),
         transitionSpec = { axisTransition(forward = pageDepth(targetState) >= pageDepth(initialState), distance = 0.2f) },
         label = "settingsPage",
-    ) { shown -> MenuPage(store, onExport, debugInfo, onScrolledChange, pageState, scroll, shown) }
+    ) { shown -> MenuPage(store, debugInfo, onScrolledChange, pageState, scroll, shown) }
 }
 
 private fun pageDepth(p: String) = when (p) {
@@ -157,7 +156,6 @@ private fun pageParent(p: String) = when (p) {
 @Composable
 private fun MenuPage(
     store: Store,
-    onExport: () -> Unit,
     debugInfo: () -> String,
     onScrolledChange: (Boolean) -> Unit,
     pageState: MutableState<String>,
@@ -402,20 +400,7 @@ private fun MenuPage(
             Spacer(Modifier.height(8.dp))
         }
         Column(Modifier.weight(1f).fillMaxWidth().verticalScrollbar(scroll).verticalScroll(scroll)) {
-            Section("General", first = true)
-            SettingRow(Icons.Outlined.Notifications, "Notifications", if (notifOn) "On" else "Off") {
-                val asked = ctx.uiPrefs().getBoolean(KEY_NOTIF_ASKED, false)
-                if (!notifOn && Build.VERSION.SDK_INT >= 33 && !asked) {
-                    ctx.uiPrefs().edit().putBoolean(KEY_NOTIF_ASKED, true).apply()
-                    notifLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                } else ctx.openNotificationSettings()
-            }
-            SettingRow(
-                Icons.Outlined.Widgets, "Widget",
-                if (widgetCount > 0) "Added to home screen" else "Add to home screen",
-            ) { ctx.requestPinWidget(); widgetCount = ctx.widgetCount() }
-
-            Section("Features")
+            Section("Features", first = true)
             SettingRow(
                 Icons.Outlined.AltRoute, "Split tunneling",
                 if (!splitOn) "Off" else "On",
@@ -430,13 +415,23 @@ private fun MenuPage(
             SettingRow(Icons.Outlined.PowerSettingsNew, "Connect on launch", if (autoConnect) "On" else "Off") { page = "connect" }
             SettingRow(Icons.Outlined.Sync, "Auto-update subscriptions", if (autoUpdate) "On" else "Off") { page = "autoupdate" }
 
-            Section("Servers")
-            SettingRow(Icons.Outlined.ContentCopy, "Export servers") { onExport() }
+            Section("General")
+            SettingRow(Icons.Outlined.Notifications, "Notifications", if (notifOn) "On" else "Off") {
+                val asked = ctx.uiPrefs().getBoolean(KEY_NOTIF_ASKED, false)
+                if (!notifOn && Build.VERSION.SDK_INT >= 33 && !asked) {
+                    ctx.uiPrefs().edit().putBoolean(KEY_NOTIF_ASKED, true).apply()
+                    notifLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                } else ctx.openNotificationSettings()
+            }
+            SettingRow(
+                Icons.Outlined.PhoneAndroid, "Widget",
+                if (widgetCount > 0) "Added to home screen" else "Add to home screen",
+            ) { ctx.requestPinWidget(); widgetCount = ctx.widgetCount() }
 
             Section("Support")
-            SettingRow(Icons.Outlined.Email, "Support contact", SUPPORT_EMAIL, external = true) { ctx.emailSupport() }
+            SettingRow(Icons.Outlined.Support, "Support contact", external = true) { ctx.emailSupport() }
             SettingRow(Icons.Outlined.BugReport, "Report an issue", external = true) { ctx.reportIssue(debugInfo()) }
-            SettingRow(Icons.Outlined.Terminal, "Debug logs") { page = "logs" }
+            SettingRow(Icons.Outlined.Code, "Debug logs") { page = "logs" }
 
             Spacer(Modifier.height(28.dp))
             Text(
@@ -546,31 +541,27 @@ private suspend fun readLogs(): String = withContext(Dispatchers.IO) {
 private fun LogsPage(info: String, onBack: () -> Unit) {
     val ctx = LocalContext.current
     val logs by produceState<String?>(null) { value = readLogs() }
-    val full = info + "\n\n" + (logs ?: "")
-    SubPage(
-        null, onBack,
-        bottom = {
-            ActionButton("Copy logs", filled = true) {
-                if (logs != null) { ctx.copyText("debug logs", full); ctx.toast("Logs copied") }
-            }
-            Spacer(Modifier.height(12.dp))
-            ActionButton("Share", filled = false) {
-                if (logs != null) {
+    BackHandler(true) { onBack() }
+    Column(Modifier.fillMaxSize()) {
+        Spacer(Modifier.height(20.dp))
+        HeaderRow {
+            HeaderIcon(Icons.AutoMirrored.Filled.ArrowBack, "Back", onClick = onBack)
+            Spacer(Modifier.width(6.dp))
+            Text("Log", color = C.Text, fontSize = 22.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, modifier = Modifier.weight(1f))
+            HeaderIcon(Icons.Outlined.Share, "Share logs") {
+                logs?.let {
                     val send = Intent(Intent.ACTION_SEND).setType("text/plain")
-                        .putExtra(Intent.EXTRA_SUBJECT, "Outrun VPN debug logs").putExtra(Intent.EXTRA_TEXT, full)
+                        .putExtra(Intent.EXTRA_SUBJECT, "Outrun VPN logs").putExtra(Intent.EXTRA_TEXT, info + "\n\n" + it)
                     ctx.launch(Intent.createChooser(send, "Share logs"), "Couldn't share logs")
                 }
             }
-        },
-    ) {
-        Hero(Icons.Outlined.Terminal)
-        PageHeading("Debug logs", "Device info and recent app logs. They may include server addresses, so check them before sharing.")
-        Column(Modifier.padding(horizontal = 20.dp).fillMaxWidth().clip(RoundedCornerShape(Radius.Card)).background(C.Card).padding(14.dp)) {
-            val mono = TextStyle(color = C.Text, fontSize = 11.sp, fontFamily = FontFamily.Monospace)
-            Text(info, style = mono)
-            Spacer(Modifier.height(12.dp))
-            Text(logs ?: "Loading logs…", style = mono.copy(color = if (logs == null) C.Muted else C.Text))
         }
+        Spacer(Modifier.height(8.dp))
+        Text(
+            logs ?: "Loading…", color = if (logs == null) C.Muted else C.Text,
+            style = TextStyle(fontSize = 12.sp, fontFamily = FontFamily.Monospace),
+            modifier = Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 8.dp),
+        )
     }
 }
 

@@ -380,10 +380,6 @@ private fun App() {
                         )
                         Screen.Menu -> MenuScreen(
                             store = store,
-                            onExport = {
-                                copyToClipboard("servers", profiles.joinToString("\n") { it.link })
-                                toast("Copied ${profiles.size} server link${if (profiles.size == 1) "" else "s"}")
-                            },
                             debugInfo = {
                                 "App ${ctx.appVersionName()}\n" +
                                     "Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})\n" +
