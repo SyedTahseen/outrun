@@ -6,6 +6,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
@@ -27,12 +28,26 @@ import kotlin.random.Random
 
 enum class SpeedPhase { Idle, Ping, Download, Upload, Done, Failed }
 
+/** What a test measures. Alternate = download, then upload; Bidirectional = both at the same time. */
+enum class TransmitMode { Download, Upload, Bidirectional, Alternate }
+
+data class SpeedConfig(
+    val mode: TransmitMode = TransmitMode.Alternate,
+    val seconds: Int = 7,
+    val streams: Int = 4,
+    /** Run the test through the VPN when it is connected; otherwise direct. */
+    val useVpn: Boolean = true,
+)
+
 val SpeedPhase.running get() = this == SpeedPhase.Ping || this == SpeedPhase.Download || this == SpeedPhase.Upload
 
 data class SpeedUi(
     val phase: SpeedPhase = SpeedPhase.Idle,
     /** Current transfer speed in Mbps while a download or upload is being measured. */
     val live: Double = 0.0,
+    /** Current upload speed while download and upload run together (Bidirectional). */
+    val liveUp: Double = 0.0,
+    val cfg: SpeedConfig = SpeedConfig(),
     val pingMs: Int = -1,
     val jitterMs: Int = -1,
     val downMbps: Double = -1.0,
@@ -64,15 +79,15 @@ data class SpeedResult(
  */
 object SpeedTest {
     private const val BASE = "https://speed.cloudflare.com"
-    const val PHASE_SECONDS = 7
-    private const val PHASE_MS = PHASE_SECONDS * 1_000L
     private const val WARMUP_MS = 1_000L
-    const val STREAMS = 4
     private const val DOWN_BYTES = 50_000_000
     private const val CHUNK = 64 * 1024
     private const val UP_BYTES = CHUNK * 150L // a whole number of chunks
 
     val state = MutableStateFlow(SpeedUi())
+
+    /** Settings picked on the start screen; kept here so they survive switching tabs. */
+    val config = MutableStateFlow(SpeedConfig())
 
     /** Finished tests, newest first. Call [attach] once so they are loaded and saved. */
     val history = MutableStateFlow<List<SpeedResult>>(emptyList())
@@ -118,25 +133,59 @@ object SpeedTest {
     fun start(socksPort: Int) {
         if (job?.isActive == true) return
         job = scope.launch {
+            val cfg = config.value
+            val phaseMs = cfg.seconds * 1_000L
             val t0 = System.currentTimeMillis()
-            state.value = SpeedUi(phase = SpeedPhase.Ping, viaVpn = socksPort > 0, startedAt = t0, phaseStartedAt = t0)
+            state.value = SpeedUi(phase = SpeedPhase.Ping, viaVpn = socksPort > 0, startedAt = t0, phaseStartedAt = t0, cfg = cfg)
             log("Test started " + if (socksPort > 0) "(through VPN)" else "(direct, VPN off)")
             try {
                 val (ping, jitter) = measureLatency(socksPort)
                 log("Latency: ping $ping ms, jitter $jitter ms")
-                state.update { it.copy(pingMs = ping, jitterMs = jitter, phase = SpeedPhase.Download, phaseStartedAt = System.currentTimeMillis()) }
-                log("Download: $STREAMS streams, ${PHASE_SECONDS}s")
-                val down = transfer(socksPort, upload = false) { v ->
-                    state.update { it.copy(live = v, downSeries = it.downSeries + v.toFloat()) }
+                state.update { it.copy(pingMs = ping, jitterMs = jitter) }
+                var down = -1.0
+                var up = -1.0
+                suspend fun runDown() {
+                    state.update { it.copy(phase = SpeedPhase.Download, live = 0.0, phaseStartedAt = System.currentTimeMillis()) }
+                    log("Download: ${cfg.streams} streams, ${cfg.seconds}s")
+                    down = transfer(socksPort, upload = false, cfg.streams, phaseMs) { v ->
+                        state.update { it.copy(live = v, downSeries = it.downSeries + v.toFloat()) }
+                    }
+                    log("Download: " + "%.1f".format(down) + " Mbps")
+                    state.update { it.copy(downMbps = down, live = 0.0) }
                 }
-                log("Download: " + "%.1f".format(down) + " Mbps")
-                state.update { it.copy(downMbps = down, phase = SpeedPhase.Upload, live = 0.0, phaseStartedAt = System.currentTimeMillis()) }
-                log("Upload: $STREAMS streams, ${PHASE_SECONDS}s")
-                val up = transfer(socksPort, upload = true) { v ->
-                    state.update { it.copy(live = v, upSeries = it.upSeries + v.toFloat()) }
+                suspend fun runUp() {
+                    state.update { it.copy(phase = SpeedPhase.Upload, live = 0.0, phaseStartedAt = System.currentTimeMillis()) }
+                    log("Upload: ${cfg.streams} streams, ${cfg.seconds}s")
+                    up = transfer(socksPort, upload = true, cfg.streams, phaseMs) { v ->
+                        state.update { it.copy(live = v, upSeries = it.upSeries + v.toFloat()) }
+                    }
+                    log("Upload: " + "%.1f".format(up) + " Mbps")
+                    state.update { it.copy(upMbps = up, live = 0.0) }
                 }
-                log("Upload: " + "%.1f".format(up) + " Mbps")
-                state.update { it.copy(upMbps = up, phase = SpeedPhase.Done, live = 0.0) }
+                when (cfg.mode) {
+                    TransmitMode.Download -> runDown()
+                    TransmitMode.Upload -> runUp()
+                    TransmitMode.Alternate -> { runDown(); runUp() }
+                    TransmitMode.Bidirectional -> coroutineScope {
+                        state.update { it.copy(phase = SpeedPhase.Download, live = 0.0, liveUp = 0.0, phaseStartedAt = System.currentTimeMillis()) }
+                        log("Download + upload together: ${cfg.streams} streams each, ${cfg.seconds}s")
+                        val d = async {
+                            transfer(socksPort, upload = false, cfg.streams, phaseMs) { v ->
+                                state.update { it.copy(live = v, downSeries = it.downSeries + v.toFloat()) }
+                            }
+                        }
+                        val u = async {
+                            transfer(socksPort, upload = true, cfg.streams, phaseMs) { v ->
+                                state.update { it.copy(liveUp = v, upSeries = it.upSeries + v.toFloat()) }
+                            }
+                        }
+                        down = d.await()
+                        up = u.await()
+                        log("Download: " + "%.1f".format(down) + " Mbps, upload: " + "%.1f".format(up) + " Mbps")
+                        state.update { it.copy(downMbps = down, upMbps = up, live = 0.0, liveUp = 0.0) }
+                    }
+                }
+                state.update { it.copy(phase = SpeedPhase.Done, live = 0.0, liveUp = 0.0) }
                 log("Finished")
                 saveResult(SpeedResult(System.currentTimeMillis(), down, up, ping, jitter, socksPort > 0))
             } catch (e: CancellationException) {
@@ -144,7 +193,7 @@ object SpeedTest {
                 log("Stopped")
                 throw e
             } catch (e: Exception) {
-                state.update { it.copy(phase = SpeedPhase.Failed, live = 0.0) }
+                state.update { it.copy(phase = SpeedPhase.Failed, live = 0.0, liveUp = 0.0) }
                 log("Failed: " + (e.message ?: e.javaClass.simpleName))
             }
         }
@@ -187,14 +236,14 @@ object SpeedTest {
         return ping to jitter
     }
 
-    /** Runs [STREAMS] parallel transfers for [PHASE_MS] and returns the average speed in Mbps after the warm-up. */
-    private suspend fun transfer(socks: Int, upload: Boolean, onLive: (Double) -> Unit): Double = coroutineScope {
+    /** Runs [streams] parallel transfers for [phaseMs] and returns the average speed in Mbps after the warm-up. */
+    private suspend fun transfer(socks: Int, upload: Boolean, streams: Int, phaseMs: Long, onLive: (Double) -> Unit): Double = coroutineScope {
         val bytes = AtomicLong()
         val start = nowMs()
-        val deadline = start + PHASE_MS
+        val deadline = start + phaseMs
         val chunk = ByteArray(CHUNK).also { Random.nextBytes(it) }
 
-        val workers = List(STREAMS) {
+        val workers = List(streams) {
             launch {
                 var fails = 0
                 while (isActive && nowMs() < deadline && fails < 2) {
