@@ -16,6 +16,7 @@ import kotlinx.coroutines.launch
 import java.io.IOException
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.math.abs
+import kotlin.math.roundToInt
 import kotlin.random.Random
 
 enum class SpeedPhase { Idle, Ping, Download, Upload, Done, Failed }
@@ -76,24 +77,31 @@ object SpeedTest {
 
     private fun nowMs() = System.nanoTime() / 1_000_000
 
-    /** Median round-trip time and jitter of small requests on one kept-alive connection. */
+    private val serverTime = Regex("cfRequestDuration;dur=([0-9.]+)")
+
+    /**
+     * Round-trip time of tiny requests on one kept-alive connection. The time the server spent on each request
+     * (from its Server-Timing header) is subtracted, and the best sample is reported like other speed tests do.
+     */
     private suspend fun measureLatency(socks: Int): Pair<Int, Int> {
-        val times = ArrayList<Long>()
-        repeat(7) {
+        val times = ArrayList<Double>()
+        repeat(11) {
             currentCoroutineContext().ensureActive()
-            val t0 = nowMs()
+            val t0 = System.nanoTime()
             val c = openConnection("$BASE/__down?bytes=0", socks, 5000)
+            val server: Double
             try {
                 c.inputStream.use { it.readBytes() }
+                server = c.getHeaderField("Server-Timing")?.let { serverTime.find(it)?.groupValues?.get(1)?.toDoubleOrNull() } ?: 0.0
             } catch (e: Exception) {
                 c.disconnect(); throw e
             }
             // Not disconnected on success: the next request reuses the connection, so it measures the round trip alone.
-            times += nowMs() - t0
+            times += ((System.nanoTime() - t0) / 1e6 - server).coerceAtLeast(1.0)
         }
-        val rest = times.drop(1)
-        val ping = rest.sorted()[rest.size / 2].toInt()
-        val jitter = rest.zipWithNext { a, b -> abs(a - b) }.average().toInt()
+        val rest = times.drop(1) // the first request pays for connecting
+        val ping = rest.min().roundToInt()
+        val jitter = rest.zipWithNext { a, b -> abs(a - b) }.average().roundToInt()
         return ping to jitter
     }
 
