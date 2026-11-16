@@ -54,6 +54,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -86,6 +87,7 @@ import app.xvpn.ui.Motion
 import app.xvpn.ui.Radius
 import app.xvpn.ui.ServersScreen
 import app.xvpn.ui.SortMode
+import app.xvpn.ui.SpeedScreen
 import app.xvpn.ui.StatsScreen
 import app.xvpn.ui.appVersionName
 import app.xvpn.ui.axisTransition
@@ -124,12 +126,13 @@ class MainActivity : ComponentActivity() {
 private enum class Tab(val label: String, val icon: ImageVector) {
     Home("Home", Icons.Filled.Home),
     Servers("Servers", Icons.Filled.Public),
+    Speed("Speed", Icons.Filled.Speed),
     Menu("Settings", Icons.Filled.Settings),
 }
 
-private enum class Screen { Home, Servers, Menu, Stats }
+private enum class Screen { Home, Servers, Speed, Menu, Stats }
 
-private fun Tab.screen() = when (this) { Tab.Home -> Screen.Home; Tab.Servers -> Screen.Servers; Tab.Menu -> Screen.Menu }
+private fun Tab.screen() = when (this) { Tab.Home -> Screen.Home; Tab.Servers -> Screen.Servers; Tab.Speed -> Screen.Speed; Tab.Menu -> Screen.Menu }
 
 @Composable
 private fun App() {
@@ -378,6 +381,9 @@ private fun App() {
                                 copyToClipboard("subscription", url)
                                 toast("Subscription link copied")
                             },
+                        )
+                        Screen.Speed -> SpeedScreen(
+                            serverName = profiles.firstOrNull { it.link == selectedLink }?.name,
                         )
                         Screen.Menu -> MenuScreen(
                             store = store,
