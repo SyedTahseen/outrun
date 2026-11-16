@@ -63,7 +63,6 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.derivedStateOf
@@ -165,13 +164,12 @@ fun ServersScreen(
     val scrolled by remember { derivedStateOf { listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 0 } }
     val headerColor by animateColorAsState(if (scrolled) C.Card else C.Bg, label = "headerColor")
 
-    LaunchedEffect(scrolled) { onScrolledChange(scrolled) }
-    DisposableEffect(Unit) { onDispose { onScrolledChange(false) } }
+    ReportScrolled(scrolled, onScrolledChange)
 
     Column(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxWidth().background(headerColor)) {
             Spacer(Modifier.height(20.dp))
-            Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp).height(44.dp), verticalAlignment = Alignment.CenterVertically) {
+            HeaderRow {
                 AnimatedContent(
                     targetState = searching,
                     modifier = Modifier.fillMaxWidth(),

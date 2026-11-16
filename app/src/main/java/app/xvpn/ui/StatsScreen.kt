@@ -51,8 +51,8 @@ import androidx.compose.ui.unit.sp
 import app.xvpn.data.IpInfo
 import app.xvpn.data.LeakCheck
 import app.xvpn.data.LeakTest
-import app.xvpn.data.LinkParser
 import app.xvpn.data.Level
+import app.xvpn.data.LinkParser
 import app.xvpn.data.Profile
 import app.xvpn.data.Store
 import app.xvpn.data.Usage

@@ -22,7 +22,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -74,6 +73,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import app.xvpn.ui.C
 import app.xvpn.ui.DesignScale
 import app.xvpn.ui.HeaderIcon
+import app.xvpn.ui.HeaderRow
 import app.xvpn.ui.Radius
 import app.xvpn.ui.setUpEdgeToEdge
 import com.google.zxing.BarcodeFormat
@@ -134,7 +134,7 @@ class ScanActivity : ComponentActivity() {
         Column(Modifier.fillMaxSize().background(C.Bg)) {
             Column(Modifier.fillMaxWidth().statusBarsPadding()) {
                 Spacer(Modifier.height(20.dp))
-                Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp).height(44.dp), verticalAlignment = Alignment.CenterVertically) {
+                HeaderRow {
                     HeaderIcon(Icons.AutoMirrored.Filled.ArrowBack, "Back") { finish() }
                     Spacer(Modifier.width(6.dp))
                     Text("Scan QR code", color = C.Text, fontSize = 26.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f), maxLines = 1)

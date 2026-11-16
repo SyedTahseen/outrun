@@ -1,5 +1,6 @@
 package app.xvpn.ui
 
+import android.content.Context
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
@@ -7,6 +8,7 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -20,6 +22,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -54,6 +58,27 @@ internal fun ComponentActivity.setUpEdgeToEdge(navigationBarColor: Int = android
     window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(C.Bg.toArgb()))
 }
 
+/** Version name from the manifest, or null if it can't be read. */
+internal fun Context.appVersionName(): String? =
+    runCatching { packageManager.getPackageInfo(packageName, 0).versionName }.getOrNull()
+
+/** Tells the parent whether the page is scrolled (it tints the status strip), and resets that when the page leaves. */
+@Composable
+internal fun ReportScrolled(scrolled: Boolean, onScrolledChange: (Boolean) -> Unit) {
+    LaunchedEffect(scrolled) { onScrolledChange(scrolled) }
+    DisposableEffect(Unit) { onDispose { onScrolledChange(false) } }
+}
+
+/** The 44dp title row that sits under the status bar on every screen. */
+@Composable
+internal fun HeaderRow(content: @Composable RowScope.() -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = 20.dp).height(44.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        content = content,
+    )
+}
+
 @Composable
 internal fun HeaderIcon(icon: ImageVector, desc: String, tint: Color = C.Text, onClick: () -> Unit) {
     val color by animateColorAsState(tint, tween(Motion.Short + 50), label = "headerIconTint")
@@ -66,7 +91,7 @@ internal fun HeaderIcon(icon: ImageVector, desc: String, tint: Color = C.Text, o
 @Composable
 internal fun BackBar(title: String? = null, onBack: () -> Unit) {
     Spacer(Modifier.height(20.dp))
-    Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp).height(44.dp), verticalAlignment = Alignment.CenterVertically) {
+    HeaderRow {
         HeaderIcon(Icons.AutoMirrored.Filled.ArrowBack, "Back", onClick = onBack)
         if (title != null) {
             Spacer(Modifier.width(6.dp))

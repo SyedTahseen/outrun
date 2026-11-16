@@ -3,7 +3,6 @@ package app.xvpn.data
 import android.content.Context
 import org.json.JSONObject
 import java.io.IOException
-import java.net.HttpURLConnection
 import java.net.Inet6Address
 import java.net.InetAddress
 import java.net.URL
@@ -109,10 +108,7 @@ class Store(context: Context) {
     }
 
     fun remove(link: String) {
-        putLines("links", links().filter { it != link })
-        saveSources(sources - link)
-        favorites = favorites - link
-        if (selected == link) selected = null
+        removeMany(listOf(link))
     }
 
     fun removeMany(gone: Collection<String>): Int {
@@ -127,10 +123,7 @@ class Store(context: Context) {
 
     fun removeSubscription(url: String): Int {
         val gone = sources.filterValues { it == url }.keys
-        putLines("links", links().filter { it !in gone })
-        saveSources(sources.filterValues { it != url })
-        favorites = favorites - gone
-        if (selected in gone) selected = null
+        removeMany(gone)
         subscriptions = subscriptions - url
         subInfo = subInfo - url
         return gone.size
@@ -224,12 +217,11 @@ class Store(context: Context) {
     private fun fetch(url: String): Fetched {
         var u = url
         repeat(6) {
-            val c = URL(u).openConnection() as HttpURLConnection
+            val c = openConnection(u)
             try {
                 c.connectTimeout = 20000
                 c.readTimeout = 25000
                 c.instanceFollowRedirects = false
-
                 c.setRequestProperty("User-Agent", "v2rayNG/1.9.19")
                 c.setRequestProperty("Accept", "*/*")
                 val code = c.responseCode

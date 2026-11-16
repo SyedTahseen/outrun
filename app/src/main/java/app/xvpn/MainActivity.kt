@@ -87,13 +87,14 @@ import app.xvpn.ui.Radius
 import app.xvpn.ui.ServersScreen
 import app.xvpn.ui.SortMode
 import app.xvpn.ui.StatsScreen
+import app.xvpn.ui.appVersionName
 import app.xvpn.ui.axisTransition
 import app.xvpn.ui.rememberTick
 import app.xvpn.ui.setUpEdgeToEdge
 import app.xvpn.vpn.OutrunVpnService
-import app.xvpn.widget.OutrunWidget
 import app.xvpn.vpn.Status
 import app.xvpn.vpn.VpnState
+import app.xvpn.widget.OutrunWidget
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -384,7 +385,7 @@ private fun App() {
                                 toast("Copied ${profiles.size} server link${if (profiles.size == 1) "" else "s"}")
                             },
                             onDebugInfo = {
-                                val info = "App ${runCatching { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName }.getOrNull()}\n" +
+                                val info = "App ${ctx.appVersionName()}\n" +
                                     "Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})\n" +
                                     "Device ${Build.MANUFACTURER} ${Build.MODEL}\n" +
                                     "Status $status\nServers ${profiles.size}\nSubscriptions ${subs.size}\n" +

@@ -65,7 +65,6 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.derivedStateOf
@@ -346,17 +345,16 @@ private fun MenuPage(
 
     val dnsLabel = if (dns == "custom") "Custom" else Choices.dns.firstOrNull { it.id == dns }?.name ?: "Cloudflare"
     val testLabel = Choices.testUrls.firstOrNull { it.id == testUrl }?.name ?: "Google"
-    val version = remember { runCatching { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName }.getOrNull() ?: "-" }
+    val version = remember { ctx.appVersionName() ?: "-" }
 
     val scrolled by remember { derivedStateOf { scroll.value > 0 } }
     val headerColor by animateColorAsState(if (scrolled) C.Card else C.Bg, label = "settingsHeader")
-    LaunchedEffect(scrolled) { onScrolledChange(scrolled) }
-    DisposableEffect(Unit) { onDispose { onScrolledChange(false) } }
+    ReportScrolled(scrolled, onScrolledChange)
 
     Column(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxWidth().background(headerColor)) {
             Spacer(Modifier.height(20.dp))
-            Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp).height(44.dp), verticalAlignment = Alignment.CenterVertically) {
+            HeaderRow {
                 Text("Settings", color = C.Text, fontSize = 26.sp, fontWeight = FontWeight.Bold, maxLines = 1)
             }
             Spacer(Modifier.height(8.dp))

@@ -32,9 +32,11 @@ Android Studio (Koala+) and run. First connect asks for VPN + notification permi
 
 ## Home-screen widget
 
-Long-press the home screen -> Widgets -> **Outrun VPN** (2x2, resizable by long-pressing it on the home screen). It shows VPN ON / OFF / connecting, the server address
-(or the selected server name when off), and a power button that connects to the selected server or disconnects.
-If no server is selected, or the system VPN permission has not been granted yet, the power button opens the app instead.
+Long-press the home screen -> Widgets -> **Outrun VPN** (2x2 by default). Long-press the placed widget to resize it
+from 2x1 up to about 4x3 cells; the layout stretches and the server line is hidden when it is only one row tall.
+It shows VPN ON / OFF / connecting, the server address (or the selected server name when off), and a power button
+that connects to the selected server or disconnects. If no server is selected, or the system VPN permission has not
+been granted yet, the power button opens the app instead.
 
 ## Using it
 

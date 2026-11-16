@@ -36,6 +36,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.net.InetAddress
+import java.util.Locale
 
 class OutrunVpnService : VpnService() {
     companion object {
@@ -88,9 +89,8 @@ class OutrunVpnService : VpnService() {
             ACTION_NEXT -> switchNext()
             ACTION_START -> {
                 val link = intent.getStringExtra(EXTRA_LINK) ?: return START_NOT_STICKY
-                startForeground(NOTIFICATION_ID, notification("Outrun VPN", "Connecting…"))
+                startForeground(NOTIFICATION_ID, notification(getString(R.string.app_name), "Connecting…"))
                 val prev = connectJob
-
                 connectJob = scope.launch { prev?.cancelAndJoin(); connect(link) }
             }
         }
@@ -109,7 +109,7 @@ class OutrunVpnService : VpnService() {
     private fun switchNext() {
         val next = nextLink() ?: return
         val name = LinkParser.parse(next)?.name ?: ""
-        notificationManager.notify(NOTIFICATION_ID, notification("Outrun VPN", "Switching to $name…"))
+        notificationManager.notify(NOTIFICATION_ID, notification(getString(R.string.app_name), "Switching to $name…"))
         val prev = connectJob
         connectJob = scope.launch { prev?.cancelAndJoin(); connect(next) }
     }
@@ -131,7 +131,11 @@ class OutrunVpnService : VpnService() {
     }
 
     private fun rate(b: Long): String =
-        if (b >= 1_000_000) "%.1f MB/s".format(b / 1_000_000.0) else "%.0f KB/s".format(b / 1000.0)
+        if (b >= 1_000_000) String.format(Locale.US, "%.1f MB/s", b / 1_000_000.0)
+        else String.format(Locale.US, "%.0f KB/s", b / 1000.0)
+
+    /** Prefix length of "addr/len"; a bare address is a single host (/32 or /128). */
+    private fun prefixLength(ip: String): Int = ip.substringAfter('/', if (':' in ip) "128" else "32").toInt()
 
     private suspend fun connect(link: String) {
         VpnState.error.value = null
@@ -173,14 +177,11 @@ class OutrunVpnService : VpnService() {
             val incIps = if (include) settings.splitIncludeIps else emptyList()
             if (incIps.isEmpty()) { b.addRoute("0.0.0.0", 0); b.addRoute("::", 0) }
             else incIps.forEach { ip ->
-                runCatching { b.addRoute(ip.substringBefore('/'), ip.substringAfter('/', if (':' in ip) "128" else "32").toInt()) }
+                runCatching { b.addRoute(ip.substringBefore('/'), prefixLength(ip)) }
             }
             if (exclude && Build.VERSION.SDK_INT >= 33) settings.splitExcludeIps.forEach { ip ->
                 runCatching {
-                    b.excludeRoute(IpPrefix(
-                        InetAddress.getByName(ip.substringBefore('/')),
-                        ip.substringAfter('/', if (':' in ip) "128" else "32").toInt(),
-                    ))
+                    b.excludeRoute(IpPrefix(InetAddress.getByName(ip.substringBefore('/')), prefixLength(ip)))
                 }
             }
 
@@ -266,12 +267,12 @@ class OutrunVpnService : VpnService() {
             while (isActive) {
                 delay(1000)
                 val (up, down) = read()
-                VpnState.upBytesPerSec.value = (up - lastUp).coerceAtLeast(0)
-                VpnState.downBytesPerSec.value = (down - lastDown).coerceAtLeast(0)
-                VpnState.speedHistory.value =
-                    (VpnState.speedHistory.value + (VpnState.upBytesPerSec.value to VpnState.downBytesPerSec.value)).takeLast(60)
-                val dUp = (up - lastUp).coerceAtLeast(0); val dDown = (down - lastDown).coerceAtLeast(0)
+                val dUp = (up - lastUp).coerceAtLeast(0)
+                val dDown = (down - lastDown).coerceAtLeast(0)
                 lastUp = up; lastDown = down
+                VpnState.upBytesPerSec.value = dUp
+                VpnState.downBytesPerSec.value = dDown
+                VpnState.speedHistory.value = (VpnState.speedHistory.value + (dUp to dDown)).takeLast(60)
                 synchronized(this@OutrunVpnService) {
                     sessUp += dUp; sessDown += dDown; pendUp += dUp; pendDown += dDown
                     VpnState.sessionUp.value = sessUp; VpnState.sessionDown.value = sessDown

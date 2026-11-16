@@ -6,21 +6,23 @@ import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.graphics.Color
+import android.net.VpnService
 import android.os.Bundle
 import android.view.View
-import android.net.VpnService
 import android.widget.RemoteViews
+import androidx.compose.ui.graphics.toArgb
 import app.xvpn.MainActivity
 import app.xvpn.R
 import app.xvpn.data.LinkParser
 import app.xvpn.data.Store
+import app.xvpn.ui.C
 import app.xvpn.vpn.OutrunVpnService
 import app.xvpn.vpn.Status
 import app.xvpn.vpn.VpnState
 
 /** Home-screen widget: shows the VPN state and server, and has a power button to connect / disconnect. */
 class OutrunWidget : AppWidgetProvider() {
-
     override fun onUpdate(context: Context, manager: AppWidgetManager, appWidgetIds: IntArray) {
         appWidgetIds.forEach { manager.updateAppWidget(it, build(context, manager, it)) }
     }
@@ -40,9 +42,10 @@ class OutrunWidget : AppWidgetProvider() {
     companion object {
         const val ACTION_TOGGLE = "app.xvpn.widget.TOGGLE"
 
-        private const val GREEN = 0xFF2DF5C0.toInt()
-        private const val AMBER = 0xFFFFB74D.toInt()
-        private const val WHITE = 0xFFFFFFFF.toInt()
+        // Same palette as the in-app UI.
+        private val GREEN = C.Green.toArgb()
+        private val AMBER = C.Amber.toArgb()
+        private val WHITE = Color.WHITE
 
         /** Re-draws every placed widget from the current [VpnState]. Safe to call from any thread. */
         fun refresh(context: Context) {
@@ -63,13 +66,13 @@ class OutrunWidget : AppWidgetProvider() {
             val profile = link?.let { LinkParser.parse(it) }
 
             val title = when (status) {
-                Status.Connected -> "VPN ON"
-                Status.Connecting -> "VPN\u2026"
-                Status.Disconnected -> "VPN OFF"
+                Status.Connected -> ctx.getString(R.string.widget_title_on)
+                Status.Connecting -> ctx.getString(R.string.widget_title_connecting)
+                Status.Disconnected -> ctx.getString(R.string.widget_title_off)
             }
             val sub = when {
-                profile == null -> "Choose a server"
-                status == Status.Connecting -> "Connecting\u2026"
+                profile == null -> ctx.getString(R.string.widget_sub_choose_server)
+                status == Status.Connecting -> ctx.getString(R.string.widget_sub_connecting)
                 status == Status.Disconnected -> profile.name
                 else -> {
                     val host = if (':' in profile.host) "[${profile.host}]" else profile.host

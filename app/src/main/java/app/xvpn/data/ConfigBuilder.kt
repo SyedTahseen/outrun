@@ -64,7 +64,6 @@ object ConfigBuilder {
 
         val root = JSONObject()
             .put("log", JSONObject().put("level", "warn"))
-
             .put("dns", dnsBlock(dns, viaProxy = endpoint))
             .put("inbounds", JSONArray().put(socksInbound("socks-in", socksPort)))
             .put("outbounds", outs)

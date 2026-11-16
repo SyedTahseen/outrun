@@ -37,7 +37,7 @@
                 android:layout_height="wrap_content"
                 android:ellipsize="end"
                 android:maxLines="1"
-                android:text="VPN OFF"
+                android:text="@string/widget_title_off"
                 android:textColor="#FFFFFFFF"
                 android:textSize="15sp"
                 android:textStyle="bold" />
@@ -49,7 +49,7 @@
                 android:layout_marginTop="2dp"
                 android:ellipsize="end"
                 android:maxLines="1"
-                android:text="Tap to connect"
+                android:text="@string/widget_sub_choose_server"
                 android:textColor="#FF9A98A8"
                 android:textSize="11sp" />
         </LinearLayout>
@@ -60,7 +60,7 @@
             android:layout_height="32dp"
             android:layout_marginStart="8dp"
             android:background="@drawable/widget_power_bg"
-            android:contentDescription="Toggle VPN"
+            android:contentDescription="@string/widget_toggle"
             android:padding="6dp"
             android:scaleType="centerInside"
             android:src="@drawable/ic_widget_power" />
