@@ -14,6 +14,9 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.io.IOException
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -32,6 +35,10 @@ data class SpeedUi(
     val downMbps: Double = -1.0,
     val upMbps: Double = -1.0,
     val viaVpn: Boolean = false,
+    /** Live speed samples (Mbps, every 250 ms) of the download and upload phases, for the chart. */
+    val downSeries: List<Float> = emptyList(),
+    val upSeries: List<Float> = emptyList(),
+    val log: List<String> = emptyList(),
 )
 
 /**
@@ -41,9 +48,10 @@ data class SpeedUi(
  */
 object SpeedTest {
     private const val BASE = "https://speed.cloudflare.com"
-    private const val PHASE_MS = 7_000L
+    const val PHASE_SECONDS = 7
+    private const val PHASE_MS = PHASE_SECONDS * 1_000L
     private const val WARMUP_MS = 1_000L
-    private const val STREAMS = 4
+    const val STREAMS = 4
     private const val DOWN_BYTES = 50_000_000
     private const val CHUNK = 64 * 1024
     private const val UP_BYTES = CHUNK * 150L // a whole number of chunks
@@ -53,22 +61,42 @@ object SpeedTest {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var job: Job? = null
 
+    private val clock = SimpleDateFormat("HH:mm:ss", Locale.US)
+
+    private fun log(msg: String) {
+        val line = synchronized(clock) { clock.format(Date()) } + "  " + msg
+        state.update { it.copy(log = (it.log + line).takeLast(100)) }
+    }
+
     fun start(socksPort: Int) {
         if (job?.isActive == true) return
         job = scope.launch {
             state.value = SpeedUi(phase = SpeedPhase.Ping, viaVpn = socksPort > 0)
+            log("Test started " + if (socksPort > 0) "(through VPN)" else "(direct, VPN off)")
             try {
                 val (ping, jitter) = measureLatency(socksPort)
+                log("Latency: ping $ping ms, jitter $jitter ms")
                 state.update { it.copy(pingMs = ping, jitterMs = jitter, phase = SpeedPhase.Download) }
-                val down = transfer(socksPort, upload = false) { v -> state.update { it.copy(live = v) } }
+                log("Download: $STREAMS streams, ${PHASE_SECONDS}s")
+                val down = transfer(socksPort, upload = false) { v ->
+                    state.update { it.copy(live = v, downSeries = it.downSeries + v.toFloat()) }
+                }
+                log("Download: " + "%.1f".format(down) + " Mbps")
                 state.update { it.copy(downMbps = down, phase = SpeedPhase.Upload, live = 0.0) }
-                val up = transfer(socksPort, upload = true) { v -> state.update { it.copy(live = v) } }
+                log("Upload: $STREAMS streams, ${PHASE_SECONDS}s")
+                val up = transfer(socksPort, upload = true) { v ->
+                    state.update { it.copy(live = v, upSeries = it.upSeries + v.toFloat()) }
+                }
+                log("Upload: " + "%.1f".format(up) + " Mbps")
                 state.update { it.copy(upMbps = up, phase = SpeedPhase.Done, live = 0.0) }
+                log("Finished")
             } catch (e: CancellationException) {
                 state.update { it.copy(phase = SpeedPhase.Idle, live = 0.0) }
+                log("Stopped")
                 throw e
             } catch (e: Exception) {
                 state.update { it.copy(phase = SpeedPhase.Failed, live = 0.0) }
+                log("Failed: " + (e.message ?: e.javaClass.simpleName))
             }
         }
     }
