@@ -87,7 +87,7 @@ class OutrunVpnService : VpnService() {
             ACTION_NEXT -> switchNext()
             ACTION_START -> {
                 val link = intent.getStringExtra(EXTRA_LINK) ?: return START_NOT_STICKY
-                startForeground(NOTIFICATION_ID, notification("Outrun", "Connecting…"))
+                startForeground(NOTIFICATION_ID, notification("Outrun VPN", "Connecting…"))
                 val prev = connectJob
 
                 connectJob = scope.launch { prev?.cancelAndJoin(); connect(link) }
@@ -108,7 +108,7 @@ class OutrunVpnService : VpnService() {
     private fun switchNext() {
         val next = nextLink() ?: return
         val name = LinkParser.parse(next)?.name ?: ""
-        notificationManager.notify(NOTIFICATION_ID, notification("Outrun", "Switching to $name…"))
+        notificationManager.notify(NOTIFICATION_ID, notification("Outrun VPN", "Switching to $name…"))
         val prev = connectJob
         connectJob = scope.launch { prev?.cancelAndJoin(); connect(next) }
     }

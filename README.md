@@ -1,4 +1,4 @@
-# Outrun (Android)
+# Outrun VPN (Android)
 
 Compose UI (Home / Servers / Settings) + **sing-box** core, for your own vless / trojan / shadowsocks / vmess /
 hysteria2 / tuic / wireguard proxies. Config import via clipboard and subscription URLs.
