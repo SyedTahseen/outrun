@@ -301,7 +301,8 @@ private fun App() {
     val statsOn = showStats && status == Status.Connected
     val screen = if (statsOn) Screen.Stats else tab.screen()
     val homeVisible = screen == Screen.Home
-    val dockHidden = statsOn
+    var menuFullScreen by remember { mutableStateOf(false) }
+    val dockHidden = statsOn || (tab == Tab.Menu && menuFullScreen)
 
     var serversScrolled by remember { mutableStateOf(false) }
     val statusStripColor by animateColorAsState(
@@ -323,7 +324,7 @@ private fun App() {
                 Box(
                     Modifier.fillMaxSize()
                         .then(if (s == Screen.Home) Modifier else Modifier.statusBarsPadding())
-                        .then(if (s == Screen.Stats) Modifier.navigationBarsPadding() else Modifier.navigationBarsPadding().padding(bottom = 72.dp)),
+                        .then(if (s == Screen.Stats || dockHidden) Modifier.navigationBarsPadding() else Modifier.navigationBarsPadding().padding(bottom = 72.dp)),
                 ) {
                     when (s) {
                         Screen.Stats -> StatsScreen(
@@ -388,6 +389,7 @@ private fun App() {
                                     "Last error ${VpnState.error.value ?: "none"}"
                             },
                             onScrolledChange = { serversScrolled = it },
+                            onFullScreenChange = { menuFullScreen = it },
                         )
                     }
                 }

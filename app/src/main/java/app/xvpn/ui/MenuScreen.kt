@@ -73,7 +73,7 @@ import androidx.compose.material.icons.outlined.PhoneAndroid
 import androidx.compose.material.icons.outlined.PowerSettingsNew
 import androidx.compose.material.icons.outlined.RemoveCircleOutline
 import androidx.compose.material.icons.outlined.Shield
-import androidx.compose.material.icons.outlined.Share
+import androidx.compose.material.icons.outlined.IosShare
 import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material.icons.outlined.Support
 import androidx.compose.material.icons.outlined.Sync
@@ -129,6 +129,7 @@ fun MenuScreen(
     store: Store,
     debugInfo: () -> String,
     onScrolledChange: (Boolean) -> Unit = {},
+    onFullScreenChange: (Boolean) -> Unit = {},
 ) {
     val pageState = remember { mutableStateOf("main") }
     val scroll = rememberScrollState()
@@ -138,7 +139,7 @@ fun MenuScreen(
         modifier = Modifier.fillMaxSize(),
         transitionSpec = { axisTransition(forward = pageDepth(targetState) >= pageDepth(initialState), distance = 0.2f) },
         label = "settingsPage",
-    ) { shown -> MenuPage(store, debugInfo, onScrolledChange, pageState, scroll, shown) }
+    ) { shown -> MenuPage(store, debugInfo, onScrolledChange, onFullScreenChange, pageState, scroll, shown) }
 }
 
 private fun pageDepth(p: String) = when (p) {
@@ -158,6 +159,7 @@ private fun MenuPage(
     store: Store,
     debugInfo: () -> String,
     onScrolledChange: (Boolean) -> Unit,
+    onFullScreenChange: (Boolean) -> Unit,
     pageState: MutableState<String>,
     scroll: ScrollState,
     shown: String,
@@ -288,7 +290,7 @@ private fun MenuPage(
             return
         }
         "logs" -> {
-            LogsPage(info = debugInfo(), onBack = { page = "main" })
+            LogsPage(info = debugInfo(), onScrolledChange = onScrolledChange, onFullScreenChange = onFullScreenChange, onBack = { page = "main" })
             return
         }
         "test" -> {
@@ -538,29 +540,36 @@ private suspend fun readLogs(): String = withContext(Dispatchers.IO) {
 }
 
 @Composable
-private fun LogsPage(info: String, onBack: () -> Unit) {
+private fun LogsPage(
+    info: String, onScrolledChange: (Boolean) -> Unit, onFullScreenChange: (Boolean) -> Unit, onBack: () -> Unit,
+) {
     val ctx = LocalContext.current
     val logs by produceState<String?>(null) { value = readLogs() }
     BackHandler(true) { onBack() }
+    // Full-screen page: hide the bottom bar and tint the status strip like the header.
+    ReportScrolled(true, onScrolledChange)
+    DisposableEffect(Unit) { onFullScreenChange(true); onDispose { onFullScreenChange(false) } }
     Column(Modifier.fillMaxSize()) {
-        Spacer(Modifier.height(20.dp))
-        HeaderRow {
-            HeaderIcon(Icons.AutoMirrored.Filled.ArrowBack, "Back", onClick = onBack)
-            Spacer(Modifier.width(6.dp))
-            Text("Log", color = C.Text, fontSize = 22.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, modifier = Modifier.weight(1f))
-            HeaderIcon(Icons.Outlined.Share, "Share logs") {
-                logs?.let {
-                    val send = Intent(Intent.ACTION_SEND).setType("text/plain")
-                        .putExtra(Intent.EXTRA_SUBJECT, "Outrun VPN logs").putExtra(Intent.EXTRA_TEXT, info + "\n\n" + it)
-                    ctx.launch(Intent.createChooser(send, "Share logs"), "Couldn't share logs")
+        Column(Modifier.fillMaxWidth().background(C.Card)) {
+            Spacer(Modifier.height(20.dp))
+            HeaderRow {
+                HeaderIcon(Icons.AutoMirrored.Filled.ArrowBack, "Back", onClick = onBack)
+                Spacer(Modifier.width(6.dp))
+                Text("Log", color = C.Text, fontSize = 22.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, modifier = Modifier.weight(1f))
+                HeaderIcon(Icons.Outlined.IosShare, "Share logs") {
+                    logs?.let {
+                        val send = Intent(Intent.ACTION_SEND).setType("text/plain")
+                            .putExtra(Intent.EXTRA_SUBJECT, "Outrun VPN logs").putExtra(Intent.EXTRA_TEXT, info + "\n\n" + it)
+                        ctx.launch(Intent.createChooser(send, "Share logs"), "Couldn't share logs")
+                    }
                 }
             }
+            Spacer(Modifier.height(8.dp))
         }
-        Spacer(Modifier.height(8.dp))
+        Box(Modifier.fillMaxWidth().height(1.dp).background(C.CardBorder))
         Text(
-            logs ?: "Loading…", color = if (logs == null) C.Muted else C.Text,
-            style = TextStyle(fontSize = 12.sp, fontFamily = FontFamily.Monospace),
-            modifier = Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 8.dp),
+            logs ?: "Loading…", color = if (logs == null) C.Muted else C.Text, fontSize = 14.sp,
+            modifier = Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(bottom = 16.dp),
         )
     }
 }
