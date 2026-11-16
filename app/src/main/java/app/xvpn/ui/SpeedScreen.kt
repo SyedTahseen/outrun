@@ -2,6 +2,7 @@ package app.xvpn.ui
 
 import android.content.Intent
 import android.graphics.Bitmap
+import android.os.Build
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
@@ -76,6 +77,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.BlurredEdgeTreatment
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -439,23 +442,49 @@ private fun buildSmoke(): Bitmap {
 
 private val SmokeBlur = listOf(-14f to 0.1f, -7f to 0.2f, 0f to 0.4f, 7f to 0.2f, 14f to 0.1f)
 
-/** The START button from the design: a multicolor ring with light scattering through colored smoke around it, drawn entirely in code. */
+/** The thick gradient ring drawn once; the caller blurs this layer to get the glow. */
+@Composable
+private fun RingGlowLayer(modifier: Modifier, strokeDp: Float, alpha: Float) {
+    Canvas(modifier.fillMaxSize()) {
+        drawCircle(
+            brush = Brush.sweepGradient(*RingStops, center = center),
+            radius = RING_R.dp.toPx(), alpha = alpha, style = Stroke(strokeDp.dp.toPx()),
+        )
+    }
+}
+
+/**
+ * The START button from the design. The glow is the ring itself, really blurred (RenderEffect, Android 12+): the colors of the ring
+ * bleed into each other and into the dark, like light through smoke. A wide, faint blur sits under a tighter, brighter one.
+ * Blur is not available before Android 12, so older phones get a pre-computed soft cloud instead.
+ */
 @Composable
 private fun StartRing(enabled: Boolean, onClick: () -> Unit) {
     val on by animateFloatAsState(if (enabled) 1f else 0.35f, tween(Motion.Medium), label = "ringOn")
     val tick = rememberTick(strong = true)
-    val smoke = remember { buildSmoke().asImageBitmap() }
+    val blurOk = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
     Box(Modifier.size(RING_BOX.dp), contentAlignment = Alignment.Center) {
+        if (blurOk) {
+            RingGlowLayer(Modifier.blur(20.dp, BlurredEdgeTreatment.Unbounded), RING_W, 0.55f * on)
+            RingGlowLayer(Modifier.blur(9.dp, BlurredEdgeTreatment.Unbounded), RING_W, 0.85f * on)
+        } else {
+            val smoke = remember { buildSmoke().asImageBitmap() }
+            Canvas(Modifier.fillMaxSize()) {
+                drawImage(
+                    smoke, dstSize = IntSize(size.width.roundToInt(), size.height.roundToInt()),
+                    alpha = on, filterQuality = FilterQuality.High,
+                )
+            }
+        }
         Canvas(Modifier.fillMaxSize()) {
-            drawImage(
-                smoke, dstSize = IntSize(size.width.roundToInt(), size.height.roundToInt()),
-                alpha = on, filterQuality = FilterQuality.High,
-            )
-            val brush = Brush.sweepGradient(*RingStops, center = center)
             val r = RING_R.dp.toPx()
+            val w = RING_W.dp.toPx()
+            // Dark face: keeps the glow outside the ring, like the design.
+            drawCircle(color = C.Bg, radius = r - w / 2f)
+            val brush = Brush.sweepGradient(*RingStops, center = center)
             // A faint wider pass softens the ring's edges like in the design.
-            drawCircle(brush = brush, radius = r, alpha = 0.25f * on, style = Stroke((RING_W + 3f).dp.toPx()))
-            drawCircle(brush = brush, radius = r, alpha = on, style = Stroke(RING_W.dp.toPx()))
+            drawCircle(brush = brush, radius = r, alpha = 0.25f * on, style = Stroke(w + 3.dp.toPx()))
+            drawCircle(brush = brush, radius = r, alpha = on, style = Stroke(w))
         }
         Box(
             Modifier.size(170.dp).pressable(CircleShape, 0.94f, enabled = enabled, ripple = false) { tick(); onClick() },
