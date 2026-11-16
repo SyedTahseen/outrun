@@ -52,7 +52,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -86,6 +86,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
@@ -126,15 +127,12 @@ import kotlin.math.roundToInt
 import kotlin.math.sin
 import kotlin.math.sqrt
 
-// Colors sampled from the design video.
-private val DownColor = Color(0xFFEE6B3B)   // orange
-private val UpColor = Color(0xFF7C5CFF)     // purple
-private val PinkTip = Color(0xFFC85AA0)
+// Same colors as the rest of the app: green = download, red = upload.
+private val DownColor = C.Green
+private val UpColor = C.Red
 private val BlueTip = Color(0xFF2F7BF0)
-private val AmberTip = Color(0xFFF0B04A)
-private val GreenTip = Color(0xFF3DDC97)
-private val Dim = Color(0xFF6C6B78)         // label of a tile that isn't being measured
-private val Mono = FontFamily.Monospace
+private val Dim = C.Muted         // label of a tile that isn't being measured
+private val Mono = FontFamily.Monospace   // only for the raw log
 
 private enum class SpeedView { Start, Running, Done }
 
@@ -267,10 +265,10 @@ private fun StartView(
 
             SettingLabel("Select server")
             Row(
-                Modifier.fillMaxWidth().height(48.dp).pressable(RoundedCornerShape(12.dp), 0.98f, onClick = onPickServer).background(C.Card).padding(horizontal = 16.dp),
+                Modifier.fillMaxWidth().height(56.dp).pressable(RoundedCornerShape(Radius.Card), 0.98f, onClick = onPickServer).background(C.Card).padding(horizontal = 16.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(serverName ?: "No server selected", color = C.Muted, fontSize = 14.sp, maxLines = 1, modifier = Modifier.weight(1f))
+                Text(serverName ?: "No server selected", color = if (serverName != null) C.Text else C.Muted, fontSize = 16.sp, fontWeight = FontWeight.Medium, maxLines = 1, modifier = Modifier.weight(1f))
                 Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, "Choose server", tint = C.Muted, modifier = Modifier.size(22.dp))
             }
 
@@ -281,8 +279,8 @@ private fun StartView(
                 Modifier.align(Alignment.CenterHorizontally).padding(top = 6.dp).pressable(RoundedCornerShape(10.dp), 0.95f) { more = !more }.padding(horizontal = 14.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("More", color = C.Muted, fontSize = 13.sp)
-                Icon(Icons.Filled.KeyboardArrowDown, null, tint = C.Muted, modifier = Modifier.size(18.dp).graphicsLayer { rotationZ = chevron })
+                Text("More", color = C.Accent, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                Icon(Icons.Filled.KeyboardArrowDown, null, tint = C.Accent, modifier = Modifier.size(18.dp).graphicsLayer { rotationZ = chevron })
             }
             AnimatedVisibility(
                 visible = more,
@@ -305,24 +303,23 @@ private fun StartView(
 
 @Composable
 private fun SettingLabel(text: String) {
-    Text(text, color = C.Text, fontSize = 13.sp, modifier = Modifier.padding(top = 18.dp, bottom = 8.dp))
+    Text(text, color = C.Muted, fontSize = 15.sp, modifier = Modifier.padding(top = 22.dp, bottom = 10.dp))
 }
 
-/** Text segments in a dark tray; the chosen one is a white pill, as in the design. */
+/** Option chips like the ones on the servers screen: purple when chosen, grey otherwise. */
 @Composable
 private fun Segmented(options: List<String>, selected: Int, enabled: List<Boolean> = options.map { true }, onSelect: (Int) -> Unit) {
     val tick = rememberTick()
-    Row(Modifier.fillMaxWidth().height(44.dp).clip(RoundedCornerShape(12.dp)).background(C.Card)) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         options.forEachIndexed { i, label ->
             val on = i == selected
-            val bg by animateColorAsState(if (on) Color.White else Color.Transparent, tween(Motion.Short + 50), label = "segBg")
-            val fg by animateColorAsState(if (on) Color.Black else if (enabled[i]) C.Text else Dim, tween(Motion.Short + 50), label = "segFg")
+            val bg by animateColorAsState(if (on) C.Button else C.ButtonGrey, tween(Motion.Medium), label = "segBg")
             Box(
-                Modifier.weight(1f).fillMaxHeight().padding(2.dp)
-                    .pressable(RoundedCornerShape(10.dp), 0.96f, enabled = enabled[i]) { tick(); onSelect(i) }
+                Modifier.weight(1f).height(44.dp)
+                    .pressable(RoundedCornerShape(Radius.Small), 0.95f, enabled = enabled[i]) { if (!on) tick(); onSelect(i) }
                     .background(bg),
                 contentAlignment = Alignment.Center,
-            ) { Text(label, color = fg, fontSize = 14.sp) }
+            ) { Text(label, color = if (enabled[i]) Color.White else Color.White.copy(alpha = 0.35f), fontSize = 17.sp, fontWeight = FontWeight.Medium) }
         }
     }
 }
@@ -334,16 +331,15 @@ private val ModeItems = listOf(
     TransmitMode.Alternate to "Alternate",
 )
 
-/** Four icon tabs with their names underneath: Download, Upload, Bidirectional, Alternate. */
+/** Four icon chips with their names underneath: Download, Upload, Bidirectional, Alternate. */
 @Composable
 private fun ModePicker(selected: TransmitMode, onSelect: (TransmitMode) -> Unit) {
     val tick = rememberTick()
     Column {
-        Row(Modifier.fillMaxWidth().height(48.dp).clip(RoundedCornerShape(12.dp)).background(C.Card)) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             ModeItems.forEach { (m, _) ->
                 val on = m == selected
-                val bg by animateColorAsState(if (on) Color.White else Color.Transparent, tween(Motion.Short + 50), label = "modeBg")
-                val fg by animateColorAsState(if (on) Color.Black else C.Text, tween(Motion.Short + 50), label = "modeFg")
+                val bg by animateColorAsState(if (on) C.Button else C.ButtonGrey, tween(Motion.Medium), label = "modeBg")
                 val icon = when (m) {
                     TransmitMode.Download -> Icons.Outlined.ArrowDownward
                     TransmitMode.Upload -> Icons.Outlined.ArrowUpward
@@ -351,29 +347,28 @@ private fun ModePicker(selected: TransmitMode, onSelect: (TransmitMode) -> Unit)
                     TransmitMode.Alternate -> Icons.Outlined.SyncAlt
                 }
                 Box(
-                    Modifier.weight(1f).fillMaxHeight().padding(2.dp)
-                        .pressable(RoundedCornerShape(10.dp), 0.96f) { tick(); onSelect(m) }
+                    Modifier.weight(1f).height(48.dp)
+                        .pressable(RoundedCornerShape(Radius.Small), 0.95f) { if (!on) tick(); onSelect(m) }
                         .background(bg),
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
-                        icon, m.name, tint = fg,
+                        icon, m.name, tint = Color.White,
                         modifier = Modifier.size(22.dp).graphicsLayer { if (m == TransmitMode.Alternate) rotationZ = 90f },
                     )
                 }
             }
         }
         Spacer(Modifier.height(6.dp))
-        Row(Modifier.fillMaxWidth()) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             ModeItems.forEach { (m, name) ->
                 val c by animateColorAsState(if (m == selected) C.Text else C.Muted, tween(Motion.Short + 50), label = "modeLabel")
-                Text(name, color = c, fontSize = 11.sp, textAlign = TextAlign.Center, maxLines = 1, modifier = Modifier.weight(1f))
+                Text(name, color = c, fontSize = 12.sp, textAlign = TextAlign.Center, maxLines = 1, modifier = Modifier.weight(1f))
             }
         }
     }
 }
 
-// Ring colors sampled every 20 degrees from the design, clockwise from 3 o'clock (green, purple, blue, teal, purple, orange, blue, tan, pink, purple, orange, olive).
 private val RingHex = longArrayOf(
     0x3b9272, 0x56806c, 0x714980, 0x094faf, 0x0a57a2, 0x256b63, 0x496593, 0x8957b5, 0xf56932,
     0xdb643e, 0x0962cf, 0x0961cd, 0xaa866f, 0x975a6e, 0x9a59a7, 0xf96b33, 0xee662f, 0x7e714d,
@@ -470,20 +465,15 @@ private fun RunningView(ui: SpeedUi, mode: Int, onMode: (Int) -> Unit, connectio
         Column(Modifier.fillMaxSize()) {
             Spacer(Modifier.height(20.dp))
             TitleBar(
-                left = { HeaderIcon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, "Back") { SpeedTest.stop() } },
-                right = {
-                    Text(
-                        "Stop", color = C.Muted, fontSize = 17.sp,
-                        modifier = Modifier.clip(RoundedCornerShape(Radius.Small)).clickable { SpeedTest.stop() }.padding(horizontal = 8.dp, vertical = 10.dp),
-                    )
-                },
+                left = { HeaderIcon(Icons.AutoMirrored.Filled.ArrowBack, "Back") { SpeedTest.stop() } },
+                right = { TextAction("Stop") { SpeedTest.stop() } },
             )
             Spacer(Modifier.height(8.dp))
             Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp).staggerIn(0), verticalAlignment = Alignment.Top) {
                 Column(Modifier.weight(1f)) {
-                    Text("%02ds".format(cfg.seconds), color = C.Muted, fontSize = 13.sp, fontFamily = Mono)
+                    Text("%02ds".format(cfg.seconds), color = C.Muted, fontSize = 14.sp, fontWeight = FontWeight.Medium)
                     Spacer(Modifier.height(4.dp))
-                    Text("%02d:%02ds".format(secs / 60, secs % 60), color = C.Text, fontSize = 13.sp, fontFamily = Mono)
+                    Text("%02d:%02ds".format(secs / 60, secs % 60), color = C.Text, fontSize = 14.sp, fontWeight = FontWeight.Medium)
                 }
                 ModeToggle(mode, onMode)
             }
@@ -523,9 +513,9 @@ private fun dialMax(peak: Double): Double = DialSteps.firstOrNull { peak <= it *
 private fun dialStops(upload: Boolean): Array<Pair<Float, Color>> {
     fun at(f: Float) = (DIAL_START + DIAL_SWEEP * f) / 360f
     return if (upload) arrayOf(
-        0f to UpColor, at(0.28f) to UpColor, at(0.48f) to AmberTip, at(0.68f) to GreenTip, 1f to GreenTip,
+        0f to UpColor, at(0.12f) to UpColor, at(0.6f) to C.Accent, 1f to C.Accent,
     ) else arrayOf(
-        0f to DownColor, at(0.12f) to DownColor, at(0.33f) to PinkTip, at(0.58f) to BlueTip, 1f to BlueTip,
+        0f to DownColor, at(0.12f) to DownColor, at(0.6f) to BlueTip, 1f to BlueTip,
     )
 }
 
@@ -625,8 +615,8 @@ private fun DoneView(ui: SpeedUi, mode: Int, onMode: (Int) -> Unit, connection: 
         Column(Modifier.fillMaxSize()) {
             Spacer(Modifier.height(20.dp))
             TitleBar(
-                left = { HeaderIcon(Icons.Outlined.IosShare, "Share result", onClick = onShare) },
-                right = { HeaderIcon(Icons.Filled.Close, "Close") { SpeedTest.reset() } },
+                left = { HeaderIcon(Icons.AutoMirrored.Filled.ArrowBack, "Back") { SpeedTest.reset() } },
+                right = { HeaderIcon(Icons.Outlined.IosShare, "Share result", onClick = onShare) },
             )
             Spacer(Modifier.height(8.dp))
             Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp), horizontalArrangement = Arrangement.End) { ModeToggle(mode, onMode) }
@@ -634,11 +624,11 @@ private fun DoneView(ui: SpeedUi, mode: Int, onMode: (Int) -> Unit, connection: 
                 Spacer(Modifier.height(12.dp))
                 if (mode == 0) {
                     Column(Modifier.fillMaxWidth().staggerIn(0).clip(RoundedCornerShape(Radius.Card)).background(C.Card)) {
-                        Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 20.dp)) {
+                        Row(Modifier.fillMaxWidth().padding(start = 18.dp, end = 18.dp, top = 18.dp)) {
                             BigStat("Download", DownColor, mbps(downShown), "Mbps", Modifier.weight(1f))
                             BigStat("Upload", UpColor, mbps(upShown), "Mbps", Modifier.weight(1f))
                         }
-                        Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 18.dp)) {
+                        Row(Modifier.fillMaxWidth().padding(start = 18.dp, end = 18.dp, top = 16.dp)) {
                             BigStat("Ping", Dim, ms(ui.pingMs), "ms", Modifier.weight(1f))
                             BigStat("Jitter", Dim, ms(ui.jitterMs), "ms", Modifier.weight(1f))
                         }
@@ -653,13 +643,13 @@ private fun DoneView(ui: SpeedUi, mode: Int, onMode: (Int) -> Unit, connection: 
                 Spacer(Modifier.height(20.dp))
                 Column(Modifier.staggerIn(1)) { InfoRows(connection, ui.cfg) }
                 Spacer(Modifier.height(20.dp))
+                val tickAgain = rememberTick(strong = true)
                 Box(
-                    Modifier.align(Alignment.CenterHorizontally).staggerIn(2).width(176.dp)
-                        .pressable(RoundedCornerShape(26.dp), 0.96f) { SpeedTest.start(if (ui.viaVpn) VpnState.socksPort.value else 0) }
-                        .background(Brush.verticalGradient(listOf(Color.White, Color(0xFFD8D8DE))))
-                        .padding(vertical = 14.dp),
+                    Modifier.fillMaxWidth().staggerIn(2).height(54.dp)
+                        .pressable(RoundedCornerShape(Radius.Small), 0.97f) { tickAgain(); SpeedTest.start(if (ui.viaVpn) VpnState.socksPort.value else 0) }
+                        .background(C.Button),
                     contentAlignment = Alignment.Center,
-                ) { Text("Test Again", color = Color.Black, fontSize = 15.sp, fontWeight = FontWeight.Medium) }
+                ) { Text("Test Again", color = Color.White, fontSize = 19.sp, fontWeight = FontWeight.Medium) }
                 Spacer(Modifier.height(SheetClearance + 8.dp))
             }
         }
@@ -672,15 +662,15 @@ private fun DoneView(ui: SpeedUi, mode: Int, onMode: (Int) -> Unit, connection: 
 private fun HistorySheet(modifier: Modifier = Modifier) {
     val items by SpeedTest.history.collectAsState()
     var open by remember { mutableStateOf(false) }
-    val shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+    val shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
     Column(
-        modifier.fillMaxWidth().clip(shape).background(C.Card).border(1.dp, C.CardBorder.copy(alpha = 0.5f), shape)
+        modifier.fillMaxWidth().clip(shape).background(C.Card).border(1.dp, C.CardBorder, shape)
             .animateContentSize(tween(Motion.Medium, easing = Motion.Standard)),
     ) {
         Column(Modifier.fillMaxWidth().clickable { open = !open }.padding(top = 8.dp, bottom = 16.dp)) {
             Box(Modifier.align(Alignment.CenterHorizontally).size(width = 36.dp, height = 4.dp).clip(CircleShape).background(C.ButtonGrey))
             Spacer(Modifier.height(10.dp))
-            Text("Client history", color = C.Text, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 20.dp))
+            Text("Client history", color = C.Text, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 20.dp))
         }
         if (open) {
             val fmt = remember { SimpleDateFormat("d MMM · HH:mm", Locale.getDefault()) }
@@ -699,77 +689,82 @@ private fun HistorySheet(modifier: Modifier = Modifier) {
 private fun HistoryRow(r: SpeedResult, whenText: String) {
     Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
-            Text(whenText, color = C.Text, fontSize = 14.sp)
-            Text(if (r.viaVpn) "VPN" else "Direct", color = C.Muted, fontSize = 12.sp)
+            Text(whenText, color = C.Text, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+            Text(if (r.viaVpn) "VPN" else "Direct", color = C.Muted, fontSize = 14.sp)
         }
         Text(
             "${mbps(r.downMbps)} \u2193  ${mbps(r.upMbps)} \u2191  ${ms(r.pingMs)} ms",
-            color = C.Text, fontSize = 13.sp, fontFamily = Mono, textAlign = TextAlign.End,
+            color = C.Text, fontSize = 14.sp, fontWeight = FontWeight.Medium, textAlign = TextAlign.End,
         )
     }
 }
 
 // ---------------------------------------------------------------- shared pieces
 
-/** Header with a centered title, an action on each side and no tab-style left alignment. */
+/** The standard sub-page header of the app: left action (back arrow), title, right action. */
 @Composable
 private fun TitleBar(left: @Composable () -> Unit, right: @Composable () -> Unit) {
-    Box(Modifier.fillMaxWidth().padding(horizontal = 20.dp).height(44.dp)) {
-        Box(Modifier.align(Alignment.CenterStart)) { left() }
-        Text("Speed test", color = C.Text, fontSize = 17.sp, modifier = Modifier.align(Alignment.Center))
-        Box(Modifier.align(Alignment.CenterEnd)) { right() }
+    HeaderRow {
+        left()
+        Spacer(Modifier.width(6.dp))
+        Text("Speed test", color = C.Text, fontSize = 22.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, modifier = Modifier.weight(1f))
+        right()
     }
+}
+
+/** Accent text action in the header, like "Save" on the settings pages. */
+@Composable
+private fun TextAction(label: String, onClick: () -> Unit) {
+    Text(
+        label, color = C.Accent, fontSize = 17.sp, fontWeight = FontWeight.SemiBold,
+        modifier = Modifier.clip(RoundedCornerShape(Radius.Small)).clickable(onClick = onClick).padding(12.dp),
+    )
 }
 
 /** Gauge / log switch. */
 @Composable
 private fun ModeToggle(mode: Int, onMode: (Int) -> Unit) {
-    Row(Modifier.clip(RoundedCornerShape(10.dp)).background(C.Card).padding(2.dp)) {
+    Row(Modifier.clip(RoundedCornerShape(Radius.Small)).background(C.Card).padding(2.dp)) {
         listOf(Icons.Outlined.Speed, Icons.Outlined.Terminal).forEachIndexed { i, icon ->
             val on = i == mode
-            val bg by animateColorAsState(if (on) C.ButtonGrey else Color.Transparent, tween(Motion.Short + 50), label = "toggleBg")
-            val tint by animateColorAsState(if (on) C.Text else C.Muted, tween(Motion.Short + 50), label = "toggleTint")
+            val bg by animateColorAsState(if (on) C.Button else Color.Transparent, tween(Motion.Short + 50), label = "toggleBg")
+            val tint by animateColorAsState(if (on) Color.White else C.Muted, tween(Motion.Short + 50), label = "toggleTint")
             Box(
-                Modifier.size(width = 44.dp, height = 32.dp).clip(RoundedCornerShape(8.dp)).background(bg).clickable { onMode(i) },
+                Modifier.size(width = 44.dp, height = 32.dp).clip(RoundedCornerShape(6.dp)).background(bg).clickable { onMode(i) },
                 contentAlignment = Alignment.Center,
             ) { Icon(icon, if (i == 0) "Gauge" else "Log", tint = tint, modifier = Modifier.size(20.dp)) }
         }
     }
 }
 
-/** Download / Upload on top, Ping / Jitter below, as tightly packed tiles. The tile being measured gets a colored label, the others are dimmed. */
+/** Download / Upload on top, Ping / Jitter below. The tile being measured gets a colored label, the others are muted. */
 @Composable
 private fun StatGrid(ui: SpeedUi, highlightDown: Boolean, highlightUp: Boolean, modifier: Modifier = Modifier) {
     val bidirLive = ui.cfg.mode == TransmitMode.Bidirectional && ui.phase == SpeedPhase.Download
     val down = if (ui.phase == SpeedPhase.Download) ui.live else ui.downMbps
     val up = if (ui.phase == SpeedPhase.Upload) ui.live else if (bidirLive) ui.liveUp else ui.upMbps
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-            StatTile("Download", if (highlightDown) DownColor else Dim, mbps(down.coerceAtLeast(0.0)), "Mbps", true, Modifier.weight(1f))
-            StatTile("Upload", if (highlightUp) UpColor else Dim, mbps(up.coerceAtLeast(0.0)), "Mbps", true, Modifier.weight(1f))
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            StatTile("Download", if (highlightDown) DownColor else Dim, mbps(down.coerceAtLeast(0.0)), "Mbps", Modifier.weight(1f))
+            StatTile("Upload", if (highlightUp) UpColor else Dim, mbps(up.coerceAtLeast(0.0)), "Mbps", Modifier.weight(1f))
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-            StatTile("Ping", Dim, ms(ui.pingMs.coerceAtLeast(0)), "ms", false, Modifier.weight(1f))
-            StatTile("Jitter", Dim, ms(ui.jitterMs.coerceAtLeast(0)), "ms", false, Modifier.weight(1f))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            StatTile("Ping", Dim, ms(ui.pingMs.coerceAtLeast(0)), "ms", Modifier.weight(1f))
+            StatTile("Jitter", Dim, ms(ui.jitterMs.coerceAtLeast(0)), "ms", Modifier.weight(1f))
         }
     }
 }
 
-/** [bigUnit]: the unit is as large as the value ("560 Mbps"); otherwise it is a small suffix ("10 %"), like in the design. */
+/** Same look as the cards on the usage and stats screens: muted label, big semibold value, small unit. */
 @Composable
-private fun StatTile(label: String, labelColor: Color, value: String, unit: String, bigUnit: Boolean, modifier: Modifier = Modifier) {
+private fun StatTile(label: String, labelColor: Color, value: String, unit: String, modifier: Modifier = Modifier) {
     val labelShown by animateColorAsState(labelColor, tween(Motion.Medium), label = "tileLabel")
-    Column(modifier.height(72.dp).clip(RoundedCornerShape(14.dp)).background(C.Card).padding(horizontal = 14.dp, vertical = 10.dp)) {
-        Text(label, color = labelShown, fontSize = 12.sp)
-        Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-            Row(verticalAlignment = Alignment.Bottom) {
-                Text(value, color = C.Text, fontSize = 17.sp, fontFamily = Mono, maxLines = 1)
-                Spacer(Modifier.width(if (bigUnit) 6.dp else 4.dp))
-                Text(
-                    unit, color = C.Text, fontSize = if (bigUnit) 17.sp else 10.sp, fontFamily = Mono,
-                    modifier = if (bigUnit) Modifier else Modifier.padding(bottom = 3.dp),
-                )
-            }
+    Column(modifier.clip(RoundedCornerShape(Radius.Card)).background(C.Card).padding(horizontal = 14.dp, vertical = 10.dp)) {
+        Text(label, color = labelShown, fontSize = 13.sp)
+        Row(verticalAlignment = Alignment.Bottom) {
+            Text(value, color = C.Text, fontSize = 22.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+            Spacer(Modifier.width(4.dp))
+            Text(unit, color = C.Muted, fontSize = 13.sp, modifier = Modifier.padding(bottom = 3.dp))
         }
     }
 }
@@ -777,12 +772,12 @@ private fun StatTile(label: String, labelColor: Color, value: String, unit: Stri
 @Composable
 private fun BigStat(label: String, labelColor: Color, value: String, unit: String, modifier: Modifier = Modifier) {
     Column(modifier) {
-        Text(label, color = labelColor, fontSize = 13.sp)
-        Spacer(Modifier.height(6.dp))
+        Text(label, color = labelColor, fontSize = 14.sp)
+        Spacer(Modifier.height(4.dp))
         Row(verticalAlignment = Alignment.Bottom) {
-            Text(value, color = C.Text, fontSize = 20.sp, fontFamily = Mono, maxLines = 1)
+            Text(value, color = C.Text, fontSize = 24.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
             Spacer(Modifier.width(4.dp))
-            Text(unit, color = C.Text, fontSize = 11.sp, fontFamily = Mono, modifier = Modifier.padding(bottom = 3.dp))
+            Text(unit, color = C.Muted, fontSize = 13.sp, modifier = Modifier.padding(bottom = 3.dp))
         }
     }
 }
@@ -827,6 +822,11 @@ private fun SpeedChart(down: List<Float>, up: List<Float>, progress: Float, modi
             drawPath(fill, Brush.verticalGradient(listOf(color.copy(alpha = 0.35f), Color.Transparent)))
             drawPath(path, color, style = Stroke(2.dp.toPx(), cap = StrokeCap.Round))
         }
+        val dash = PathEffect.dashPathEffect(floatArrayOf(10f, 10f))
+        for (f in listOf(0f, 0.5f, 1f)) {
+            val y = size.height - f * (size.height - 2.dp.toPx()) - 1.dp.toPx()
+            drawLine(Color(0xFF3A3944), Offset(0f, y), Offset(size.width, y), 1.dp.toPx(), pathEffect = dash)
+        }
         clipRect(right = size.width * progress.coerceIn(0f, 1f)) {
             line(down, DownColor)
             line(up, UpColor)
@@ -834,22 +834,26 @@ private fun SpeedChart(down: List<Float>, up: List<Float>, progress: Float, modi
     }
 }
 
+/** The connection details as one card with divider lines, exactly like "Connection details" on the stats screen. */
 @Composable
 private fun InfoRows(connection: String, cfg: SpeedConfig) {
-    InfoRow("Server", "Cloudflare")
-    InfoRow("Connection", connection)
-    InfoRow("Transmit Mode", cfg.mode.name)
-    InfoRow("Test duration", "${cfg.seconds}s")
-    InfoRow("Streams", "${cfg.streams}")
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(Radius.Card)).background(C.Card)) {
+        InfoRow("Server", "Cloudflare")
+        InfoRow("Connection", connection)
+        InfoRow("Transmit Mode", cfg.mode.name)
+        InfoRow("Test duration", "${cfg.seconds}s")
+        InfoRow("Streams", "${cfg.streams}", last = true)
+    }
 }
 
 @Composable
-private fun InfoRow(label: String, value: String) {
-    Row(Modifier.fillMaxWidth().padding(vertical = 9.dp), verticalAlignment = Alignment.Top) {
-        Text(label, color = C.Muted, fontSize = 13.sp)
+private fun InfoRow(label: String, value: String, last: Boolean = false) {
+    Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 14.dp), verticalAlignment = Alignment.Top) {
+        Text(label, color = C.Muted, fontSize = 16.sp)
         Spacer(Modifier.width(16.dp))
-        Text(value, color = C.Text, fontSize = 13.sp, fontFamily = Mono, textAlign = TextAlign.End, modifier = Modifier.weight(1f))
+        Text(value, color = C.Text, fontSize = 16.sp, fontWeight = FontWeight.Medium, textAlign = TextAlign.End, modifier = Modifier.weight(1f))
     }
+    if (!last) Box(Modifier.fillMaxWidth().height(1.dp).background(C.CardBorder))
 }
 
 private fun mbps(v: Double): String = when {
