@@ -248,7 +248,7 @@ private fun StartView(
             Spacer(Modifier.height(30.dp)) // headroom so the ring's haze isn't cut off by the scroll area
             Box(Modifier.align(Alignment.CenterHorizontally)) { StartRing(enabled = !connecting, onClick = onStart) }
             val note = when {
-                ui.phase == SpeedPhase.Failed -> "Couldn't reach the test server. Check your connection and try again." to C.Red
+                ui.phase == SpeedPhase.Failed -> ("Couldn't finish the test" + (ui.error.takeIf { it.isNotBlank() }?.let { " ($it)" } ?: "") + ". Check your connection and try again.") to C.Red
                 connecting -> "Wait for the VPN to finish connecting." to C.Muted
                 else -> null
             }

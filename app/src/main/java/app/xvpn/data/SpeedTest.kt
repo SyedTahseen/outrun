@@ -57,6 +57,8 @@ data class SpeedUi(
     val downSeries: List<Float> = emptyList(),
     val upSeries: List<Float> = emptyList(),
     val log: List<String> = emptyList(),
+    /** Why the last test failed, for the message on the start screen. */
+    val error: String = "",
     val startedAt: Long = 0L,
     /** When the current phase began, for the per-phase timer. */
     val phaseStartedAt: Long = 0L,
@@ -80,7 +82,7 @@ data class SpeedResult(
 object SpeedTest {
     private const val BASE = "https://speed.cloudflare.com"
     private const val WARMUP_MS = 1_000L
-    private const val DOWN_BYTES = 50_000_000
+    private const val DOWN_BYTES = 10_000_000   // many shorter requests, like Cloudflare's own test, instead of one very long one
     private const val CHUNK = 64 * 1024
     private const val UP_BYTES = CHUNK * 150L // a whole number of chunks
 
@@ -193,8 +195,9 @@ object SpeedTest {
                 log("Stopped")
                 throw e
             } catch (e: Exception) {
-                state.update { it.copy(phase = SpeedPhase.Failed, live = 0.0, liveUp = 0.0) }
-                log("Failed: " + (e.message ?: e.javaClass.simpleName))
+                val why = e.message ?: e.javaClass.simpleName
+                state.update { it.copy(phase = SpeedPhase.Failed, live = 0.0, liveUp = 0.0, error = why) }
+                log("Failed: $why")
             }
         }
     }
@@ -243,14 +246,17 @@ object SpeedTest {
         val deadline = start + phaseMs
         val chunk = ByteArray(CHUNK).also { Random.nextBytes(it) }
 
+        val lastError = java.util.concurrent.atomic.AtomicReference<String?>(null)
         val workers = List(streams) {
             launch {
                 var fails = 0
-                while (isActive && nowMs() < deadline && fails < 2) {
+                while (isActive && nowMs() < deadline && fails < 5) {
                     try {
                         if (upload) uploadOnce(socks, chunk, bytes, deadline) else downloadOnce(socks, bytes, deadline)
-                    } catch (e: IOException) {
-                        fails++; delay(200)
+                    } catch (e: Exception) {
+                        if (e is CancellationException) throw e
+                        lastError.set(e.message ?: e.javaClass.simpleName)
+                        fails++; delay(300)
                     }
                 }
             }
@@ -275,13 +281,21 @@ object SpeedTest {
         val endB = bytes.get()
         val endT = nowMs()
         if (warmT == 0L) { warmB = 0; warmT = start }
-        if (endB <= 0 || endT <= warmT) throw IOException("no data")
+        if (endB <= 0 || endT <= warmT) throw IOException(lastError.get() ?: "no data")
         (endB - warmB) * 8.0 / 1e6 / ((endT - warmT) / 1000.0)
     }
 
+    /** A request to the test server that asks for the raw bytes (no compression, so the count is what really crossed the network). */
+    private fun speedConnection(url: String, socks: Int, timeoutMs: Int) = openConnection(url, socks, timeoutMs).also {
+        it.setRequestProperty("Accept-Encoding", "identity")
+        it.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Mobile Safari/537.36")
+        it.setRequestProperty("Cache-Control", "no-cache")
+    }
+
     private fun downloadOnce(socks: Int, bytes: AtomicLong, deadline: Long) {
-        val c = openConnection("$BASE/__down?bytes=$DOWN_BYTES", socks, 6000)
+        val c = speedConnection("$BASE/__down?bytes=$DOWN_BYTES&r=${System.nanoTime()}", socks, 10_000)
         try {
+            if (c.responseCode != 200) throw IOException("Server answered HTTP ${c.responseCode}")
             val buf = ByteArray(CHUNK)
             c.inputStream.use { ins ->
                 while (nowMs() < deadline) {
@@ -296,7 +310,7 @@ object SpeedTest {
     }
 
     private fun uploadOnce(socks: Int, chunk: ByteArray, bytes: AtomicLong, deadline: Long) {
-        val c = openConnection("$BASE/__up", socks, 6000)
+        val c = speedConnection("$BASE/__up", socks, 10_000)
         try {
             c.requestMethod = "POST"
             c.doOutput = true
