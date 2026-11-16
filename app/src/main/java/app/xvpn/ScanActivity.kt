@@ -71,10 +71,16 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import app.xvpn.ui.C
-import app.xvpn.ui.DesignScale
-import app.xvpn.ui.HeaderIcon
-import app.xvpn.ui.HeaderRow
+import app.xvpn.ui.AppButton
+import app.xvpn.ui.ButtonSize
+import app.xvpn.ui.ButtonStyle
+import app.xvpn.ui.IconAction
+import app.xvpn.ui.OutrunApp
 import app.xvpn.ui.Radius
+import app.xvpn.ui.ScreenHeader
+import app.xvpn.ui.Sizes
+import app.xvpn.ui.Space
+import app.xvpn.ui.Type
 import app.xvpn.ui.setUpEdgeToEdge
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.BinaryBitmap
@@ -106,7 +112,7 @@ class ScanActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setUpEdgeToEdge(navigationBarColor = C.Bg.toArgb())
-        setContent { DesignScale { ScanScreen() } }
+        setContent { OutrunApp { ScanScreen() } }
     }
 
     @Composable
@@ -133,21 +139,16 @@ class ScanActivity : ComponentActivity() {
 
         Column(Modifier.fillMaxSize().background(C.Bg)) {
             Column(Modifier.fillMaxWidth().statusBarsPadding()) {
-                Spacer(Modifier.height(20.dp))
-                HeaderRow {
-                    HeaderIcon(Icons.AutoMirrored.Filled.ArrowBack, "Back") { finish() }
-                    Spacer(Modifier.width(6.dp))
-                    Text("Scan QR code", color = C.Text, fontSize = 26.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f), maxLines = 1)
-                    if (active) HeaderIcon(if (torch) Icons.Filled.FlashOn else Icons.Filled.FlashOff, "Flash", tint = if (torch) C.Accent else C.Text) { torch = !torch }
-                    HeaderIcon(Icons.Filled.Image, "Pick from gallery") { gallery.launch("image/*") }
+                ScreenHeader("Scan QR code", onBack = { finish() }) {
+                    if (active) IconAction(if (torch) Icons.Filled.FlashOn else Icons.Filled.FlashOff, "Flash", tint = if (torch) C.Accent else C.Text) { torch = !torch }
+                    IconAction(Icons.Filled.Image, "Pick from gallery") { gallery.launch("image/*") }
                 }
-                Spacer(Modifier.height(18.dp))
             }
             Box(Modifier.weight(1f).fillMaxWidth()) {
                 if (active) {
                     CameraArea(torch)
-                    Box(Modifier.align(Alignment.BottomCenter).padding(bottom = 24.dp)) {
-                        PillButton("Stop", false) { scanning = false; torch = false }
+                    Box(Modifier.align(Alignment.BottomCenter).padding(bottom = Space.Xxl)) {
+                        AppButton("Stop", { scanning = false; torch = false }, style = ButtonStyle.Secondary, size = ButtonSize.Compact)
                     }
                 } else {
                     Column(
@@ -155,30 +156,20 @@ class ScanActivity : ComponentActivity() {
                         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center,
                     ) {
                         Icon(Icons.Outlined.QrCodeScanner, null, tint = C.Accent, modifier = Modifier.size(56.dp))
-                        Spacer(Modifier.height(16.dp))
-                        Text("Scan a QR code", color = C.Text, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
-                        Spacer(Modifier.height(6.dp))
+                        Spacer(Modifier.height(Space.Lg))
+                        Text("Scan a QR code", style = Type.Subtitle, color = C.Text)
+                        Spacer(Modifier.height(Space.Sm))
                         Text(
                             if (denied) "Camera permission is needed to scan." else "Tap to open the camera and scan",
-                            color = C.Muted, fontSize = 14.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 24.dp),
+                            style = Type.Small, color = C.Muted, textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = Space.Xxl),
                         )
-                        Spacer(Modifier.height(24.dp))
-                        PillButton(if (denied) "Allow camera" else "Start scanning", true) { start() }
+                        Spacer(Modifier.height(Space.Xxl))
+                        AppButton(if (denied) "Allow camera" else "Start scanning", { start() }, size = ButtonSize.Compact)
                     }
                 }
             }
             Spacer(Modifier.navigationBarsPadding())
         }
-    }
-
-    @Composable
-    private fun PillButton(label: String, primary: Boolean, onClick: () -> Unit) {
-        Box(
-            Modifier.height(44.dp).clip(RoundedCornerShape(Radius.Small))
-                .background(if (primary) C.Button else C.ButtonGrey)
-                .clickable(onClick = onClick).padding(horizontal = 22.dp),
-            contentAlignment = Alignment.Center,
-        ) { Text(label, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Medium) }
     }
 
     @Composable
@@ -226,7 +217,7 @@ class ScanActivity : ComponentActivity() {
                 drawPath(corners, C.Accent, style = Stroke(width = w, cap = StrokeCap.Round, join = StrokeJoin.Round))
             }
             Text(
-                "Align the QR code within the frame", color = C.Muted, fontSize = 14.sp,
+                "Align the QR code within the frame", style = Type.Small, color = C.Muted,
                 modifier = Modifier.align(Alignment.TopCenter).offset(y = labelTop),
             )
         }

@@ -39,10 +39,25 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.IntSize
 
+/** Durations (ms), easings and press feedback. Every animation in the app picks from here. */
 object Motion {
-    const val Short = 150
-    const val Medium = 300
+    const val Fast = 120        // exits, fades out
+    const val Short = 200       // color and small state changes
+    const val Medium = 300      // layout, screen and sheet transitions
+    const val Long = 450        // hero moments (speed test, count-up)
+    const val Overlap = 90      // delay before an entering screen fades in, so it doesn't clash with the leaving one
+    const val Stagger = 70      // delay between pieces that arrive one after another
+
     val Standard = FastOutSlowInEasing
+    val Enter = LinearOutSlowInEasing
+    val Exit = FastOutLinearInEasing
+}
+
+/** How far a pressed element shrinks. Icons shrink most, large surfaces least. */
+object Press {
+    const val Icon = 0.88f
+    const val Control = 0.96f
+    const val Card = 0.985f
 }
 
 @Composable
@@ -61,7 +76,7 @@ fun rememberTick(strong: Boolean = false): () -> Unit {
 
 fun Modifier.pressable(
     shape: Shape = RectangleShape,
-    pressedScale: Float = 0.97f,
+    pressedScale: Float = Press.Control,
     enabled: Boolean = true,
     ripple: Boolean = true,
     onLongClick: (() -> Unit)? = null,
@@ -89,24 +104,24 @@ fun Modifier.pressable(
 fun axisTransition(forward: Boolean, distance: Float = 0.12f): ContentTransform {
     val dir = if (forward) 1 else -1
     val enter = slideInHorizontally(tween(Motion.Medium, easing = Motion.Standard)) { (it * distance).toInt() * dir } +
-        fadeIn(tween(Motion.Medium - 90, delayMillis = 90, easing = LinearOutSlowInEasing))
+        fadeIn(tween(Motion.Medium - Motion.Overlap, delayMillis = Motion.Overlap, easing = Motion.Enter))
     val exit = slideOutHorizontally(tween(Motion.Medium, easing = Motion.Standard)) { -(it * distance).toInt() * dir } +
-        fadeOut(tween(90, easing = FastOutLinearInEasing))
+        fadeOut(tween(Motion.Overlap, easing = Motion.Exit))
     return ContentTransform(enter, exit, 0f, SizeTransform(clip = false))
 }
 
 fun fadeTransition(): ContentTransform = ContentTransform(
-    fadeIn(tween(Motion.Short + 50, delayMillis = 60, easing = LinearOutSlowInEasing)),
-    fadeOut(tween(Motion.Short - 40)),
+    fadeIn(tween(Motion.Short, delayMillis = Motion.Overlap / 2, easing = Motion.Enter)),
+    fadeOut(tween(Motion.Fast)),
     0f,
     SizeTransform(clip = false),
 )
 
 fun statusTransition(): ContentTransform {
-    val enter = fadeIn(tween(240, delayMillis = 90, easing = LinearOutSlowInEasing)) +
-        slideInVertically(tween(Motion.Medium, delayMillis = 60, easing = Motion.Standard)) { it / 10 } +
-        scaleIn(tween(Motion.Medium, delayMillis = 60, easing = Motion.Standard), initialScale = 0.96f)
-    val exit = fadeOut(tween(90))
+    val enter = fadeIn(tween(Motion.Short, delayMillis = Motion.Overlap, easing = Motion.Enter)) +
+        slideInVertically(tween(Motion.Medium, delayMillis = Motion.Overlap / 2, easing = Motion.Standard)) { it / 10 } +
+        scaleIn(tween(Motion.Medium, delayMillis = Motion.Overlap / 2, easing = Motion.Standard), initialScale = 0.96f)
+    val exit = fadeOut(tween(Motion.Overlap))
     return ContentTransform(
         enter, exit, 0f,
         SizeTransform(clip = false) { _, _ -> tween<IntSize>(Motion.Medium, easing = Motion.Standard) },
@@ -116,8 +131,8 @@ fun statusTransition(): ContentTransform {
 fun numberTransition(up: Boolean): ContentTransform {
     val dir = if (up) 1 else -1
     return ContentTransform(
-        slideInVertically(tween(Motion.Short + 50, easing = Motion.Standard)) { it * dir / 2 } + fadeIn(tween(Motion.Short + 50)),
-        slideOutVertically(tween(Motion.Short + 50, easing = Motion.Standard)) { -it * dir / 2 } + fadeOut(tween(Motion.Short)),
+        slideInVertically(tween(Motion.Short, easing = Motion.Standard)) { it * dir / 2 } + fadeIn(tween(Motion.Short)),
+        slideOutVertically(tween(Motion.Short, easing = Motion.Standard)) { -it * dir / 2 } + fadeOut(tween(Motion.Fast)),
         0f,
         SizeTransform(clip = false),
     )

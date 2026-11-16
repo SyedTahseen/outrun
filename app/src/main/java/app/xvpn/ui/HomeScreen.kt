@@ -10,9 +10,7 @@ import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkHorizontally
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -32,7 +30,6 @@ import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
-import androidx.compose.material.icons.filled.Public
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -51,11 +48,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.xvpn.data.IpInfo
@@ -130,8 +124,8 @@ fun HomeScreen(
                 .background(Brush.verticalGradient(listOf(Color.Transparent, C.Bg))),
         )
 
-        Column(Modifier.fillMaxSize().statusBarsPadding().padding(horizontal = 16.dp)) {
-            Spacer(Modifier.height(40.dp))
+        Column(Modifier.fillMaxSize().statusBarsPadding().padding(horizontal = Space.Gutter)) {
+            Spacer(Modifier.height(Space.Huge))
             AnimatedContent(
                 targetState = status,
                 modifier = Modifier.fillMaxWidth(),
@@ -153,21 +147,21 @@ fun HomeScreen(
                 transitionSpec = { fadeTransition() },
                 label = "caption",
             ) { caption ->
-                Text(caption, color = C.Text, fontSize = 17.sp, modifier = Modifier.padding(start = 4.dp, bottom = 10.dp))
+                Text(caption, style = Type.Body, color = C.Text, modifier = Modifier.padding(start = Space.Xs, bottom = Space.Sm))
             }
-            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(Radius.Card)).background(C.Card).border(1.dp, C.CardBorder, RoundedCornerShape(Radius.Card)).padding(16.dp)) {
+            AppCard(Modifier.fillMaxWidth()) {
                 Row(
-                    Modifier.fillMaxWidth().then(if (on) Modifier.pressable(RoundedCornerShape(Radius.Small), 0.985f, onClick = onOpenStats) else Modifier),
+                    Modifier.fillMaxWidth().then(if (on) Modifier.pressable(RoundedCornerShape(Radius.Small), Press.Card, onClick = onOpenStats) else Modifier),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     FlagBadge(selected?.name)
-                    Spacer(Modifier.width(14.dp))
+                    Spacer(Modifier.width(Space.Md))
                     Column(Modifier.weight(1f)) {
                         AnimatedContent(
                             targetState = selected?.let { Flags.clean(it.name) } ?: "No server selected",
                             transitionSpec = { fadeTransition() }, label = "serverName",
                         ) { name ->
-                            Text(name, color = C.Text, fontSize = 19.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                            Text(name, style = Type.Subtitle, color = C.Text, maxLines = 1)
                         }
                         AnimatedContent(
                             targetState = when {
@@ -176,15 +170,15 @@ fun HomeScreen(
                                 else -> "Add one in Servers"
                             },
                             transitionSpec = { fadeTransition() }, label = "serverSub",
-                        ) { sub -> Text(sub, color = C.Muted, fontSize = 14.sp, maxLines = 1) }
+                        ) { sub -> Text(sub, style = Type.Small, color = C.Muted, maxLines = 1) }
                     }
                     AnimatedVisibility(
                         visible = on,
-                        enter = fadeIn(tween(Motion.Short + 50)) + expandHorizontally(tween(Motion.Medium, easing = Motion.Standard)),
-                        exit = fadeOut(tween(Motion.Short - 40)) + shrinkHorizontally(tween(Motion.Short + 50, easing = Motion.Standard)),
-                    ) { Icon(Icons.Filled.ChevronRight, "Statistics", tint = C.Muted) }
+                        enter = fadeIn(tween(Motion.Short)) + expandHorizontally(tween(Motion.Medium, easing = Motion.Standard)),
+                        exit = fadeOut(tween(Motion.Fast)) + shrinkHorizontally(tween(Motion.Short, easing = Motion.Standard)),
+                    ) { Icon(Icons.Filled.ChevronRight, "Statistics", tint = C.Muted, modifier = Modifier.size(Sizes.Icon)) }
                 }
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(Space.Lg))
                 AnimatedContent(
                     targetState = status,
                     transitionSpec = { fadeTransition() },
@@ -193,49 +187,55 @@ fun HomeScreen(
                     Column {
                         when (st) {
                             Status.Connecting -> {
-                                BigButton("Cancel", C.ButtonGrey, onToggle)
+                                AppButton("Cancel", onToggle, Modifier.fillMaxWidth(), ButtonStyle.Secondary)
                                 AnimatedVisibility(slow) {
-                                    Column { Spacer(Modifier.height(10.dp)); OutlineButton("Change server", onChangeServer) }
+                                    Column {
+                                        Spacer(Modifier.height(Space.Md))
+                                        AppButton("Change server", onChangeServer, Modifier.fillMaxWidth(), ButtonStyle.Outline)
+                                    }
                                 }
                             }
                             Status.Connected -> {
-                                BigButton("Disconnect", C.ButtonGrey, onToggle)
-                                Spacer(Modifier.height(10.dp))
-                                OutlineButton("Change server", onChangeServer)
+                                AppButton("Disconnect", onToggle, Modifier.fillMaxWidth(), ButtonStyle.Secondary)
+                                Spacer(Modifier.height(Space.Md))
+                                AppButton("Change server", onChangeServer, Modifier.fillMaxWidth(), ButtonStyle.Outline)
                             }
                             Status.Disconnected -> {
-                                BigButton("Connect", C.Button, onToggle)
-                                Spacer(Modifier.height(10.dp))
-                                OutlineButton("Change server", onChangeServer)
+                                AppButton("Connect", onToggle, Modifier.fillMaxWidth(), ButtonStyle.Primary)
+                                Spacer(Modifier.height(Space.Md))
+                                AppButton("Change server", onChangeServer, Modifier.fillMaxWidth(), ButtonStyle.Outline)
                             }
                         }
                     }
                 }
             }
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(Space.Lg))
         }
     }
 }
 
 @Composable
+private fun StatusChip(content: @Composable () -> Unit) {
+    Row(
+        Modifier.clip(RoundedCornerShape(Radius.Control)).background(C.Scrim).padding(horizontal = Space.Lg, vertical = Space.Sm),
+        verticalAlignment = Alignment.CenterVertically,
+    ) { content() }
+}
+
+@Composable
 private fun UnprotectedHeader(real: IpInfo?, error: String?) {
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-        Icon(Icons.Filled.LockOpen, null, tint = C.Red, modifier = Modifier.size(40.dp))
-        Spacer(Modifier.height(14.dp))
-        Text(
-            "You are unprotected",
-            color = C.Text, fontSize = 26.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center,
-        )
-        Spacer(Modifier.height(10.dp))
-        Row(
-            Modifier.clip(RoundedCornerShape(Radius.Small)).background(Color(0x66000000)).padding(horizontal = 14.dp, vertical = 8.dp),
-        ) {
-            Text(real?.let { r -> r.city.ifBlank { r.country } } ?: "Locating…", color = C.Text, fontSize = 16.sp)
-            if (real != null) Text("  ·  ${real.ip}", color = C.Muted, fontSize = 16.sp)
+        Icon(Icons.Filled.LockOpen, null, tint = C.Red, modifier = Modifier.size(Sizes.IconHero))
+        Spacer(Modifier.height(Space.Lg))
+        Text("You are unprotected", style = Type.Headline, color = C.Text, textAlign = TextAlign.Center)
+        Spacer(Modifier.height(Space.Md))
+        StatusChip {
+            Text(real?.let { r -> r.city.ifBlank { r.country } } ?: "Locating…", style = Type.Body, color = C.Text)
+            if (real != null) Text("  ·  ${real.ip}", style = Type.Body, color = C.Muted)
         }
         if (error != null) {
-            Spacer(Modifier.height(8.dp))
-            Text(error, color = C.Red, fontSize = 12.sp, textAlign = TextAlign.Center)
+            Spacer(Modifier.height(Space.Sm))
+            Text(error, style = Type.Caption, color = C.Red, textAlign = TextAlign.Center)
         }
     }
 }
@@ -243,56 +243,52 @@ private fun UnprotectedHeader(real: IpInfo?, error: String?) {
 @Composable
 private fun ConnectingHeader(real: IpInfo?) {
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(Modifier.size(40.dp), contentAlignment = Alignment.Center) {
+        Box(Modifier.size(Sizes.IconHero), contentAlignment = Alignment.Center) {
             CircularProgressIndicator(
-                modifier = Modifier.size(36.dp), color = Color.White, trackColor = Color.White.copy(alpha = 0.18f),
+                modifier = Modifier.size(36.dp), color = C.OnPrimary, trackColor = C.OnPrimary.copy(alpha = 0.18f),
                 strokeWidth = 2.5.dp, strokeCap = StrokeCap.Round,
             )
         }
-        Spacer(Modifier.height(14.dp))
-        Text(
-            "Protecting your digital identity",
-            color = C.Text, fontSize = 22.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center,
-        )
-        Spacer(Modifier.height(10.dp))
-        Row(Modifier.clip(RoundedCornerShape(Radius.Small)).background(Color(0x66000000)).padding(horizontal = 14.dp, vertical = 8.dp)) {
+        Spacer(Modifier.height(Space.Lg))
+        Text("Protecting your digital identity", style = Type.Title, color = C.Text, textAlign = TextAlign.Center)
+        Spacer(Modifier.height(Space.Md))
+        StatusChip {
             val label = real?.let { r -> listOf(r.city.ifBlank { r.country }, "·", r.ip).joinToString(" ") } ?: "Locating…"
-            ScrambleText(label, C.Text, 16.sp)
+            ScrambleText(label, C.Text, Type.Body)
         }
     }
 }
 
 @Composable
-private fun ScrambleText(text: String, color: Color, fontSize: TextUnit) {
+private fun ScrambleText(text: String, color: Color, style: TextStyle) {
     fun maskable(ch: Char) = ch != ' ' && ch != '.'
     val order = remember(text) { text.indices.filter { maskable(text[it]) }.shuffled() }
     val prog = remember(text) { Animatable(0f) }
     LaunchedEffect(text) { prog.animateTo(1f, tween(900, easing = LinearEasing)) }
     val hidden = order.take((prog.value * order.size).toInt()).toHashSet()
     val shown = buildString { text.forEachIndexed { i, ch -> append(if (i in hidden) '*' else ch) } }
-    Text(shown, color = color, fontSize = fontSize, maxLines = 1)
+    Text(shown, style = style, color = color, maxLines = 1)
 }
 
 @Composable
 private fun ProtectedHeader(time: String, up: Long, down: Long) {
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Filled.Lock, null, tint = C.Green, modifier = Modifier.size(34.dp))
-            Spacer(Modifier.width(12.dp))
-            Text("Protected", color = C.Green, fontSize = 30.sp, fontWeight = FontWeight.Bold)
+            Icon(Icons.Filled.Lock, null, tint = C.Green, modifier = Modifier.size(Sizes.IconLg))
+            Spacer(Modifier.width(Space.Md))
+            Text("Protected", style = Type.Display, color = C.Green)
         }
-        Spacer(Modifier.height(18.dp))
-        Row(
-            Modifier.fillMaxWidth().clip(RoundedCornerShape(Radius.Card)).background(C.Card.copy(alpha = 0.92f)).padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(Modifier.weight(1f)) {
-                Text("Connected for", color = C.Muted, fontSize = 13.sp)
-                Text(time, color = C.Text, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+        Spacer(Modifier.height(Space.Lg))
+        AppCard(Modifier.fillMaxWidth(), containerColor = C.CardOverlay) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Connected for", style = Type.Small, color = C.Muted)
+                    Text(time, style = Type.Subtitle, color = C.Text)
+                }
+                Speed(Icons.Filled.ArrowDownward, C.Green, fmtKb(down))
+                Spacer(Modifier.width(Space.Lg))
+                Speed(Icons.Filled.ArrowUpward, C.Red, fmtKb(up))
             }
-            Speed(Icons.Filled.ArrowDownward, C.Green, fmtKb(down))
-            Spacer(Modifier.width(16.dp))
-            Speed(Icons.Filled.ArrowUpward, C.Red, fmtKb(up))
         }
     }
 }
@@ -300,40 +296,8 @@ private fun ProtectedHeader(time: String, up: Long, down: Long) {
 @Composable
 private fun Speed(icon: ImageVector, tint: Color, text: String) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Icon(icon, null, tint = tint, modifier = Modifier.size(14.dp))
-        Spacer(Modifier.width(3.dp))
-        Text(text, color = C.Text, fontSize = 13.sp)
-    }
-}
-
-@Composable
-private fun BigButton(label: String, bg: Color, onClick: () -> Unit) {
-    val tick = rememberTick(strong = true)
-    val color by animateColorAsState(bg, tween(Motion.Medium), label = "bigButton")
-    Box(
-        Modifier.fillMaxWidth().height(54.dp).pressable(RoundedCornerShape(Radius.Small), 0.97f) { tick(); onClick() }.background(color),
-        contentAlignment = Alignment.Center,
-    ) { Text(label, color = Color.White, fontSize = 19.sp, fontWeight = FontWeight.Medium) }
-}
-
-@Composable
-private fun OutlineButton(label: String, onClick: () -> Unit) {
-    val tick = rememberTick()
-    Box(
-        Modifier.fillMaxWidth().height(54.dp).pressable(RoundedCornerShape(Radius.Small), 0.97f) { tick(); onClick() }
-            .border(1.dp, Color(0xFF4F4D5C), RoundedCornerShape(Radius.Small)),
-        contentAlignment = Alignment.Center,
-    ) { Text(label, color = C.Text, fontSize = 19.sp, fontWeight = FontWeight.Medium) }
-}
-
-@Composable
-fun FlagBadge(name: String?) {
-    val res = name?.let { Flags.iso(it) }?.let { FLAG_RES[it] }
-    Box(
-        Modifier.size(width = 36.dp, height = 24.dp).clip(RoundedCornerShape(Radius.Badge)).background(C.ButtonGrey),
-        contentAlignment = Alignment.Center,
-    ) {
-        if (res != null) Image(painterResource(res), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-        else Icon(Icons.Filled.Public, null, tint = C.Muted, modifier = Modifier.size(16.dp))
+        Icon(icon, null, tint = tint, modifier = Modifier.size(Sizes.IconSm))
+        Spacer(Modifier.width(Space.Xs))
+        Text(text, style = Type.Small, color = C.Text)
     }
 }

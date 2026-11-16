@@ -1,110 +1,361 @@
 package app.xvpn.ui
 
-import android.content.Context
-import androidx.activity.ComponentActivity
-import androidx.activity.SystemBarStyle
-import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.OpenInNew
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Public
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.Density
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 
-/** Lays the UI out as if the shortest screen side were 360dp, so the design scales with the device. */
+// ------------------------------------------------------------------ surfaces
+
+/**
+ * The one card. Flat Card fill, 1dp Border, Radius.Card. With [onClick] it also ripples and shrinks when pressed.
+ * Use padding = 0.dp when the content is a list of rows that bring their own padding.
+ */
 @Composable
-internal fun DesignScale(content: @Composable () -> Unit) {
-    val d = LocalDensity.current
-    val cfg = LocalConfiguration.current
-    val scale = minOf(cfg.screenWidthDp, cfg.screenHeightDp) / 360f
-    CompositionLocalProvider(
-        LocalDensity provides Density(d.density * scale, fontScale = 1f),
+fun AppCard(
+    modifier: Modifier = Modifier,
+    padding: Dp = Space.Lg,
+    containerColor: Color = C.Card,
+    onClick: (() -> Unit)? = null,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    val shape = RoundedCornerShape(Radius.Card)
+    Column(
+        modifier
+            .then(if (onClick != null) Modifier.pressable(shape, Press.Card, onClick = onClick) else Modifier.clip(shape))
+            .background(containerColor)
+            .border(1.dp, C.Border, shape)
+            .padding(padding),
         content = content,
     )
 }
 
-/** Transparent system bars drawn over the app background; shared by every activity. */
-internal fun ComponentActivity.setUpEdgeToEdge(navigationBarColor: Int = android.graphics.Color.TRANSPARENT) {
-    enableEdgeToEdge(
-        statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
-        navigationBarStyle = SystemBarStyle.dark(navigationBarColor),
-    )
-    window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(C.Bg.toArgb()))
+/** 1dp line between rows. */
+@Composable
+fun HairlineDivider(modifier: Modifier = Modifier) {
+    Box(modifier.fillMaxWidth().height(1.dp).background(C.Border))
 }
 
-/** Version name from the manifest, or null if it can't be read. */
-internal fun Context.appVersionName(): String? =
-    runCatching { packageManager.getPackageInfo(packageName, 0).versionName }.getOrNull()
-
-/** Tells the parent whether the page is scrolled (it tints the status strip), and resets that when the page leaves. */
 @Composable
-internal fun ReportScrolled(scrolled: Boolean, onScrolledChange: (Boolean) -> Unit) {
-    LaunchedEffect(scrolled) { onScrolledChange(scrolled) }
-    DisposableEffect(Unit) { onDispose { onScrolledChange(false) } }
+fun EmptyState(text: String, modifier: Modifier = Modifier) {
+    Box(modifier.fillMaxSize().padding(Space.Xxl), contentAlignment = Alignment.Center) {
+        Text(text, style = Type.Small, color = C.Muted, textAlign = TextAlign.Center)
+    }
 }
 
-/** The 44dp title row that sits under the status bar on every screen. */
 @Composable
-internal fun HeaderRow(content: @Composable RowScope.() -> Unit) {
+fun AppProgressBar(fraction: Float, color: Color, modifier: Modifier = Modifier) {
+    val shown by animateFloatAsState(fraction.coerceIn(0f, 1f), tween(Motion.Medium, easing = Motion.Standard), label = "progress")
+    Box(modifier.fillMaxWidth().height(Space.Xs).clip(CircleShape).background(C.Control)) {
+        Box(Modifier.fillMaxWidth(shown).height(Space.Xs).background(color))
+    }
+}
+
+/** Country flag in a 36x24 badge; a globe when the server has no known country. */
+@Composable
+fun FlagBadge(name: String?) {
+    val res = name?.let { Flags.iso(it) }?.let { FLAG_RES[it] }
+    Box(
+        Modifier.size(width = 36.dp, height = 24.dp).clip(RoundedCornerShape(Radius.Badge)).background(C.Control),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (res != null) Image(painterResource(res), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+        else Icon(Icons.Filled.Public, null, tint = C.Muted, modifier = Modifier.size(Sizes.IconSm))
+    }
+}
+
+// ------------------------------------------------------------------ headers
+
+/**
+ * Background of a screen header. It is the page color, and turns into the Card color once the page below is scrolled,
+ * which also tints the status bar strip (see MainActivity).
+ */
+@Composable
+fun HeaderSurface(scrolled: Boolean = false, content: @Composable ColumnScope.() -> Unit) {
+    val bg by animateColorAsState(if (scrolled) C.Card else C.Bg, tween(Motion.Medium), label = "headerSurface")
+    Column(Modifier.fillMaxWidth().background(bg), content = content)
+}
+
+/** The 44dp row under the status bar. [backEdge]: the first item is a back arrow, so the row starts closer to the edge. */
+@Composable
+fun HeaderBar(backEdge: Boolean = false, content: @Composable RowScope.() -> Unit) {
+    Spacer(Modifier.height(Space.Xl))
     Row(
-        Modifier.fillMaxWidth().padding(horizontal = 20.dp).height(44.dp),
+        Modifier.fillMaxWidth().padding(start = if (backEdge) Space.Sm else Space.Gutter, end = Space.Sm).height(Sizes.Control),
         verticalAlignment = Alignment.CenterVertically,
         content = content,
     )
 }
 
+/**
+ * Standard screen header. A top-level screen shows a big title; a sub-page ([onBack] set) shows a back arrow and a smaller title.
+ * [actions] sit at the end of the row.
+ */
 @Composable
-internal fun HeaderIcon(icon: ImageVector, desc: String, tint: Color = C.Text, onClick: () -> Unit) {
-    val color by animateColorAsState(tint, tween(Motion.Short + 50), label = "headerIconTint")
-    Box(Modifier.size(44.dp).pressable(RoundedCornerShape(22.dp), 0.86f, onClick = onClick), contentAlignment = Alignment.Center) {
-        Icon(icon, desc, tint = color, modifier = Modifier.size(26.dp))
+fun ScreenHeader(
+    title: String?,
+    onBack: (() -> Unit)? = null,
+    scrolled: Boolean = false,
+    titleTrailing: (@Composable () -> Unit)? = null,
+    actions: @Composable RowScope.() -> Unit = {},
+) {
+    HeaderSurface(scrolled) {
+        HeaderBar(backEdge = onBack != null) {
+            if (onBack != null) {
+                IconAction(Icons.AutoMirrored.Filled.ArrowBack, "Back", onClick = onBack)
+                Spacer(Modifier.width(Space.Xs))
+            }
+            if (title != null) Text(
+                title, style = if (onBack == null) Type.Headline else Type.Title, color = C.Text, maxLines = 1,
+                modifier = Modifier.weight(1f, fill = false),
+            )
+            if (titleTrailing != null) {
+                Spacer(Modifier.width(Space.Md))
+                titleTrailing()
+            }
+            Spacer(Modifier.weight(1f))
+            actions()
+        }
+        Spacer(Modifier.height(Space.Sm))
     }
 }
 
-/** Back arrow with an optional title: the standard header of every settings sub-page. */
+/** Accent heading above a group of rows or a card. [first] uses the tighter spacing at the top of a page. */
 @Composable
-internal fun BackBar(title: String? = null, onBack: () -> Unit) {
-    Spacer(Modifier.height(20.dp))
-    HeaderRow {
-        HeaderIcon(Icons.AutoMirrored.Filled.ArrowBack, "Back", onClick = onBack)
-        if (title != null) {
-            Spacer(Modifier.width(6.dp))
-            Text(title, color = C.Text, fontSize = 22.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+fun SectionHeader(text: String, modifier: Modifier = Modifier, first: Boolean = false, horizontal: Dp = Space.Gutter) {
+    Text(
+        text, style = Type.Section, color = C.Accent,
+        modifier = modifier.padding(start = horizontal, end = horizontal, top = if (first) Space.Md else Space.Xxl, bottom = Space.Sm),
+    )
+}
+
+/** Small muted label above a form control (no horizontal padding; the parent provides the gutter). */
+@Composable
+fun FieldLabel(text: String, modifier: Modifier = Modifier) {
+    Text(text, style = Type.SmallMedium, color = C.Muted, modifier = modifier.padding(top = Space.Xl, bottom = Space.Sm))
+}
+
+// ------------------------------------------------------------------ rows
+
+/** Settings-style row: icon, title, optional second line, optional "opens elsewhere" arrow. */
+@Composable
+fun ListRow(icon: ImageVector, title: String, subtitle: String? = null, external: Boolean = false, onClick: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().heightIn(min = Sizes.Row).clickable(onClick = onClick).padding(horizontal = Space.Gutter, vertical = Space.Md),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(icon, null, tint = C.Text, modifier = Modifier.size(Sizes.Icon))
+        Spacer(Modifier.width(Space.Lg))
+        Column(Modifier.weight(1f)) {
+            Text(title, style = Type.Body, color = C.Text)
+            if (subtitle != null) Text(subtitle, style = Type.Small, color = C.Muted, maxLines = 2)
+        }
+        if (external) {
+            Spacer(Modifier.width(Space.Md))
+            Icon(Icons.AutoMirrored.Outlined.OpenInNew, null, tint = C.Muted, modifier = Modifier.size(Sizes.Icon))
         }
     }
 }
 
-/** Accent-colored heading above a group of rows; [first] uses the tighter spacing for the top of a page. */
+/** Radio row: a choice with a title and an explanation. */
 @Composable
-internal fun Section(label: String, first: Boolean = false) {
-    Text(
-        label, color = C.Accent, fontSize = 16.sp, fontWeight = FontWeight.SemiBold,
-        modifier = Modifier.padding(start = 20.dp, top = if (first) 12.dp else 28.dp, bottom = 8.dp),
+fun ChoiceRow(label: String, note: String, selected: Boolean, onClick: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(Radius.Control)).clickable(onClick = onClick)
+            .padding(horizontal = Space.Xs, vertical = Space.Md),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        AppRadio(selected)
+        Spacer(Modifier.width(Space.Lg))
+        Column(Modifier.weight(1f)) {
+            Text(label, style = Type.Body, color = C.Text)
+            Text(note, style = Type.Small, color = C.Muted, maxLines = 4)
+        }
+    }
+}
+
+/** Card of label / value rows separated by hairlines. */
+@Composable
+fun DetailCard(items: List<Pair<String, String>>, modifier: Modifier = Modifier) {
+    AppCard(modifier, padding = 0.dp) {
+        items.forEachIndexed { i, (label, value) ->
+            Row(Modifier.fillMaxWidth().padding(horizontal = Space.Lg, vertical = Space.Md), verticalAlignment = Alignment.Top) {
+                Text(label, style = Type.Body, color = C.Muted)
+                Spacer(Modifier.width(Space.Lg))
+                Text(value, style = Type.BodyMedium, color = C.Text, textAlign = TextAlign.End, modifier = Modifier.weight(1f))
+            }
+            if (i < items.lastIndex) HairlineDivider()
+        }
+    }
+}
+
+/** Card with a switch; the whole card toggles. */
+@Composable
+fun SwitchCard(label: String, checked: Boolean, modifier: Modifier = Modifier, onChange: (Boolean) -> Unit) {
+    AppCard(modifier.padding(horizontal = Space.Gutter), padding = 0.dp, onClick = { onChange(!checked) }) {
+        Row(
+            Modifier.fillMaxWidth().padding(start = Space.Lg, end = Space.Md, top = Space.Sm, bottom = Space.Sm),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(label, style = Type.Body, color = C.Text, modifier = Modifier.weight(1f))
+            AppSwitch(checked, onChange)
+        }
+    }
+}
+
+// ------------------------------------------------------------------ page furniture
+
+/** Tinted rounded tile with an icon, at the top of a settings page. */
+@Composable
+fun HeroIcon(icon: ImageVector, size: Dp = Sizes.Tile, centered: Boolean = false, tint: Color = C.Accent) {
+    Box(Modifier.fillMaxWidth().padding(horizontal = Space.Gutter), contentAlignment = if (centered) Alignment.Center else Alignment.CenterStart) {
+        Box(
+            Modifier.size(size).clip(RoundedCornerShape(Radius.Card)).background(Brush.linearGradient(listOf(C.AccentMid, C.AccentDeep))),
+            contentAlignment = Alignment.Center,
+        ) { Icon(icon, null, tint = tint, modifier = Modifier.size(size * 0.56f)) }
+    }
+}
+
+@Composable
+fun PageHeading(title: String, text: String) {
+    Column(Modifier.fillMaxWidth().padding(start = Space.Gutter, end = Space.Gutter, top = Space.Xl, bottom = Space.Md)) {
+        Text(title, style = Type.Headline, color = C.Text)
+        Spacer(Modifier.height(Space.Sm))
+        Text(text, style = Type.Body, color = C.Muted)
+    }
+}
+
+// ------------------------------------------------------------------ dialogs and menus
+
+/**
+ * The one dialog. Title, free content, and right-aligned text actions. [confirmLabel] = null hides the confirm action,
+ * [dismissLabel] = null hides the dismiss action.
+ */
+@Composable
+fun AppDialog(
+    title: String,
+    onDismiss: () -> Unit,
+    confirmLabel: String? = null,
+    onConfirm: () -> Unit = {},
+    confirmColor: Color = C.Accent,
+    dismissLabel: String? = "Cancel",
+    content: @Composable ColumnScope.() -> Unit = {},
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        var visible by remember { mutableStateOf(false) }
+        LaunchedEffect(Unit) { visible = true }
+        val shape = RoundedCornerShape(Radius.Sheet)
+        AnimatedVisibility(
+            visible = visible,
+            enter = fadeIn(tween(Motion.Short)) + scaleIn(spring(dampingRatio = 0.8f, stiffness = 500f), initialScale = 0.9f),
+            exit = fadeOut(tween(Motion.Fast)),
+        ) {
+            Column(Modifier.fillMaxWidth().clip(shape).background(C.Card).border(1.dp, C.Border, shape).padding(Space.Xl)) {
+                Text(title, style = Type.Subtitle, color = C.Text)
+                Spacer(Modifier.height(Space.Md))
+                content()
+                Spacer(Modifier.height(Space.Md))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    if (dismissLabel != null) TextAction(dismissLabel, onDismiss, color = C.Muted)
+                    if (confirmLabel != null) TextAction(confirmLabel, onConfirm, color = confirmColor)
+                }
+            }
+        }
+    }
+}
+
+/** Popup menu. Floating surface: the only place besides dialogs where a shadow is used. */
+@Composable
+fun AppDropdownMenu(expanded: Boolean, onDismiss: () -> Unit, modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
+    DropdownMenu(
+        expanded = expanded, onDismissRequest = onDismiss, modifier = modifier,
+        shape = RoundedCornerShape(Radius.Card), containerColor = C.Card, tonalElevation = 0.dp, shadowElevation = Elevation.Menu,
+        content = content,
+    )
+}
+
+@Composable
+fun AppMenuItem(
+    icon: ImageVector, label: String, destructive: Boolean = false, enabled: Boolean = true,
+    trailing: (@Composable () -> Unit)? = null, onClick: () -> Unit,
+) {
+    val textColor = when { !enabled -> C.Muted; destructive -> C.Red; else -> C.Text }
+    DropdownMenuItem(
+        text = { Text(label, style = Type.Body, color = textColor, maxLines = 1) },
+        leadingIcon = { Icon(icon, null, tint = if (!enabled) C.Muted else if (destructive) C.Red else C.Accent, modifier = Modifier.size(Sizes.Icon)) },
+        trailingIcon = trailing,
+        enabled = enabled,
+        onClick = onClick,
+    )
+}
+
+/** A selectable entry of a menu (sort order): accent text and a check mark when chosen. */
+@Composable
+fun AppMenuChoice(label: String, selected: Boolean, onClick: () -> Unit) {
+    DropdownMenuItem(
+        text = { Text(label, style = Type.Body, color = if (selected) C.Accent else C.Text) },
+        trailingIcon = { if (selected) Icon(Icons.Filled.Check, null, tint = C.Accent, modifier = Modifier.size(Sizes.Icon)) },
+        onClick = onClick,
+    )
+}
+
+/** First entry of a sub-menu: back arrow and the sub-menu title. */
+@Composable
+fun AppMenuHeader(title: String, onClick: () -> Unit) {
+    DropdownMenuItem(
+        text = { Text(title, style = Type.Body.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold), color = C.Text) },
+        leadingIcon = { Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = C.Text, modifier = Modifier.size(Sizes.Icon)) },
+        onClick = onClick,
     )
 }

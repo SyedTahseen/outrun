@@ -74,110 +74,111 @@ internal fun UsagePage(onBack: () -> Unit) {
         }
     }
 
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-        BackBar("Usage & history", onBack)
+    Column(Modifier.fillMaxSize()) {
+        ScreenHeader("Usage & history", onBack = onBack)
+        Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())) {
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = Space.Gutter, vertical = Space.Sm),
+                horizontalArrangement = Arrangement.spacedBy(Space.Sm),
+            ) {
+                Summary("Today", today, Modifier.weight(1f))
+                Summary("7 days", week, Modifier.weight(1f))
+                Summary("30 days", month, Modifier.weight(1f))
+            }
 
-        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Summary("Today", today, Modifier.weight(1f))
-            Summary("7 days", week, Modifier.weight(1f))
-            Summary("30 days", month, Modifier.weight(1f))
-        }
+            SectionHeader("Last 14 days")
+            AppCard(Modifier.padding(horizontal = Space.Gutter).fillMaxWidth()) {
+                val peak = days.maxOf { it.second + it.third }
+                Canvas(Modifier.fillMaxWidth().height(110.dp)) {
+                    val n = days.size
+                    val gap = 6.dp.toPx()
+                    val bw = (size.width - gap * (n - 1)) / n
+                    days.forEachIndexed { i, d ->
+                        val total = d.second + d.third
+                        val h = if (peak == 0L) 2.dp.toPx() else (total.toFloat() / peak * size.height).coerceAtLeast(2.dp.toPx())
+                        drawRoundRect(
+                            if (i == n - 1) C.Accent else C.AccentMid,
+                            Offset(i * (bw + gap), size.height - h), Size(bw, h), CornerRadius(3.dp.toPx()),
+                        )
+                    }
+                }
+                Spacer(Modifier.height(Space.Sm))
+                Row(Modifier.fillMaxWidth()) {
+                    Text(days.first().first.substring(5), style = Type.Caption, color = C.Muted, modifier = Modifier.weight(1f))
+                    Text(if (peak > 0) "peak ${fmtSize(peak)}" else "no data yet", style = Type.Caption, color = C.Muted)
+                }
+            }
 
-        Section("Last 14 days", first = true)
-        Column(Modifier.padding(horizontal = 16.dp).fillMaxWidth().clip(RoundedCornerShape(Radius.Card)).background(C.Card).padding(16.dp)) {
-            val peak = days.maxOf { it.second + it.third }
-            Canvas(Modifier.fillMaxWidth().height(110.dp)) {
-                val n = days.size
-                val gap = 6.dp.toPx()
-                val bw = (size.width - gap * (n - 1)) / n
-                days.forEachIndexed { i, d ->
-                    val total = d.second + d.third
-                    val h = if (peak == 0L) 2.dp.toPx() else (total.toFloat() / peak * size.height).coerceAtLeast(2.dp.toPx())
-                    drawRoundRect(
-                        if (i == n - 1) C.Accent else C.AccentMid,
-                        Offset(i * (bw + gap), size.height - h), Size(bw, h), CornerRadius(3.dp.toPx()),
+            SectionHeader("Apps, last 7 days")
+            AppCard(Modifier.padding(horizontal = Space.Gutter).fillMaxWidth(), padding = 0.dp) {
+                if (!access) {
+                    Text(
+                        "Android only shares per-app data with apps that have Usage access. Turn it on for this app to see which apps used data while the VPN was connected.",
+                        style = Type.Small, color = C.Muted, modifier = Modifier.padding(Space.Lg),
+                    )
+                    HairlineDivider()
+                    CardAction("Open Usage access settings", {
+                        runCatching { ctx.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+                    })
+                } else {
+                    val list = apps
+                    when {
+                        list == null -> Text("Loading…", style = Type.Small, color = C.Muted, modifier = Modifier.padding(Space.Lg))
+                        list.isEmpty() -> Text("No app data for recent sessions.", style = Type.Small, color = C.Muted, modifier = Modifier.padding(Space.Lg))
+                        else -> list.take(15).forEachIndexed { i, a ->
+                            Row(Modifier.fillMaxWidth().padding(horizontal = Space.Lg, vertical = Space.Md), verticalAlignment = Alignment.CenterVertically) {
+                                Text(a.label, style = Type.Body, color = C.Text, maxLines = 1, modifier = Modifier.weight(1f))
+                                Text(fmtSize(a.bytes), style = Type.Small, color = C.Muted)
+                            }
+                            if (i < minOf(list.size, 15) - 1) HairlineDivider()
+                        }
+                    }
+                    Text(
+                        "Approximate. Android groups app data in hourly blocks, and this includes apps excluded from the VPN.",
+                        style = Type.Caption, color = C.Muted, modifier = Modifier.padding(start = Space.Lg, end = Space.Lg, bottom = Space.Md),
                     )
                 }
             }
-            Spacer(Modifier.height(8.dp))
-            Row(Modifier.fillMaxWidth()) {
-                Text(days.first().first.substring(5), color = C.Muted, fontSize = 12.sp, modifier = Modifier.weight(1f))
-                Text(if (peak > 0) "peak ${fmtSize(peak)}" else "no data yet", color = C.Muted, fontSize = 12.sp)
-            }
-        }
 
-        Section("Apps, last 7 days", first = true)
-        Column(Modifier.padding(horizontal = 16.dp).fillMaxWidth().clip(RoundedCornerShape(Radius.Card)).background(C.Card)) {
-            if (!access) {
-                Text(
-                    "Android only shares per-app data with apps that have Usage access. Turn it on for this app to see which apps used data while the VPN was connected.",
-                    color = C.Muted, fontSize = 14.sp, modifier = Modifier.padding(16.dp),
-                )
-                Text(
-                    "Open Usage access settings", color = C.Accent, fontSize = 16.sp, fontWeight = FontWeight.Medium,
-                    modifier = Modifier.fillMaxWidth().clickable {
-                        runCatching { ctx.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
-                    }.padding(16.dp),
-                )
-            } else {
-                val list = apps
-                when {
-                    list == null -> Text("Loading…", color = C.Muted, fontSize = 14.sp, modifier = Modifier.padding(16.dp))
-                    list.isEmpty() -> Text("No app data for recent sessions.", color = C.Muted, fontSize = 14.sp, modifier = Modifier.padding(16.dp))
-                    else -> list.take(15).forEachIndexed { i, a ->
-                        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Text(a.label, color = C.Text, fontSize = 16.sp, maxLines = 1, modifier = Modifier.weight(1f))
-                            Text(fmtSize(a.bytes), color = C.Muted, fontSize = 15.sp)
-                        }
-                        if (i < minOf(list.size, 15) - 1) Spacer(Modifier.fillMaxWidth().height(1.dp).background(C.CardBorder))
-                    }
+            SectionHeader("Connection history")
+            AppCard(Modifier.padding(horizontal = Space.Gutter).fillMaxWidth(), padding = 0.dp) {
+                if (sessions.isEmpty()) Text("No connections recorded yet.", style = Type.Small, color = C.Muted, modifier = Modifier.padding(Space.Lg))
+                sessions.take(30).forEachIndexed { i, s ->
+                    SessionRow(s)
+                    if (i < minOf(sessions.size, 30) - 1) HairlineDivider()
                 }
-                Text(
-                    "Approximate. Android groups app data in hourly blocks, and this includes apps excluded from the VPN.",
-                    color = C.Muted, fontSize = 12.sp, modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
+            }
+
+            if (sessions.isNotEmpty() || today.first + today.second + week.first + week.second > 0) {
+                TextAction(
+                    "Clear history", { Usage.clear(ctx); version++ },
+                    Modifier.padding(horizontal = Space.Md, vertical = Space.Sm), color = C.Red,
                 )
             }
+            Spacer(Modifier.height(Space.Xxl))
         }
-
-        Section("Connection history", first = true)
-        Column(Modifier.padding(horizontal = 16.dp).fillMaxWidth().clip(RoundedCornerShape(Radius.Card)).background(C.Card)) {
-            if (sessions.isEmpty()) Text("No connections recorded yet.", color = C.Muted, fontSize = 14.sp, modifier = Modifier.padding(16.dp))
-            sessions.take(30).forEachIndexed { i, s ->
-                SessionRow(s)
-                if (i < minOf(sessions.size, 30) - 1) Spacer(Modifier.fillMaxWidth().height(1.dp).background(C.CardBorder))
-            }
-        }
-
-        if (sessions.isNotEmpty() || today.first + today.second + week.first + week.second > 0) {
-            Text(
-                "Clear history", color = C.Red, fontSize = 16.sp, fontWeight = FontWeight.Medium,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp).clip(RoundedCornerShape(Radius.Small))
-                    .clickable { Usage.clear(ctx); version++ }.padding(12.dp),
-            )
-        }
-        Spacer(Modifier.height(24.dp))
     }
 }
 
 @Composable
 private fun Summary(label: String, v: Pair<Long, Long>, modifier: Modifier) {
-    Column(modifier.clip(RoundedCornerShape(Radius.Card)).background(C.Card).padding(12.dp)) {
-        Text(label, color = C.Muted, fontSize = 13.sp)
-        Spacer(Modifier.height(6.dp))
-        Text("↓ ${fmtSize(v.second)}", color = C.Green, fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 1)
-        Text("↑ ${fmtSize(v.first)}", color = C.Red, fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 1)
+    AppCard(modifier, padding = Space.Md) {
+        Text(label, style = Type.Small, color = C.Muted)
+        Spacer(Modifier.height(Space.Xs))
+        Text("↓ ${fmtSize(v.second)}", style = Type.SmallMedium, color = C.Green, maxLines = 1)
+        Text("↑ ${fmtSize(v.first)}", style = Type.SmallMedium, color = C.Red, maxLines = 1)
     }
 }
 
 @Composable
 private fun SessionRow(s: Session) {
     val fmt = remember { SimpleDateFormat("MMM d, HH:mm", Locale.getDefault()) }
-    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
-        Text(Flags.clean(s.server).ifBlank { "Server" }, color = C.Text, fontSize = 16.sp, maxLines = 1)
+    Column(Modifier.fillMaxWidth().padding(horizontal = Space.Lg, vertical = Space.Md)) {
+        Text(Flags.clean(s.server).ifBlank { "Server" }, style = Type.Body, color = C.Text, maxLines = 1)
         Spacer(Modifier.height(2.dp))
         Row(Modifier.fillMaxWidth()) {
-            Text("${fmt.format(Date(s.start))} · ${fmtDuration(s.end - s.start)}", color = C.Muted, fontSize = 13.sp, modifier = Modifier.weight(1f))
-            Text("↓ ${fmtSize(s.down)}  ↑ ${fmtSize(s.up)}", color = C.Muted, fontSize = 13.sp)
+            Text("${fmt.format(Date(s.start))} · ${fmtDuration(s.end - s.start)}", style = Type.Caption, color = C.Muted, modifier = Modifier.weight(1f))
+            Text("↓ ${fmtSize(s.down)}  ↑ ${fmtSize(s.up)}", style = Type.Caption, color = C.Muted)
         }
     }
 }

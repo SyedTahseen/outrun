@@ -34,10 +34,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.Sort
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.MoreVert
@@ -55,13 +53,9 @@ import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material.icons.outlined.WifiOff
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
@@ -75,14 +69,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import app.xvpn.data.ConfigBuilder
 import app.xvpn.data.LinkParser
 import app.xvpn.data.Profile
@@ -162,104 +151,98 @@ fun ServersScreen(
 
     val listState = rememberLazyListState()
     val scrolled by remember { derivedStateOf { listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 0 } }
-    val headerColor by animateColorAsState(if (scrolled) C.Card else C.Bg, label = "headerColor")
 
     ReportScrolled(scrolled, onScrolledChange)
 
     Column(Modifier.fillMaxSize()) {
-        Column(Modifier.fillMaxWidth().background(headerColor)) {
-            Spacer(Modifier.height(20.dp))
-            HeaderRow {
+        HeaderSurface(scrolled) {
+            HeaderBar {
                 AnimatedContent(
                     targetState = searching,
                     modifier = Modifier.fillMaxWidth(),
                     transitionSpec = { fadeTransition() },
                     label = "serversHeader",
                 ) { isSearch ->
-                    Row(Modifier.fillMaxWidth().height(44.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Row(Modifier.fillMaxWidth().height(Sizes.Control), verticalAlignment = Alignment.CenterVertically) {
                         if (isSearch) {
                             BasicTextField(
                                 value = query, onValueChange = { query = it }, singleLine = true,
-                                textStyle = TextStyle(color = C.Text, fontSize = 18.sp),
+                                textStyle = Type.Body.copy(color = C.Text),
                                 cursorBrush = SolidColor(C.Accent),
                                 modifier = Modifier.weight(1f).focusRequester(focus),
                                 decorationBox = { inner ->
-                                    if (query.isEmpty()) Text("Search servers", color = C.Muted, fontSize = 18.sp)
-                                    inner()
+                                    Box {
+                                        if (query.isEmpty()) Text("Search servers", style = Type.Body, color = C.Muted)
+                                        inner()
+                                    }
                                 },
                             )
-                            HeaderIcon(Icons.Filled.Close, "Close search") { searching = false; query = "" }
+                            IconAction(Icons.Filled.Close, "Close search") { searching = false; query = "" }
                         } else {
                             Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
-                                Text("Servers", color = C.Text, fontSize = 26.sp, fontWeight = FontWeight.Bold)
-                                Spacer(Modifier.width(10.dp))
+                                Text("Servers", style = Type.Headline, color = C.Text)
+                                Spacer(Modifier.width(Space.Md))
                                 Box(
-                                    Modifier.clip(RoundedCornerShape(Radius.Small)).background(C.ButtonGrey).padding(horizontal = 10.dp, vertical = 3.dp),
+                                    Modifier.clip(RoundedCornerShape(Radius.Small)).background(C.Control)
+                                        .padding(horizontal = Space.Md, vertical = Space.Xs),
                                 ) {
                                     AnimatedContent(
                                         targetState = profiles.size,
                                         transitionSpec = { numberTransition(up = targetState > initialState) },
                                         label = "serverCount",
-                                    ) { n -> Text("$n", color = C.Text, fontSize = 15.sp, fontWeight = FontWeight.Medium) }
+                                    ) { n -> Text("$n", style = Type.SmallMedium, color = C.Text) }
                                 }
                             }
-                            HeaderIcon(Icons.Filled.Search, "Search") { searching = true }
+                            IconAction(Icons.Filled.Search, "Search") { searching = true }
                             Box {
-                                HeaderIcon(Icons.Filled.Add, "Add") { addMenu = true }
-                                DropdownMenu(addMenu, { addMenu = false }, shape = RoundedCornerShape(Radius.Card), containerColor = C.Card) {
-                                    MenuRow(Icons.Outlined.QrCodeScanner, "Scan QR code") { addMenu = false; onScanQr() }
-                                    MenuRow(Icons.Outlined.ContentPaste, "Paste from clipboard") { addMenu = false; onPasteClipboard() }
-                                    MenuRow(Icons.Outlined.InsertDriveFile, "Import from file") { addMenu = false; onImportFile() }
-                                    MenuRow(Icons.Outlined.Edit, "Add manually") { addMenu = false; manual = true }
-                                    MenuRow(Icons.Outlined.Link, "Add subscription link") { addMenu = false; subDialog = true }
+                                IconAction(Icons.Filled.Add, "Add") { addMenu = true }
+                                AppDropdownMenu(addMenu, { addMenu = false }) {
+                                    AppMenuItem(Icons.Outlined.QrCodeScanner, "Scan QR code") { addMenu = false; onScanQr() }
+                                    AppMenuItem(Icons.Outlined.ContentPaste, "Paste from clipboard") { addMenu = false; onPasteClipboard() }
+                                    AppMenuItem(Icons.Outlined.InsertDriveFile, "Import from file") { addMenu = false; onImportFile() }
+                                    AppMenuItem(Icons.Outlined.Edit, "Add manually") { addMenu = false; manual = true }
+                                    AppMenuItem(Icons.Outlined.Link, "Add subscription link") { addMenu = false; subDialog = true }
                                 }
                             }
                             Box {
-                                HeaderIcon(Icons.Filled.MoreVert, "More") { menuPage = "main"; moreMenu = true }
-                                DropdownMenu(
-                                    moreMenu, { moreMenu = false }, shape = RoundedCornerShape(Radius.Card), containerColor = C.Card,
-                                    modifier = Modifier.widthIn(min = 220.dp),
-                                ) {
+                                IconAction(Icons.Filled.MoreVert, "More") { menuPage = "main"; moreMenu = true }
+                                AppDropdownMenu(moreMenu, { moreMenu = false }, Modifier.widthIn(min = 220.dp)) {
                                     when (menuPage) {
                                         "sort" -> {
-                                            MenuBack("Sort") { menuPage = "main" }
+                                            AppMenuHeader("Sort") { menuPage = "main" }
                                             SortMode.entries.forEach { m ->
-                                                DropdownMenuItem(
-                                                    text = { Text(m.label, color = if (m == sort) C.Accent else C.Text, fontSize = 17.sp) },
-                                                    trailingIcon = { if (m == sort) Icon(Icons.Filled.Check, null, tint = C.Accent, modifier = Modifier.size(20.dp)) },
-                                                    onClick = { onSortChange(m); moreMenu = false },
-                                                )
+                                                AppMenuChoice(m.label, m == sort) { onSortChange(m); moreMenu = false }
                                             }
                                         }
                                         "delete" -> {
-                                            MenuBack("Delete") { menuPage = "main" }
+                                            AppMenuHeader("Delete") { menuPage = "main" }
                                             val invalid = remember(profiles) { invalidLinks(profiles) }
                                             val dupes = remember(profiles, favorites, selectedLink) {
                                                 duplicateLinks(profiles, favorites + listOfNotNull(selectedLink))
                                             }
                                             val dead = remember(profiles, pings) { profiles.filter { pings[it.link] == -1 }.map { it.link } }
-                                            MenuRow(Icons.Outlined.ErrorOutline, "Invalid", C.Red, invalid.isNotEmpty(), { CountText(invalid.size) }) {
+                                            AppMenuItem(Icons.Outlined.ErrorOutline, "Invalid", destructive = true, enabled = invalid.isNotEmpty(), trailing = { CountText(invalid.size) }) {
                                                 moreMenu = false
                                                 confirmDel = DelAction("Delete ${invalid.size} invalid server(s)?", "These links can't be turned into a working configuration.", invalid)
                                             }
-                                            MenuRow(Icons.Outlined.ContentCopy, "Duplicates", C.Red, dupes.isNotEmpty(), { CountText(dupes.size) }) {
+                                            AppMenuItem(Icons.Outlined.ContentCopy, "Duplicates", destructive = true, enabled = dupes.isNotEmpty(), trailing = { CountText(dupes.size) }) {
                                                 moreMenu = false
                                                 confirmDel = DelAction("Delete ${dupes.size} duplicate(s)?", "One copy of each server is kept. Favorites and the selected server are kept first.", dupes)
                                             }
-                                            MenuRow(Icons.Outlined.WifiOff, "Unreachable", C.Red, dead.isNotEmpty(), { CountText(dead.size) }) {
+                                            AppMenuItem(Icons.Outlined.WifiOff, "Unreachable", destructive = true, enabled = dead.isNotEmpty(), trailing = { CountText(dead.size) }) {
                                                 moreMenu = false
                                                 confirmDel = DelAction("Delete ${dead.size} unreachable server(s)?", "These failed the last latency test.", dead)
                                             }
-                                            MenuRow(Icons.Outlined.DeleteOutline, "All servers", C.Red) {
+                                            AppMenuItem(Icons.Outlined.DeleteOutline, "All servers", destructive = true) {
                                                 moreMenu = false
                                                 confirmDel = DelAction("Delete all servers?", "All ${profiles.size} server(s) will be removed.", null)
                                             }
                                         }
                                         else -> {
-                                            MenuRow(Icons.Outlined.Speed, if (testing) "Testing…" else "Test latency") { moreMenu = false; if (!testing) onTestLatency() }
-                                            MenuRow(Icons.AutoMirrored.Outlined.Sort, "Sort", trailing = { Chevron() }) { menuPage = "sort" }
-                                            MenuRow(Icons.Outlined.Refresh, "Update subs") { moreMenu = false; onRefreshSubscriptions() }
-                                            MenuRow(Icons.Outlined.DeleteOutline, "Delete", trailing = { Chevron() }) { menuPage = "delete" }
+                                            AppMenuItem(Icons.Outlined.Speed, if (testing) "Testing…" else "Test latency") { moreMenu = false; if (!testing) onTestLatency() }
+                                            AppMenuItem(Icons.AutoMirrored.Outlined.Sort, "Sort", trailing = { Chevron() }) { menuPage = "sort" }
+                                            AppMenuItem(Icons.Outlined.Refresh, "Update subs") { moreMenu = false; onRefreshSubscriptions() }
+                                            AppMenuItem(Icons.Outlined.DeleteOutline, "Delete", trailing = { Chevron() }) { menuPage = "delete" }
                                         }
                                     }
                                 }
@@ -268,40 +251,40 @@ fun ServersScreen(
                     }
                 }
             }
-            Spacer(Modifier.height(18.dp))
+            Spacer(Modifier.height(Space.Lg))
 
             Row(
-                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 20.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = Space.Gutter),
+                horizontalArrangement = Arrangement.spacedBy(Space.Sm),
             ) {
-                Chip("All", f == null) { onFilterChange(null) }
-                if (hasFav) Chip("★ Favorites", f == "fav") { onFilterChange("fav") }
-                Chip("Default", f == "default") { onFilterChange("default") }
+                SelectChip("All", f == null) { onFilterChange(null) }
+                if (hasFav) SelectChip("★ Favorites", f == "fav") { onFilterChange("fav") }
+                SelectChip("Default", f == "default") { onFilterChange("default") }
                 subscriptions.forEach { url ->
                     val n = sources.count { it.value == url }
-                    Chip("${subInfo[url]?.title?.takeIf { it.isNotBlank() } ?: subHost(url)} ($n)", f == "sub:$url", onLongClick = { delSub = url }) { onFilterChange("sub:$url") }
+                    SelectChip(
+                        "${subInfo[url]?.title?.takeIf { it.isNotBlank() } ?: subHost(url)} ($n)", f == "sub:$url",
+                        onLongClick = { delSub = url },
+                    ) { onFilterChange("sub:$url") }
                 }
             }
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(Space.Lg))
         }
 
         AnimatedVisibility(
             visible = testing,
             enter = expandVertically(tween(Motion.Medium)) + fadeIn(tween(Motion.Medium)),
-            exit = shrinkVertically(tween(Motion.Medium)) + fadeOut(tween(Motion.Short)),
+            exit = shrinkVertically(tween(Motion.Medium)) + fadeOut(tween(Motion.Fast)),
         ) {
-            LinearProgressIndicator(Modifier.fillMaxWidth().height(2.dp), color = C.Accent, trackColor = C.ButtonGrey)
+            LinearProgressIndicator(Modifier.fillMaxWidth().height(2.dp), color = C.Accent, trackColor = C.Control)
         }
         Box(Modifier.weight(1f).fillMaxWidth()) {
             Crossfade(targetState = shown.isEmpty(), animationSpec = tween(Motion.Medium), label = "serversList") { empty ->
                 if (empty) {
-                    Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
-                        Text(
-                            if (profiles.isEmpty()) "No servers yet.\nTap + to scan a QR code, paste a link,\nimport a file or add one manually."
-                            else "No servers match.",
-                            color = C.Muted, fontSize = 14.sp,
-                        )
-                    }
+                    EmptyState(
+                        if (profiles.isEmpty()) "No servers yet.\nTap + to scan a QR code, paste a link,\nimport a file or add one manually."
+                        else "No servers match.",
+                    )
                 } else {
                     LazyColumn(Modifier.fillMaxSize().verticalScrollbar(listState), state = listState) {
                         items(shown, key = { it.link }) { p ->
@@ -324,10 +307,10 @@ fun ServersScreen(
         AnimatedVisibility(
             visible = subUrl != null,
             enter = expandVertically(tween(Motion.Medium, easing = Motion.Standard)) + fadeIn(tween(Motion.Medium)),
-            exit = shrinkVertically(tween(Motion.Medium, easing = Motion.Standard)) + fadeOut(tween(Motion.Short)),
+            exit = shrinkVertically(tween(Motion.Medium, easing = Motion.Standard)) + fadeOut(tween(Motion.Fast)),
         ) {
             if (barUrl != null) SubscriptionBar(
-                url = barUrl, info = subInfo[barUrl], host = subHost(barUrl),
+                info = subInfo[barUrl], host = subHost(barUrl),
                 onRefresh = { onRefreshSubscription(barUrl) }, onCopy = { onCopySubscription(barUrl) },
             )
         }
@@ -341,7 +324,7 @@ fun ServersScreen(
                 confirmDel = null
             },
             onDismiss = { confirmDel = null },
-        ) { Text(d.text, color = C.Muted, fontSize = 14.sp) }
+        ) { Text(d.text, style = Type.Small, color = C.Muted) }
     }
     delSub?.let { url ->
         val n = sources.count { it.value == url }
@@ -349,14 +332,14 @@ fun ServersScreen(
             title = "Delete subscription?", confirmLabel = "Delete", confirmColor = C.Red,
             onConfirm = { onDeleteSubscription(url); delSub = null; onFilterChange(null) },
             onDismiss = { delSub = null },
-        ) { Text("${subHost(url)} and its $n server(s) will be removed.", color = C.Muted, fontSize = 14.sp) }
+        ) { Text("${subHost(url)} and its $n server(s) will be removed.", style = Type.Small, color = C.Muted) }
     }
     if (subDialog) SubscriptionDialog(onDismiss = { subDialog = false }, onAdd = { onAddSubscription(it); subDialog = false })
     if (manual) ManualDialog(onDismiss = { manual = false }, onAdd = { onAddManual(it).also { ok -> if (ok) manual = false } })
 }
 
 @Composable
-private fun SubscriptionBar(url: String, info: SubInfo?, host: String, onRefresh: () -> Unit, onCopy: () -> Unit) {
+private fun SubscriptionBar(info: SubInfo?, host: String, onRefresh: () -> Unit, onCopy: () -> Unit) {
     val now = System.currentTimeMillis()
     val expMs = (info?.expire ?: 0L) * 1000
     val left = expMs - now
@@ -370,51 +353,48 @@ private fun SubscriptionBar(url: String, info: SubInfo?, host: String, onRefresh
         else -> "$days days left"
     }
     val expColor = when { expired -> C.Red; days <= 7 -> C.Amber; else -> C.Muted }
-    Box(Modifier.fillMaxWidth().background(C.Bg).padding(horizontal = 16.dp, vertical = 10.dp)) {
-        Row(
-            Modifier.fillMaxWidth().clip(RoundedCornerShape(Radius.Card)).background(C.Card).padding(start = 16.dp, top = 12.dp, bottom = 12.dp, end = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        info?.title?.takeIf { it.isNotBlank() } ?: host, color = C.Text, fontSize = 15.sp, fontWeight = FontWeight.SemiBold,
-                        maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false),
-                    )
-                    if (expText != null) {
-                        Spacer(Modifier.width(8.dp))
-                        Text(expText, color = expColor, fontSize = 13.sp, fontWeight = FontWeight.Medium, maxLines = 1)
-                    }
-                }
-                if (info != null && (info.total > 0 || info.used > 0)) {
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        if (info.total > 0) "${fmtSize(info.used, binary = true)} of ${fmtSize(info.total, binary = true)} used" else "${fmtSize(info.used, binary = true)} used · Unlimited",
-                        color = if (exhausted) C.Red else C.Muted, fontSize = 13.sp, maxLines = 1,
-                    )
-                    if (info.total > 0) {
-                        val frac = (info.used.toFloat() / info.total).coerceIn(0f, 1f)
-                        Spacer(Modifier.height(6.dp))
-                        Box(Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)).background(C.ButtonGrey)) {
-                            Box(
-                                Modifier.fillMaxWidth(frac).height(4.dp).clip(RoundedCornerShape(2.dp))
-                                    .background(if (exhausted) C.Red else if (frac > 0.9f) C.Amber else C.Accent),
-                            )
+    Box(Modifier.fillMaxWidth().background(C.Bg).padding(horizontal = Space.Gutter, vertical = Space.Md)) {
+        AppCard(Modifier.fillMaxWidth(), padding = 0.dp) {
+            Row(
+                Modifier.fillMaxWidth().padding(start = Space.Lg, top = Space.Md, bottom = Space.Md, end = Space.Xs),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            info?.title?.takeIf { it.isNotBlank() } ?: host, style = Type.BodyMedium, color = C.Text,
+                            maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false),
+                        )
+                        if (expText != null) {
+                            Spacer(Modifier.width(Space.Sm))
+                            Text(expText, style = Type.SmallMedium, color = expColor, maxLines = 1)
                         }
                     }
+                    if (info != null && (info.total > 0 || info.used > 0)) {
+                        Spacer(Modifier.height(Space.Xs))
+                        Text(
+                            if (info.total > 0) "${fmtSize(info.used, binary = true)} of ${fmtSize(info.total, binary = true)} used" else "${fmtSize(info.used, binary = true)} used · Unlimited",
+                            style = Type.Small, color = if (exhausted) C.Red else C.Muted, maxLines = 1,
+                        )
+                        if (info.total > 0) {
+                            val frac = (info.used.toFloat() / info.total).coerceIn(0f, 1f)
+                            Spacer(Modifier.height(Space.Sm))
+                            AppProgressBar(frac, if (exhausted) C.Red else if (frac > 0.9f) C.Amber else C.Accent)
+                        }
+                    }
+                    if (info != null && info.announce.isNotBlank()) {
+                        Spacer(Modifier.height(Space.Xs))
+                        Text(info.announce.trim().replace("\n", " "), style = Type.Small, color = C.Text, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                    Spacer(Modifier.height(Space.Xs))
+                    Text(
+                        host + if (info != null && info.fetchedAt > 0) " · updated ${fmtAgo(info.fetchedAt)}" else "",
+                        style = Type.Caption, color = C.Muted, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    )
                 }
-                if (info != null && info.announce.isNotBlank()) {
-                    Spacer(Modifier.height(4.dp))
-                    Text(info.announce.trim().replace("\n", " "), color = C.Text, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    host + if (info != null && info.fetchedAt > 0) " · updated ${fmtAgo(info.fetchedAt)}" else "",
-                    color = C.Muted, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                )
+                IconAction(Icons.Outlined.ContentCopy, "Copy subscription link", tint = C.Muted, onClick = onCopy)
+                IconAction(Icons.Outlined.Refresh, "Update subscription", tint = C.Muted, onClick = onRefresh)
             }
-            HeaderIcon(Icons.Outlined.ContentCopy, "Copy subscription link", tint = C.Muted, onClick = onCopy)
-            HeaderIcon(Icons.Outlined.Refresh, "Update subscription", tint = C.Muted, onClick = onRefresh)
         }
     }
 }
@@ -441,45 +421,10 @@ private fun duplicateLinks(profiles: List<Profile>, keep: Set<String>): List<Str
 }
 
 @Composable
-private fun MenuRow(
-    icon: ImageVector, label: String, tint: Color = C.Accent, enabled: Boolean = true,
-    trailing: (@Composable () -> Unit)? = null, onClick: () -> Unit,
-) {
-    DropdownMenuItem(
-        text = { Text(label, color = if (!enabled) C.Muted else if (tint == C.Red) C.Red else C.Text, fontSize = 17.sp, maxLines = 1) },
-        leadingIcon = { Icon(icon, null, tint = if (enabled) tint else C.Muted, modifier = Modifier.size(22.dp)) },
-        trailingIcon = trailing,
-        enabled = enabled,
-        onClick = onClick,
-    )
-}
+private fun Chevron() { Icon(Icons.Filled.ChevronRight, null, tint = C.Muted, modifier = Modifier.size(Sizes.Icon)) }
 
 @Composable
-private fun MenuBack(title: String, onClick: () -> Unit) {
-    DropdownMenuItem(
-        text = { Text(title, color = C.Text, fontSize = 17.sp, fontWeight = FontWeight.SemiBold) },
-        leadingIcon = { Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = C.Text, modifier = Modifier.size(22.dp)) },
-        onClick = onClick,
-    )
-}
-
-@Composable
-private fun Chevron() { Icon(Icons.Filled.ChevronRight, null, tint = C.Muted, modifier = Modifier.size(20.dp)) }
-
-@Composable
-private fun CountText(n: Int) { Text("$n", color = C.Muted, fontSize = 15.sp) }
-
-@Composable
-private fun Chip(label: String, selected: Boolean, onLongClick: (() -> Unit)? = null, onClick: () -> Unit) {
-    val bg by animateColorAsState(if (selected) C.Button else C.ButtonGrey, tween(Motion.Medium), label = "chipBg")
-    val tick = rememberTick()
-    Box(
-        Modifier.height(44.dp)
-            .pressable(RoundedCornerShape(Radius.Small), 0.95f, onLongClick = onLongClick) { if (!selected) tick(); onClick() }
-            .background(bg).padding(horizontal = 22.dp),
-        contentAlignment = Alignment.Center,
-    ) { Text(label, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Medium) }
-}
+private fun CountText(n: Int) { Text("$n", style = Type.Small, color = C.Muted) }
 
 @Composable
 private fun ServerRow(
@@ -493,27 +438,27 @@ private fun ServerRow(
     val nameColor by animateColorAsState(if (selected) C.Green else C.Text, tween(Motion.Medium), label = "rowName")
     Column(modifier.fillMaxWidth().background(rowBg)) {
         Row(
-            Modifier.fillMaxWidth().clickable(onClick = onConnect).padding(start = 20.dp, end = 8.dp).height(84.dp),
+            Modifier.fillMaxWidth().clickable(onClick = onConnect).padding(start = Space.Gutter, end = Space.Sm).height(Sizes.ServerRow),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             FlagBadge(p.name)
-            Spacer(Modifier.width(16.dp))
+            Spacer(Modifier.width(Space.Lg))
             Column(Modifier.weight(1f)) {
-                Text(Flags.clean(p.name), color = nameColor, fontSize = 17.sp, maxLines = 1)
-                Text("${p.host}:${p.port}", color = C.Muted, fontSize = 13.sp, maxLines = 1)
-                Text(LinkParser.describe(p.link), color = C.Muted.copy(alpha = 0.8f), fontSize = 12.sp, maxLines = 1)
+                Text(Flags.clean(p.name), style = Type.Body, color = nameColor, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text("${p.host}:${p.port}", style = Type.Small, color = C.Muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(LinkParser.describe(p.link), style = Type.Caption, color = C.Muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             PingLabel(ping, testing)
             FavStar(fav, onFavorite)
             Box {
-                HeaderIcon(Icons.Filled.MoreVert, "Options") { menu = true }
-                DropdownMenu(menu, { menu = false }, shape = RoundedCornerShape(Radius.Card), containerColor = C.Card) {
-                    MenuRow(Icons.Outlined.ContentCopy, "Copy") { menu = false; onCopy() }
-                    MenuRow(Icons.Outlined.DeleteOutline, "Delete") { menu = false; onDelete() }
+                IconAction(Icons.Filled.MoreVert, "Options") { menu = true }
+                AppDropdownMenu(menu, { menu = false }) {
+                    AppMenuItem(Icons.Outlined.ContentCopy, "Copy") { menu = false; onCopy() }
+                    AppMenuItem(Icons.Outlined.DeleteOutline, "Delete") { menu = false; onDelete() }
                 }
             }
         }
-        Box(Modifier.fillMaxWidth().height(1.dp).background(C.CardBorder))
+        HairlineDivider()
     }
 }
 
@@ -523,8 +468,8 @@ private fun PingLabel(ping: Int?, testing: Boolean) {
         targetState = ping to testing,
         transitionSpec = {
             ContentTransform(
-                fadeIn(tween(Motion.Short + 50, delayMillis = 60)) + slideInVertically(tween(Motion.Short + 50)) { it / 3 },
-                fadeOut(tween(Motion.Short - 40)),
+                fadeIn(tween(Motion.Short, delayMillis = Motion.Overlap / 2)) + slideInVertically(tween(Motion.Short)) { it / 3 },
+                fadeOut(tween(Motion.Fast)),
                 0f,
                 SizeTransform(clip = false),
             )
@@ -532,9 +477,9 @@ private fun PingLabel(ping: Int?, testing: Boolean) {
         label = "ping",
     ) { (p, t) ->
         when {
-            p == null -> if (t) Text("…", color = C.Muted, fontSize = 14.sp)
-            p < 0 -> Text("Timeout", color = C.Red, fontSize = 13.sp)
-            else -> Text("$p ms", color = if (p < 500) C.Green else if (p < 1200) C.Amber else C.Red, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+            p == null -> if (t) Text("…", style = Type.Small, color = C.Muted)
+            p < 0 -> Text("Timeout", style = Type.Small, color = C.Red)
+            else -> Text("$p ms", style = Type.SmallMedium, color = if (p < 500) C.Green else if (p < 1200) C.Amber else C.Red)
         }
     }
 }
@@ -542,33 +487,10 @@ private fun PingLabel(ping: Int?, testing: Boolean) {
 @Composable
 private fun FavStar(fav: Boolean, onClick: () -> Unit) {
     val tick = rememberTick()
-    val tint by animateColorAsState(if (fav) C.Amber else C.Muted, tween(Motion.Medium), label = "favTint")
-    Box(
-        Modifier.size(44.dp).pressable(RoundedCornerShape(22.dp), 1f) { tick(); onClick() },
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(
-            if (fav) Icons.Filled.Star else Icons.Outlined.StarBorder, "Favorite", tint = tint,
-            modifier = Modifier.size(26.dp),
-        )
-    }
-}
-
-@Composable
-private fun AppDialog(
-    title: String, confirmLabel: String, confirmColor: Color,
-    onConfirm: () -> Unit, onDismiss: () -> Unit,
-    content: @Composable () -> Unit,
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = C.Card,
-        shape = RoundedCornerShape(Radius.Card),
-        title = { Text(title, color = C.Text, fontSize = 20.sp) },
-        text = content,
-        confirmButton = { TextButton(onConfirm) { Text(confirmLabel, color = confirmColor) } },
-        dismissButton = { TextButton(onDismiss) { Text("Cancel", color = C.Muted) } },
-    )
+    IconAction(
+        if (fav) Icons.Filled.Star else Icons.Outlined.StarBorder, "Favorite",
+        tint = if (fav) C.Amber else C.Muted,
+    ) { tick(); onClick() }
 }
 
 @Composable
@@ -576,20 +498,13 @@ private fun ManualDialog(onDismiss: () -> Unit, onAdd: (String) -> Boolean) {
     var text by remember { mutableStateOf("") }
     var bad by remember { mutableStateOf(false) }
     AppDialog(
-        title = "Add manually", confirmLabel = "Add", confirmColor = C.Accent,
+        title = "Add manually", confirmLabel = "Add",
         onConfirm = { if (!onAdd(text)) bad = true }, onDismiss = onDismiss,
     ) {
-        Column {
-            Text("Paste a WireGuard .conf or a vless://, trojan://, ss://, vmess://, hysteria2://, tuic:// or wireguard:// link (one per line).", color = C.Muted, fontSize = 13.sp)
-            Spacer(Modifier.height(12.dp))
-            BasicTextField(
-                value = text, onValueChange = { text = it; bad = false },
-                textStyle = TextStyle(color = C.Text, fontSize = 13.sp),
-                cursorBrush = SolidColor(C.Accent),
-                modifier = Modifier.fillMaxWidth().height(120.dp).clip(RoundedCornerShape(Radius.Small)).background(C.Bg).padding(12.dp),
-            )
-            if (bad) Text("No valid link found", color = C.Red, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
-        }
+        Text("Paste a WireGuard .conf or a vless://, trojan://, ss://, vmess://, hysteria2://, tuic:// or wireguard:// link (one per line).", style = Type.Small, color = C.Muted)
+        Spacer(Modifier.height(Space.Md))
+        AppTextField(text, { text = it; bad = false }, singleLine = false, onCard = true)
+        if (bad) Text("No valid link found", style = Type.Caption, color = C.Red, modifier = Modifier.padding(top = Space.Sm))
     }
 }
 
@@ -597,22 +512,11 @@ private fun ManualDialog(onDismiss: () -> Unit, onAdd: (String) -> Boolean) {
 private fun SubscriptionDialog(onDismiss: () -> Unit, onAdd: (String) -> Unit) {
     var url by remember { mutableStateOf("") }
     AppDialog(
-        title = "Add subscription link", confirmLabel = "Add", confirmColor = C.Accent,
+        title = "Add subscription link", confirmLabel = "Add",
         onConfirm = { if (url.isNotBlank()) onAdd(url.trim()) }, onDismiss = onDismiss,
     ) {
-        Column {
-            Text("Servers from this URL are added now and when you update subscriptions.", color = C.Muted, fontSize = 13.sp)
-            Spacer(Modifier.height(12.dp))
-            BasicTextField(
-                value = url, onValueChange = { url = it }, singleLine = true,
-                textStyle = TextStyle(color = C.Text, fontSize = 14.sp),
-                cursorBrush = SolidColor(C.Accent),
-                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(Radius.Small)).background(C.Bg).padding(14.dp),
-                decorationBox = { inner ->
-                    if (url.isEmpty()) Text("https://…", color = C.Muted, fontSize = 14.sp)
-                    inner()
-                },
-            )
-        }
+        Text("Servers from this URL are added now and when you update subscriptions.", style = Type.Small, color = C.Muted)
+        Spacer(Modifier.height(Space.Md))
+        AppTextField(url, { url = it }, placeholder = "https://…", onCard = true)
     }
 }

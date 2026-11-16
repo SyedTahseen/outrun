@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Dark from the first frame: no grey flash before Compose draws. -->
+    <style name="Theme.Outrun" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/outrun_bg</item>
+        <item name="android:statusBarColor">@color/transparent</item>
+        <item name="android:navigationBarColor">@color/transparent</item>
+    </style>
+</resources>

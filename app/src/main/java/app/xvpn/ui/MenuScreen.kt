@@ -137,7 +137,7 @@ fun MenuScreen(
     AnimatedContent(
         targetState = pageState.value,
         modifier = Modifier.fillMaxSize(),
-        transitionSpec = { axisTransition(forward = pageDepth(targetState) >= pageDepth(initialState), distance = 0.2f) },
+        transitionSpec = { axisTransition(forward = pageDepth(targetState) >= pageDepth(initialState)) },
         label = "settingsPage",
     ) { shown -> MenuPage(store, debugInfo, onScrolledChange, onFullScreenChange, pageState, scroll, shown) }
 }
@@ -214,9 +214,9 @@ private fun MenuPage(
         }
         "mode" -> {
             SubPage(null, { page = "split" }) {
-                Hero(Icons.Outlined.Tune)
+                HeroIcon(Icons.Outlined.Tune)
                 PageHeading("Mode", "Choose how split tunneling treats the apps and IP addresses you select. Applies the next time you connect.")
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(Space.Sm))
                 ChoiceList {
                     ChoiceRow("Exclude", "Selected apps and IP addresses are excluded from the VPN connection.", !including) {
                         splitMode = "exclude"; store.splitMode = "exclude"; page = "split"
@@ -230,9 +230,9 @@ private fun MenuPage(
         }
         "dns" -> {
             SubPage(null, { page = "main" }) {
-                Hero(Icons.Outlined.Dns)
+                HeroIcon(Icons.Outlined.Dns)
                 PageHeading("DNS", "Choose the DNS servers used while connected. Applies the next time you connect.")
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(Space.Sm))
                 ChoiceList {
                     Choices.dns.forEach { o -> ChoiceRow(o.name, o.note, dns == o.id) { dns = o.id; store.dnsChoice = o.id; page = "main" } }
                     ChoiceRow("Custom", if (dnsCustom.isBlank()) "Your own IPv4 DNS servers" else dnsCustom, dns == "custom") { page = "dns_custom" }
@@ -250,20 +250,16 @@ private fun MenuPage(
                         dns = "custom"; store.dnsChoice = "custom"; page = "main"
                     } else error = true
                 }
-                Column(Modifier.padding(horizontal = 20.dp)) {
-                    Text("DNS servers", color = C.Text, fontSize = 14.sp, modifier = Modifier.padding(top = 8.dp, bottom = 6.dp))
-                    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(Radius.Small)).background(C.Card).padding(14.dp)) {
-                        BasicTextField(
-                            value = text, onValueChange = { text = it; error = false }, singleLine = true,
-                            textStyle = TextStyle(color = C.Text, fontSize = 16.sp), cursorBrush = SolidColor(C.Accent),
-                            modifier = Modifier.fillMaxWidth(),
-                            decorationBox = { inner -> if (text.isEmpty()) Text("e.g. 9.9.9.9, 149.112.112.112", color = C.Muted, fontSize = 16.sp); inner() },
-                        )
-                    }
-                    Spacer(Modifier.height(6.dp))
+                Column(Modifier.padding(horizontal = Space.Gutter)) {
+                    FieldLabel("DNS servers")
+                    AppTextField(
+                        value = text, onValueChange = { text = it; error = false },
+                        placeholder = "e.g. 9.9.9.9, 149.112.112.112",
+                    )
+                    Spacer(Modifier.height(Space.Sm))
                     Text(
                         if (error) "Not a valid IPv4 address list." else "Enter one or more IPv4 addresses, separated by commas.",
-                        color = if (error) C.Red else C.Muted, fontSize = 12.sp,
+                        style = Type.Caption, color = if (error) C.Red else C.Muted,
                     )
                 }
             }
@@ -271,9 +267,9 @@ private fun MenuPage(
         }
         "ipv6" -> {
             SubPage(null, { page = "main" }) {
-                Hero(Icons.Outlined.Language)
+                HeroIcon(Icons.Outlined.Language)
                 PageHeading("IPv6", "Choose how IPv6 traffic is handled while connected. Applies the next time you connect.")
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(Space.Sm))
                 ChoiceList {
                     ChoiceRow("Tunnel IPv6", "Send IPv6 through the VPN. If the server has no IPv6, apps fall back to IPv4.", ipv6 == "tunnel") {
                         ipv6 = "tunnel"; store.ipv6Mode = "tunnel"; page = "main"
@@ -295,9 +291,9 @@ private fun MenuPage(
         }
         "test" -> {
             SubPage(null, { page = "main" }) {
-                Hero(Icons.Outlined.Speed)
+                HeroIcon(Icons.Outlined.Speed)
                 PageHeading("Latency test", "Each server is tested with a real request to this address, sent through the server. The time covers connecting to the server, the secure connection and the response.")
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(Space.Sm))
                 ChoiceList {
                     Choices.testUrls.forEach { o -> ChoiceRow(o.name, o.url, testUrl == o.id) { testUrl = o.id; store.testUrlChoice = o.id; page = "main" } }
                 }
@@ -306,17 +302,17 @@ private fun MenuPage(
         }
         "connect" -> {
             SubPage(null, { page = "main" }) {
-                Hero(Icons.Outlined.PowerSettingsNew)
+                HeroIcon(Icons.Outlined.PowerSettingsNew)
                 PageHeading("Connect on launch", "Connect to the selected server automatically when the app opens.")
-                ToggleCard("Connect on launch", autoConnect) { autoConnect = it; store.autoConnect = it }
+                SwitchCard("Connect on launch", autoConnect) { autoConnect = it; store.autoConnect = it }
             }
             return
         }
         "autoupdate" -> {
             SubPage(null, { page = "main" }) {
-                Hero(Icons.Outlined.Sync)
+                HeroIcon(Icons.Outlined.Sync)
                 PageHeading("Auto-update subscriptions", "Refresh your subscriptions when the app opens, following each subscription's update interval.")
-                ToggleCard("Auto-update subscriptions", autoUpdate) { autoUpdate = it; store.autoUpdateSubs = it }
+                SwitchCard("Auto-update subscriptions", autoUpdate) { autoUpdate = it; store.autoUpdateSubs = it }
             }
             return
         }
@@ -325,38 +321,44 @@ private fun MenuPage(
             SubPage(
                 "Kill switch", { page = "main" },
                 bottom = {
-                    ActionButton("Settings", filled = true, trailing = Icons.AutoMirrored.Outlined.OpenInNew) {
-                        runCatching { ctx.startActivity(Intent(Settings.ACTION_VPN_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
-                    }
-                    Spacer(Modifier.height(12.dp))
-                    ActionButton("What is kill switch?", filled = false, trailing = Icons.AutoMirrored.Outlined.OpenInNew) {
-                        runCatching { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(KILL_SWITCH_HELP_URL)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
-                    }
+                    AppButton(
+                        "Settings", {
+                            runCatching { ctx.startActivity(Intent(Settings.ACTION_VPN_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+                        },
+                        Modifier.fillMaxWidth(), ButtonStyle.Primary, trailingIcon = Icons.AutoMirrored.Outlined.OpenInNew,
+                    )
+                    Spacer(Modifier.height(Space.Md))
+                    AppButton(
+                        "What is kill switch?", {
+                            runCatching { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(KILL_SWITCH_HELP_URL)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+                        },
+                        Modifier.fillMaxWidth(), ButtonStyle.Outline, trailingIcon = Icons.AutoMirrored.Outlined.OpenInNew,
+                    )
                 },
             ) {
-                Hero(Icons.Outlined.Shield, size = 96.dp, centered = true, tint = C.Green)
-                Spacer(Modifier.height(24.dp))
-                Text("How to enable kill switch", color = C.Text, fontSize = 24.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 20.dp))
-                Spacer(Modifier.height(14.dp))
-                Column(Modifier.padding(horizontal = 20.dp)) {
-                    Text("1. Open your device settings", color = C.Text, fontSize = 17.sp)
-                    Text("2. Find Outrun and tap the gear icon", color = C.Text, fontSize = 17.sp)
+                HeroIcon(Icons.Outlined.Shield, size = 96.dp, centered = true, tint = C.Green)
+                Spacer(Modifier.height(Space.Xxl))
+                Text("How to enable kill switch", style = Type.Headline, color = C.Text, modifier = Modifier.padding(horizontal = Space.Gutter))
+                Spacer(Modifier.height(Space.Lg))
+                Column(Modifier.padding(horizontal = Space.Gutter)) {
+                    Text("1. Open your device settings", style = Type.Body, color = C.Text)
+                    Text("2. Find Outrun and tap the gear icon", style = Type.Body, color = C.Text)
                     Text(
                         buildAnnotatedString {
                             append("3. Enable \""); pushStyle(bold); append("Always-on VPN"); pop(); append("\" and \"")
                             pushStyle(bold); append("Block connections without VPN"); pop(); append("\"")
                         },
-                        color = C.Text, fontSize = 17.sp,
+                        style = Type.Body, color = C.Text,
                     )
-                    Spacer(Modifier.height(18.dp))
+                    Spacer(Modifier.height(Space.Xl))
                     Row(verticalAlignment = Alignment.Top) {
-                        Icon(Icons.Outlined.Info, null, tint = C.Muted, modifier = Modifier.size(22.dp))
-                        Spacer(Modifier.width(12.dp))
+                        Icon(Icons.Outlined.Info, null, tint = C.Muted, modifier = Modifier.size(Sizes.Icon))
+                        Spacer(Modifier.width(Space.Md))
                         Column {
-                            Text("When kill switch is on, you won't be able to connect to:", color = C.Muted, fontSize = 15.sp)
-                            Spacer(Modifier.height(8.dp))
-                            Text("•  Websites and apps excluded from your VPN connection through split tunneling", color = C.Muted, fontSize = 15.sp)
-                            Text("•  Devices on your local area network", color = C.Muted, fontSize = 15.sp)
+                            Text("When kill switch is on, you won't be able to connect to:", style = Type.Small, color = C.Muted)
+                            Spacer(Modifier.height(Space.Sm))
+                            Text("•  Websites and apps excluded from your VPN connection through split tunneling", style = Type.Small, color = C.Muted)
+                            Text("•  Devices on your local area network", style = Type.Small, color = C.Muted)
                         }
                     }
                 }
@@ -390,84 +392,51 @@ private fun MenuPage(
     val version = remember { ctx.appVersionName() ?: "-" }
 
     val scrolled by remember { derivedStateOf { scroll.value > 0 } }
-    val headerColor by animateColorAsState(if (scrolled) C.Card else C.Bg, label = "settingsHeader")
     ReportScrolled(scrolled, onScrolledChange)
 
     Column(Modifier.fillMaxSize()) {
-        Column(Modifier.fillMaxWidth().background(headerColor)) {
-            Spacer(Modifier.height(20.dp))
-            HeaderRow {
-                Text("Settings", color = C.Text, fontSize = 26.sp, fontWeight = FontWeight.Bold, maxLines = 1)
-            }
-            Spacer(Modifier.height(8.dp))
-        }
+        ScreenHeader("Settings", scrolled = scrolled)
         Column(Modifier.weight(1f).fillMaxWidth().verticalScrollbar(scroll).verticalScroll(scroll)) {
-            Section("Features", first = true)
-            SettingRow(
+            SectionHeader("Features", first = true)
+            ListRow(
                 Icons.Outlined.AltRoute, "Split tunneling",
                 if (!splitOn) "Off" else "On",
             ) { page = "split" }
-            SettingRow(Icons.Outlined.Shield, "Kill switch") { page = "kill" }
-            SettingRow(Icons.Outlined.BarChart, "Usage & history", "Data use, connection log and app usage") { page = "usage" }
+            ListRow(Icons.Outlined.Shield, "Kill switch") { page = "kill" }
+            ListRow(Icons.Outlined.BarChart, "Usage & history", "Data use, connection log and app usage") { page = "usage" }
 
-            Section("Connection")
-            SettingRow(Icons.Outlined.Dns, "DNS", dnsLabel) { page = "dns" }
-            SettingRow(Icons.Outlined.Language, "IPv6", if (ipv6 == "block") "Blocked" else "Tunneled") { page = "ipv6" }
-            SettingRow(Icons.Outlined.Speed, "Latency test", testLabel) { page = "test" }
-            SettingRow(Icons.Outlined.PowerSettingsNew, "Connect on launch", if (autoConnect) "On" else "Off") { page = "connect" }
-            SettingRow(Icons.Outlined.Sync, "Auto-update subscriptions", if (autoUpdate) "On" else "Off") { page = "autoupdate" }
+            SectionHeader("Connection")
+            ListRow(Icons.Outlined.Dns, "DNS", dnsLabel) { page = "dns" }
+            ListRow(Icons.Outlined.Language, "IPv6", if (ipv6 == "block") "Blocked" else "Tunneled") { page = "ipv6" }
+            ListRow(Icons.Outlined.Speed, "Latency test", testLabel) { page = "test" }
+            ListRow(Icons.Outlined.PowerSettingsNew, "Connect on launch", if (autoConnect) "On" else "Off") { page = "connect" }
+            ListRow(Icons.Outlined.Sync, "Auto-update subscriptions", if (autoUpdate) "On" else "Off") { page = "autoupdate" }
 
-            Section("General")
-            SettingRow(Icons.Outlined.Notifications, "Notifications", if (notifOn) "On" else "Off") {
+            SectionHeader("General")
+            ListRow(Icons.Outlined.Notifications, "Notifications", if (notifOn) "On" else "Off") {
                 val asked = ctx.uiPrefs().getBoolean(KEY_NOTIF_ASKED, false)
                 if (!notifOn && Build.VERSION.SDK_INT >= 33 && !asked) {
                     ctx.uiPrefs().edit().putBoolean(KEY_NOTIF_ASKED, true).apply()
                     notifLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                 } else ctx.openNotificationSettings()
             }
-            SettingRow(
+            ListRow(
                 Icons.Outlined.PhoneAndroid, "Widget",
                 if (widgetCount > 0) "Added to home screen" else "Add to home screen",
             ) { ctx.requestPinWidget(); widgetCount = ctx.widgetCount() }
 
-            Section("Support")
-            SettingRow(Icons.Outlined.Support, "Support contact", external = true) { ctx.emailSupport() }
-            SettingRow(Icons.Outlined.BugReport, "Report an issue", external = true) { ctx.reportIssue(debugInfo()) }
-            SettingRow(Icons.Outlined.Code, "Debug logs") { page = "logs" }
+            SectionHeader("Support")
+            ListRow(Icons.Outlined.Support, "Support contact", external = true) { ctx.emailSupport() }
+            ListRow(Icons.Outlined.BugReport, "Report an issue", external = true) { ctx.reportIssue(debugInfo()) }
+            ListRow(Icons.Outlined.Code, "Debug logs") { page = "logs" }
 
-            Spacer(Modifier.height(28.dp))
+            Spacer(Modifier.height(Space.Xxl))
             Text(
-                "App version: $version", color = C.Muted, fontSize = 15.sp, textAlign = TextAlign.Center,
+                "App version: $version", style = Type.Small, color = C.Muted, textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth(),
             )
-            Text(
-                "Third party licenses", color = C.Accent, fontSize = 15.sp, textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth().clickable { ctx.openUrl(LICENSE_URL) }.padding(vertical = 10.dp),
-            )
-            Spacer(Modifier.height(28.dp))
-        }
-    }
-}
-
-@Composable
-private fun SettingRow(
-    icon: ImageVector, title: String, subtitle: String? = null,
-    external: Boolean = false,
-    onClick: () -> Unit,
-) {
-    Row(
-        Modifier.fillMaxWidth().heightIn(min = 56.dp).clickable(onClick = onClick).padding(horizontal = 20.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(icon, null, tint = C.Text, modifier = Modifier.size(24.dp))
-        Spacer(Modifier.width(20.dp))
-        Column(Modifier.weight(1f)) {
-            Text(title, color = C.Text, fontSize = 17.sp)
-            if (subtitle != null) Text(subtitle, color = C.Muted, fontSize = 16.sp, maxLines = 2)
-        }
-        if (external) {
-            Spacer(Modifier.width(12.dp))
-            Icon(Icons.AutoMirrored.Outlined.OpenInNew, null, tint = C.Muted, modifier = Modifier.size(22.dp))
+            TextAction("Third party licenses", { ctx.openUrl(LICENSE_URL) }, Modifier.align(Alignment.CenterHorizontally))
+            Spacer(Modifier.height(Space.Xxl))
         }
     }
 }
@@ -550,87 +519,22 @@ private fun LogsPage(
     ReportScrolled(false, onScrolledChange)
     DisposableEffect(Unit) { onFullScreenChange(true); onDispose { onFullScreenChange(false) } }
     Column(Modifier.fillMaxSize()) {
-        Column(Modifier.fillMaxWidth().background(C.Bg)) {
-            Spacer(Modifier.height(20.dp))
-            HeaderRow {
-                HeaderIcon(Icons.AutoMirrored.Filled.ArrowBack, "Back", onClick = onBack)
-                Spacer(Modifier.width(6.dp))
-                Text("Log", color = C.Text, fontSize = 22.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, modifier = Modifier.weight(1f))
-                HeaderIcon(Icons.Outlined.IosShare, "Share logs") {
-                    logs?.let {
-                        val send = Intent(Intent.ACTION_SEND).setType("text/plain")
-                            .putExtra(Intent.EXTRA_SUBJECT, "Outrun VPN logs").putExtra(Intent.EXTRA_TEXT, info + "\n\n" + it)
-                        ctx.launch(Intent.createChooser(send, "Share logs"), "Couldn't share logs")
-                    }
+        ScreenHeader("Log", onBack = onBack) {
+            IconAction(Icons.Outlined.IosShare, "Share logs") {
+                logs?.let {
+                    val send = Intent(Intent.ACTION_SEND).setType("text/plain")
+                        .putExtra(Intent.EXTRA_SUBJECT, "Outrun VPN logs").putExtra(Intent.EXTRA_TEXT, info + "\n\n" + it)
+                    ctx.launch(Intent.createChooser(send, "Share logs"), "Couldn't share logs")
                 }
             }
-            Spacer(Modifier.height(8.dp))
         }
         Text(
-            logs ?: "Loading…", color = if (logs == null) C.Muted else C.Text, fontSize = 14.sp,
-            modifier = Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(bottom = 16.dp),
+            logs ?: "Loading…", style = Type.Small, color = if (logs == null) C.Muted else C.Text,
+            modifier = Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())
+                .padding(start = Space.Gutter, end = Space.Gutter, bottom = Space.Lg),
         )
     }
 }
-
-@Composable
-private fun Toggle(checked: Boolean, onChange: (Boolean) -> Unit) {
-    Switch(
-        checked = checked, onCheckedChange = onChange,
-        colors = SwitchDefaults.colors(
-            checkedThumbColor = Color.White, checkedTrackColor = C.Accent, checkedBorderColor = Color.Transparent,
-            uncheckedThumbColor = C.Muted, uncheckedTrackColor = C.ButtonGrey, uncheckedBorderColor = Color.Transparent,
-        ),
-    )
-}
-
-@Composable
-private fun SheetDialog(title: String, onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
-    Dialog(onDismissRequest = onDismiss) {
-        var visible by remember { mutableStateOf(false) }
-        LaunchedEffect(Unit) { visible = true }
-        AnimatedVisibility(
-            visible = visible,
-            enter = fadeIn(tween(Motion.Short + 30)) + scaleIn(spring(dampingRatio = 0.8f, stiffness = 500f), initialScale = 0.9f),
-            exit = fadeOut(tween(Motion.Short - 40)),
-        ) {
-            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(Radius.Card)).background(C.Card).padding(20.dp)) {
-                Text(title, color = C.Text, fontSize = 19.sp, fontWeight = FontWeight.SemiBold)
-                Spacer(Modifier.height(12.dp))
-                content()
-            }
-        }
-    }
-}
-
-@Composable
-private fun ChoiceRow(label: String, note: String, selected: Boolean, onClick: () -> Unit) {
-    Row(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(Radius.Small)).clickable(onClick = onClick).padding(vertical = 10.dp, horizontal = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        val ring by animateColorAsState(if (selected) C.Accent else C.Muted, tween(Motion.Short + 50), label = "radioRing")
-        Box(Modifier.size(22.dp).border(2.dp, ring, CircleShape), contentAlignment = Alignment.Center) {
-            val dot by animateFloatAsState(
-                targetValue = if (selected) 1f else 0f,
-                animationSpec = if (selected) spring<Float>(dampingRatio = 0.45f, stiffness = 420f) else tween<Float>(Motion.Short - 30),
-                label = "radioDot",
-            )
-            Box(
-                Modifier.size(10.dp)
-                    .graphicsLayer { scaleX = dot; scaleY = dot; alpha = dot.coerceIn(0f, 1f) }
-                    .clip(CircleShape).background(C.Accent),
-            )
-        }
-        Spacer(Modifier.width(14.dp))
-        Column(Modifier.weight(1f)) {
-            Text(label, color = C.Text, fontSize = 16.sp)
-            Text(note, color = C.Muted, fontSize = 13.sp, maxLines = 4)
-        }
-    }
-}
-
-private val AppRowIcon = 32.dp
 
 @Composable
 private fun SplitPage(
@@ -647,84 +551,46 @@ private fun SplitPage(
         else -> "${names.take(2).joinToString(", ")} +${names.size - 2}"
     }
     val word = if (including) "Included" else "Excluded"
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-        BackBar(onBack = onBack)
-        Spacer(Modifier.height(16.dp))
-        Column(Modifier.padding(horizontal = 20.dp)) {
-            Box(
-                Modifier.size(64.dp).clip(RoundedCornerShape(Radius.Card))
-                    .background(Brush.linearGradient(listOf(C.AccentMid, C.AccentDeep))),
-                contentAlignment = Alignment.Center,
-            ) { Icon(Icons.Outlined.AltRoute, null, tint = C.Accent, modifier = Modifier.size(36.dp)) }
-            Spacer(Modifier.height(20.dp))
-            Text("Split tunneling", color = C.Text, fontSize = 26.sp, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(8.dp))
-            Text("Customize your connection by deciding which apps and IP addresses are protected by the VPN.", color = C.Muted, fontSize = 15.sp)
-            Spacer(Modifier.height(20.dp))
-            Row(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(Radius.Card)).background(C.Card)
-                    .clickable { onOn(!on) }.padding(start = 16.dp, end = 12.dp, top = 10.dp, bottom = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text("Split tunneling", color = C.Text, fontSize = 17.sp, modifier = Modifier.weight(1f))
-                Toggle(on, onOn)
-            }
-        }
+    SubPage(null, onBack) {
+        HeroIcon(Icons.Outlined.AltRoute)
+        PageHeading("Split tunneling", "Customize your connection by deciding which apps and IP addresses are protected by the VPN.")
+        SwitchCard("Split tunneling", on, onChange = onOn)
         if (on) {
-            Spacer(Modifier.height(8.dp))
-            SettingRow(Icons.Outlined.Tune, "Mode", if (including) "Include" else "Exclude") { onMode() }
-            SettingRow(Icons.Outlined.PhoneAndroid, "$word apps", appsText) { onApps() }
-            SettingRow(
+            Spacer(Modifier.height(Space.Sm))
+            ListRow(Icons.Outlined.Tune, "Mode", if (including) "Include" else "Exclude") { onMode() }
+            ListRow(Icons.Outlined.PhoneAndroid, "$word apps", appsText) { onApps() }
+            ListRow(
                 Icons.Outlined.Terminal, "$word IP addresses",
                 if (ipCount == 0) "None" else "$ipCount address${if (ipCount == 1) "" else "es"}",
             ) { onIps() }
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(Space.Sm))
             Text(
                 "Applies the next time you connect." + if (!including) " Excluding IP addresses needs Android 13 or newer." else "",
-                color = C.Muted, fontSize = 12.sp, modifier = Modifier.padding(horizontal = 20.dp),
+                style = Type.Caption, color = C.Muted, modifier = Modifier.padding(horizontal = Space.Gutter),
             )
         }
-        Spacer(Modifier.height(24.dp))
     }
 }
 
+/** Header of an editor page: back arrow, title and a Save action. */
 @Composable
 private fun EditorBar(title: String, onBack: () -> Unit, onSave: () -> Unit) {
-    Spacer(Modifier.height(20.dp))
-    Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 8.dp).height(44.dp), verticalAlignment = Alignment.CenterVertically) {
-        HeaderIcon(Icons.AutoMirrored.Filled.ArrowBack, "Back") { onBack() }
-        Spacer(Modifier.width(6.dp))
-        Text(title, color = C.Text, fontSize = 22.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, modifier = Modifier.weight(1f))
-        Text("Save", color = C.Accent, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.clip(RoundedCornerShape(Radius.Small)).clickable(onClick = onSave).padding(12.dp))
-    }
-    Spacer(Modifier.height(8.dp))
+    ScreenHeader(title, onBack = onBack) { TextAction("Save", onSave) }
 }
 
 @Composable
 private fun DiscardDialog(onDiscard: () -> Unit, onKeep: () -> Unit) {
-    SheetDialog("Discard unsaved changes?", onKeep) {
-        Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.End) {
-            Text("Discard changes", color = C.Accent, fontSize = 17.sp, fontWeight = FontWeight.Medium, modifier = Modifier.clickable(onClick = onDiscard).padding(12.dp))
-            Text("Keep editing", color = C.Accent, fontSize = 17.sp, fontWeight = FontWeight.Medium, modifier = Modifier.clickable(onClick = onKeep).padding(12.dp))
-        }
-    }
+    AppDialog(
+        title = "Discard unsaved changes?", onDismiss = onKeep,
+        confirmLabel = "Discard", onConfirm = onDiscard, confirmColor = C.Red, dismissLabel = "Keep editing",
+    )
 }
 
 @Composable
 private fun ListHeader(title: String, note: String? = null) {
-    Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 6.dp)) {
-        Text(title, color = C.Accent, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-        if (note != null) Text(note, color = C.Muted, fontSize = 14.sp)
-    }
-}
-
-@Composable
-private fun RoundAction(add: Boolean, onClick: () -> Unit) {
-    Box(Modifier.size(44.dp).clip(CircleShape).clickable(onClick = onClick), contentAlignment = Alignment.Center) {
-        Icon(
-            if (add) Icons.Outlined.AddCircleOutline else Icons.Outlined.RemoveCircleOutline,
-            if (add) "Add" else "Remove", tint = if (add) C.Text else C.Muted, modifier = Modifier.size(26.dp),
-        )
+    Column(Modifier.fillMaxWidth().padding(start = Space.Gutter, end = Space.Gutter, top = Space.Lg, bottom = Space.Sm)) {
+        Text(title, style = Type.Section, color = C.Accent)
+        if (note != null) Text(note, style = Type.Small, color = C.Muted)
     }
 }
 
@@ -756,7 +622,7 @@ private fun AppPickerPage(
         EditorBar(title, leave) { onSave(sel); onBack() }
         val list = apps
         if (list == null) {
-            Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) { Text("Loading apps…", color = C.Muted, fontSize = 14.sp) }
+            Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) { Text("Loading apps…", style = Type.Small, color = C.Muted) }
         } else {
             val chosen = list.filter { it.pkg in sel }
             val others = list.filter { it.pkg !in sel }
@@ -765,7 +631,7 @@ private fun AppPickerPage(
                 items(chosen, key = { "s_" + it.pkg }) { a -> PickRow(a, false, Modifier.animateItem()) { sel = sel - a.pkg } }
                 item(key = "h2") { ListHeader("All other regular apps (${others.size})") }
                 items(others, key = { "o_" + it.pkg }) { a -> PickRow(a, true, Modifier.animateItem()) { sel = sel + a.pkg } }
-                item(key = "end") { Spacer(Modifier.height(24.dp)) }
+                item(key = "end") { Spacer(Modifier.height(Space.Xxl)) }
             }
         }
     }
@@ -775,13 +641,16 @@ private fun AppPickerPage(
 @Composable
 private fun PickRow(app: AppInfo, add: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
     Row(
-        modifier.fillMaxWidth().clickable(onClick = onClick).padding(start = 20.dp, end = 8.dp, top = 4.dp, bottom = 4.dp),
+        modifier.fillMaxWidth().clickable(onClick = onClick).padding(start = Space.Gutter, end = Space.Sm, top = Space.Xs, bottom = Space.Xs),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         AppIcon(app.pkg)
-        Spacer(Modifier.width(16.dp))
-        Text(app.label, color = C.Text, fontSize = 17.sp, maxLines = 1, modifier = Modifier.weight(1f))
-        RoundAction(add, onClick)
+        Spacer(Modifier.width(Space.Lg))
+        Text(app.label, style = Type.Body, color = C.Text, maxLines = 1, modifier = Modifier.weight(1f))
+        IconAction(
+            if (add) Icons.Outlined.AddCircleOutline else Icons.Outlined.RemoveCircleOutline,
+            if (add) "Add" else "Remove", tint = if (add) C.Text else C.Muted, onClick = onClick,
+        )
     }
 }
 
@@ -801,26 +670,18 @@ private fun IpPage(title: String, initial: List<String>, onSave: (List<String>) 
     }
     Column(Modifier.fillMaxSize()) {
         EditorBar(title, leave) { onSave(ips); onBack() }
-        Column(Modifier.padding(horizontal = 20.dp)) {
-            Text("IP address", color = C.Text, fontSize = 14.sp, modifier = Modifier.padding(top = 8.dp, bottom = 6.dp))
-            Row(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(Radius.Small)).background(C.Card).padding(start = 14.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                BasicTextField(
-                    value = text, onValueChange = { text = it; error = false }, singleLine = true,
-                    textStyle = TextStyle(color = C.Text, fontSize = 16.sp), cursorBrush = SolidColor(C.Accent),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Done),
-                    keyboardActions = KeyboardActions(onDone = { add() }),
-                    modifier = Modifier.weight(1f),
-                    decorationBox = { inner -> if (text.isEmpty()) Text("192.0.2.0", color = C.Muted, fontSize = 16.sp); inner() },
-                )
-                RoundAction(true) { add() }
-            }
-            Spacer(Modifier.height(6.dp))
+        Column(Modifier.padding(horizontal = Space.Gutter)) {
+            FieldLabel("IP address")
+            AppTextField(
+                value = text, onValueChange = { text = it; error = false }, placeholder = "192.0.2.0",
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { add() }),
+                trailing = { IconAction(Icons.Outlined.AddCircleOutline, "Add") { add() } },
+            )
+            Spacer(Modifier.height(Space.Sm))
             Text(
                 if (error) "Not a valid IPv4 or IPv6 address." else "Enter an IPv4 or IPv6 address, optionally with a prefix like 10.0.0.0/8.",
-                color = if (error) C.Red else C.Muted, fontSize = 12.sp,
+                style = Type.Caption, color = if (error) C.Red else C.Muted,
             )
         }
         val ipListState = rememberLazyListState()
@@ -828,11 +689,11 @@ private fun IpPage(title: String, initial: List<String>, onSave: (List<String>) 
             item(key = "h") { ListHeader("$title (${ips.size})") }
             items(ips, key = { it }) { ip ->
                 Row(
-                    Modifier.animateItem().fillMaxWidth().padding(start = 20.dp, end = 8.dp, top = 4.dp, bottom = 4.dp),
+                    Modifier.animateItem().fillMaxWidth().padding(start = Space.Gutter, end = Space.Sm, top = Space.Xs, bottom = Space.Xs),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(ip, color = C.Text, fontSize = 17.sp, maxLines = 1, modifier = Modifier.weight(1f))
-                    RoundAction(false) { ips = ips - ip }
+                    Text(ip, style = Type.Body, color = C.Text, maxLines = 1, modifier = Modifier.weight(1f))
+                    IconAction(Icons.Outlined.RemoveCircleOutline, "Remove", tint = C.Muted) { ips = ips - ip }
                 }
             }
         }
@@ -855,13 +716,14 @@ private fun AppIcon(pkg: String) {
             }.getOrNull()
         }
     }
-    val m = Modifier.size(AppRowIcon).clip(RoundedCornerShape(Radius.Small))
+    val m = Modifier.size(Sizes.IconLg).clip(RoundedCornerShape(Radius.Small))
     val i = icon
     if (i != null) Image(i, null, m) else Box(m.background(C.Card))
 }
 
 private const val KILL_SWITCH_HELP_URL = "https://developer.android.com/develop/connectivity/vpn"
 
+/** A settings sub-page: back arrow header, scrolling content, and an optional pinned bottom area. */
 @Composable
 private fun SubPage(
     title: String?, onBack: () -> Unit,
@@ -870,63 +732,14 @@ private fun SubPage(
 ) {
     BackHandler(true) { onBack() }
     Column(Modifier.fillMaxSize()) {
-        BackBar(title, onBack)
-        Spacer(Modifier.height(16.dp))
-        Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())) { content(); Spacer(Modifier.height(16.dp)) }
-        if (bottom != null) Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 20.dp)) { bottom() }
-    }
-}
-
-@Composable
-private fun Hero(icon: ImageVector, size: Dp = 64.dp, centered: Boolean = false, tint: Color = C.Accent) {
-    Box(Modifier.fillMaxWidth().padding(horizontal = 20.dp), contentAlignment = if (centered) Alignment.Center else Alignment.CenterStart) {
-        Box(
-            Modifier.size(size).clip(RoundedCornerShape(Radius.Card)).background(Brush.linearGradient(listOf(C.AccentMid, C.AccentDeep))),
-            contentAlignment = Alignment.Center,
-        ) { Icon(icon, null, tint = tint, modifier = Modifier.size(size * 0.56f)) }
-    }
-}
-
-@Composable
-private fun PageHeading(title: String, text: String) {
-    Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 12.dp)) {
-        Text(title, color = C.Text, fontSize = 26.sp, fontWeight = FontWeight.Bold)
-        Spacer(Modifier.height(8.dp))
-        Text(text, color = C.Muted, fontSize = 15.sp)
-    }
-}
-
-@Composable
-private fun ToggleCard(label: String, on: Boolean, onOn: (Boolean) -> Unit) {
-    Row(
-        Modifier.fillMaxWidth().padding(horizontal = 20.dp).clip(RoundedCornerShape(Radius.Card)).background(C.Card)
-            .clickable { onOn(!on) }.padding(start = 16.dp, end = 12.dp, top = 10.dp, bottom = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(label, color = C.Text, fontSize = 17.sp, modifier = Modifier.weight(1f))
-        Toggle(on, onOn)
+        ScreenHeader(title, onBack)
+        Spacer(Modifier.height(Space.Sm))
+        Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())) { content(); Spacer(Modifier.height(Space.Lg)) }
+        if (bottom != null) Column(Modifier.fillMaxWidth().padding(start = Space.Gutter, end = Space.Gutter, top = Space.Sm, bottom = Space.Xl)) { bottom() }
     }
 }
 
 @Composable
 private fun ChoiceList(content: @Composable ColumnScope.() -> Unit) {
-    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp), content = content)
-}
-
-@Composable
-private fun ActionButton(
-    label: String, filled: Boolean, color: Color = C.Button, trailing: ImageVector? = null, onClick: () -> Unit,
-) {
-    val shape = RoundedCornerShape(Radius.Card)
-    Box(
-        Modifier.fillMaxWidth().height(56.dp).clip(shape)
-            .then(if (filled) Modifier.background(color) else Modifier.border(1.5.dp, C.Accent, shape))
-            .clickable(onClick = onClick).padding(horizontal = 16.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(label, color = if (filled) Color.White else C.Accent, fontSize = 18.sp, fontWeight = FontWeight.Medium)
-        if (trailing != null) Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
-            Icon(trailing, null, tint = if (filled) Color.White else C.Accent, modifier = Modifier.size(24.dp))
-        }
-    }
+    Column(Modifier.fillMaxWidth().padding(horizontal = Space.Lg), content = content)
 }

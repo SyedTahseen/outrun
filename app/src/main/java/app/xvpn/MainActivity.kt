@@ -78,13 +78,14 @@ import app.xvpn.data.LinkParser
 import app.xvpn.data.NetInfo
 import app.xvpn.data.RealDelay
 import app.xvpn.data.Store
-import app.xvpn.ui.AppIndication
 import app.xvpn.ui.C
-import app.xvpn.ui.DesignScale
+import app.xvpn.ui.OutrunApp
 import app.xvpn.ui.HomeScreen
 import app.xvpn.ui.MenuScreen
 import app.xvpn.ui.Motion
 import app.xvpn.ui.Radius
+import app.xvpn.ui.Sizes
+import app.xvpn.ui.Type
 import app.xvpn.ui.ServersScreen
 import app.xvpn.ui.SortMode
 import app.xvpn.ui.SpeedScreen
@@ -108,7 +109,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         setUpEdgeToEdge()
-        setContent { DesignScale { AppIndication { App() } } }
+        setContent { OutrunApp { App() } }
     }
 
     override fun onResume() {
@@ -327,7 +328,7 @@ private fun App() {
                 Box(
                     Modifier.fillMaxSize()
                         .then(if (s == Screen.Home) Modifier else Modifier.statusBarsPadding())
-                        .then(if (s == Screen.Stats || dockHidden) Modifier.navigationBarsPadding() else Modifier.navigationBarsPadding().padding(bottom = 72.dp)),
+                        .then(if (s == Screen.Stats || dockHidden) Modifier.navigationBarsPadding() else Modifier.navigationBarsPadding().padding(bottom = Sizes.Dock)),
                 ) {
                     when (s) {
                         Screen.Stats -> StatsScreen(
@@ -412,10 +413,10 @@ private fun App() {
             visible = !dockHidden,
             modifier = Modifier.align(Alignment.BottomCenter),
             enter = slideInVertically(tween(Motion.Medium, easing = Motion.Standard)) { it } + fadeIn(tween(Motion.Medium)),
-            exit = slideOutVertically(tween(Motion.Medium, easing = Motion.Standard)) { it } + fadeOut(tween(Motion.Short)),
+            exit = slideOutVertically(tween(Motion.Medium, easing = Motion.Standard)) { it } + fadeOut(tween(Motion.Fast)),
         ) {
             Row(
-                Modifier.fillMaxWidth().background(C.Card).navigationBarsPadding().height(72.dp),
+                Modifier.fillMaxWidth().background(C.Card).navigationBarsPadding().height(Sizes.Dock),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Tab.entries.forEach { t -> DockItem(t, selected = t == tab) { tab = t } }
@@ -445,7 +446,7 @@ private fun RowScope.DockItem(t: Tab, selected: Boolean, onClick: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Box(
-            Modifier.width(56.dp).height(32.dp).clip(pill).indication(source, LocalIndication.current),
+            Modifier.width(Sizes.DockPillWidth).height(Sizes.DockPillHeight).clip(pill).indication(source, LocalIndication.current),
             contentAlignment = Alignment.Center,
         ) {
             Box(
@@ -453,9 +454,9 @@ private fun RowScope.DockItem(t: Tab, selected: Boolean, onClick: () -> Unit) {
             )
             Icon(
                 t.icon, t.label, tint = tint,
-                modifier = Modifier.size(22.dp).graphicsLayer { scaleX = iconScale; scaleY = iconScale },
+                modifier = Modifier.size(Sizes.Icon).graphicsLayer { scaleX = iconScale; scaleY = iconScale },
             )
         }
-        Text(t.label, color = tint, fontSize = 13.sp)
+        Text(t.label, style = Type.Label, color = tint)
     }
 }
