@@ -1,6 +1,7 @@
 package app.xvpn.ui
 
 import android.content.Intent
+import android.graphics.Bitmap
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
@@ -28,7 +29,6 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -81,7 +81,9 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -90,7 +92,6 @@ import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontFamily
@@ -98,9 +99,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import app.xvpn.R
 import app.xvpn.data.SpeedConfig
 import app.xvpn.data.SpeedPhase
 import app.xvpn.data.SpeedResult
@@ -114,7 +115,11 @@ import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlin.math.atan2
 import kotlin.math.cos
+import kotlin.math.exp
+import kotlin.math.pow
+import kotlin.math.roundToInt
 import kotlin.math.sin
 import kotlin.math.sqrt
 
@@ -365,17 +370,93 @@ private fun ModePicker(selected: TransmitMode, onSelect: (TransmitMode) -> Unit)
     }
 }
 
-/** The START button: the ring and glow come straight from the design image (res/drawable-nodpi/start_ring.png), the label is live text. */
+// Ring colors sampled every 20 degrees from the design, clockwise from 3 o'clock (green, purple, blue, teal, purple, orange, blue, tan, pink, purple, orange, olive).
+private val RingHex = longArrayOf(
+    0x3b9272, 0x56806c, 0x714980, 0x094faf, 0x0a57a2, 0x256b63, 0x496593, 0x8957b5, 0xf56932,
+    0xdb643e, 0x0962cf, 0x0961cd, 0xaa866f, 0x975a6e, 0x9a59a7, 0xf96b33, 0xee662f, 0x7e714d,
+)
+
+private val RingStops: Array<Pair<Float, Color>> = run {
+    fun boost(c: Color): Color {   // a little more saturated than the sampled pixels, which are softened by the image's compression
+        val g = (c.red + c.green + c.blue) / 3f
+        fun ch(v: Float) = (g + (v - g) * 1.25f).coerceIn(0f, 1f)
+        return Color(ch(c.red), ch(c.green), ch(c.blue))
+    }
+    val cols = RingHex.map { boost(Color(0xFF000000L or it)) }
+    Array(cols.size + 1) { i -> (i / cols.size.toFloat()) to cols[i % cols.size] }
+}
+
+private const val RING_BOX = 250       // dp: the size of the button area; the smoke bitmap uses 1 pixel per dp and is scaled up smoothly
+private const val RING_R = 86.5f       // dp, middle of the ring stroke
+private const val RING_W = 7.5f        // dp, stroke width
+
+/**
+ * The light scattered by the ring, as a soft cloud of colored smoke: for every pixel the strength falls off smoothly with the distance
+ * from the ring, the color is the ring's color at that angle (blurred a little along the ring and drifting as it moves away), and the
+ * strength varies gently around the circle so it reads as smoke and not as a uniform outline.
+ */
+private fun buildSmoke(): Bitmap {
+    val n = RING_BOX
+    val c = n / 2f
+    val outer = RING_R + RING_W / 2f
+    val inner = RING_R - RING_W / 2f
+    val peak = 0.20f
+    // The colors of the ring at full brightness; one lookup per degree keeps the per-pixel work small.
+    val lut = Array(360) { deg ->
+        val col = colorAt(RingStops, deg / 360f)
+        val m = maxOf(col.red, col.green, col.blue, 0.001f)
+        floatArrayOf(col.red / m, col.green / m, col.blue / m)
+    }
+    val rnd = java.util.Random(1)
+    val px = IntArray(n * n)
+    for (y in 0 until n) for (x in 0 until n) {
+        val dx = x + 0.5f - c
+        val dy = y + 0.5f - c
+        val r = sqrt(dx * dx + dy * dy)
+        val d = r - outer
+        var a = when {
+            d >= 0f -> peak * exp(-(d / 16f).pow(1.4f)) + 0.07f * exp(-(d / 34f).pow(1.5f))
+            r >= inner -> peak
+            else -> peak * 0.6f * exp(-(inner - r) / 5f)
+        }
+        if (a < 0.002f) continue
+        var deg = Math.toDegrees(atan2(dy, dx).toDouble()).toFloat()
+        if (deg < 0f) deg += 360f
+        val rad = Math.toRadians(deg.toDouble())
+        a *= 1f + 0.18f * sin(2 * rad + 0.6).toFloat() + 0.12f * sin(3 * rad + 2.0).toFloat()
+        val drift = 10f * (maxOf(d, 0f) / 16f).coerceAtMost(2f)
+        var rr = 0f; var gg = 0f; var bb = 0f
+        for ((off, w) in SmokeBlur) {
+            val k = (((deg + drift + off).toInt() % 360) + 360) % 360
+            rr += lut[k][0] * w; gg += lut[k][1] * w; bb += lut[k][2] * w
+        }
+        val alpha = (a.coerceIn(0f, 1f) * 255f + rnd.nextFloat() - 0.5f).roundToInt().coerceIn(0, 255)   // tiny dither avoids banding
+        px[y * n + x] = (alpha shl 24) or ((rr * 255f).roundToInt().coerceIn(0, 255) shl 16) or
+            ((gg * 255f).roundToInt().coerceIn(0, 255) shl 8) or (bb * 255f).roundToInt().coerceIn(0, 255)
+    }
+    return Bitmap.createBitmap(px, n, n, Bitmap.Config.ARGB_8888)
+}
+
+private val SmokeBlur = listOf(-14f to 0.1f, -7f to 0.2f, 0f to 0.4f, 7f to 0.2f, 14f to 0.1f)
+
+/** The START button from the design: a multicolor ring with light scattering through colored smoke around it, drawn entirely in code. */
 @Composable
 private fun StartRing(enabled: Boolean, onClick: () -> Unit) {
     val on by animateFloatAsState(if (enabled) 1f else 0.35f, tween(Motion.Medium), label = "ringOn")
     val tick = rememberTick(strong = true)
-    Box(Modifier.size(250.dp), contentAlignment = Alignment.Center) {
-        Image(
-            painter = painterResource(R.drawable.start_ring),
-            contentDescription = null,
-            modifier = Modifier.size(247.dp).graphicsLayer { alpha = on },
-        )
+    val smoke = remember { buildSmoke().asImageBitmap() }
+    Box(Modifier.size(RING_BOX.dp), contentAlignment = Alignment.Center) {
+        Canvas(Modifier.fillMaxSize()) {
+            drawImage(
+                smoke, dstSize = IntSize(size.width.roundToInt(), size.height.roundToInt()),
+                alpha = on, filterQuality = FilterQuality.High,
+            )
+            val brush = Brush.sweepGradient(*RingStops, center = center)
+            val r = RING_R.dp.toPx()
+            // A faint wider pass softens the ring's edges like in the design.
+            drawCircle(brush = brush, radius = r, alpha = 0.25f * on, style = Stroke((RING_W + 3f).dp.toPx()))
+            drawCircle(brush = brush, radius = r, alpha = on, style = Stroke(RING_W.dp.toPx()))
+        }
         Box(
             Modifier.size(170.dp).pressable(CircleShape, 0.94f, enabled = enabled, ripple = false) { tick(); onClick() },
             contentAlignment = Alignment.Center,
