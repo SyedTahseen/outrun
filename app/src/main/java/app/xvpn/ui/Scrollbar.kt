@@ -30,6 +30,7 @@ private fun rememberScrollbarAlpha(key: Any, position: () -> Any): State<Float> 
     LaunchedEffect(key) {
         var first = true
         snapshotFlow(position).collectLatest {
+
             if (first) { first = false; return@collectLatest }
             alpha.animateTo(1f, tween(80))
             delay(FADE_OUT_DELAY_MS)

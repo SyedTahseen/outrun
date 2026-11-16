@@ -3,18 +3,18 @@ package app.xvpn.data
 import org.json.JSONArray
 import org.json.JSONObject
 import java.net.URI
-import java.net.URLDecoder
 
 object ConfigBuilder {
+
     fun outbound(link: String): JSONObject {
-        val proxy = when (LinkParser.protocolOf(link)) {
-            "vless" -> vless(link)
-            "trojan" -> trojan(link)
-            "ss" -> shadowsocks(link)
-            "vmess" -> vmess(link)
-            "hysteria2" -> hysteria2(link)
-            "tuic" -> tuic(link)
-            "wireguard" -> wireguard(link)
+        val proxy = when {
+            link.startsWith("vless://") -> vless(link)
+            link.startsWith("trojan://") -> trojan(link)
+            link.startsWith("ss://") -> shadowsocks(link)
+            link.startsWith("vmess://") -> vmess(link)
+            link.startsWith("hysteria2://") || link.startsWith("hy2://") -> hysteria2(link)
+            link.startsWith("tuic://") -> tuic(link)
+            link.startsWith("wireguard://") || link.startsWith("wg://") -> wireguard(link)
             else -> error("Unsupported link")
         }
         proxy.put("tag", "proxy")
@@ -22,11 +22,6 @@ object ConfigBuilder {
     }
 
     private fun isEndpoint(o: JSONObject) = o.optString("type") == "wireguard"
-
-    private fun directOutbound() = JSONObject().put("type", "direct").put("tag", "direct")
-
-    private fun socksInbound(tag: String, port: Int) =
-        JSONObject().put("type", "socks").put("tag", tag).put("listen", "127.0.0.1").put("listen_port", port)
 
     private fun dnsBlock(dns: String = "1.1.1.1", viaProxy: Boolean = false): JSONObject {
         val servers = JSONArray().put(JSONObject().put("type", "udp").put("tag", "dns-direct").put("server", dns))
@@ -40,10 +35,10 @@ object ConfigBuilder {
         val inbounds = JSONArray(); val outbounds = JSONArray(); val rules = JSONArray(); val endpoints = JSONArray()
         outs.forEachIndexed { i, o ->
             (if (isEndpoint(o)) endpoints else outbounds).put(o.put("tag", "p$i"))
-            inbounds.put(socksInbound("in$i", ports[i]))
+            inbounds.put(JSONObject().put("type", "socks").put("tag", "in$i").put("listen", "127.0.0.1").put("listen_port", ports[i]))
             rules.put(JSONObject().put("inbound", JSONArray().put("in$i")).put("action", "route").put("outbound", "p$i"))
         }
-        outbounds.put(directOutbound())
+        outbounds.put(JSONObject().put("type", "direct").put("tag", "direct"))
         val root = JSONObject()
             .put("log", JSONObject().put("level", "error"))
             .put("dns", dnsBlock())
@@ -60,13 +55,21 @@ object ConfigBuilder {
 
         val outs = JSONArray()
         if (!endpoint) outs.put(proxy)
-        outs.put(directOutbound())
+        outs.put(JSONObject().put("type", "direct").put("tag", "direct"))
 
         val root = JSONObject()
             .put("log", JSONObject().put("level", "warn"))
 
             .put("dns", dnsBlock(dns, viaProxy = endpoint))
-            .put("inbounds", JSONArray().put(socksInbound("socks-in", socksPort)))
+            .put(
+                "inbounds", JSONArray().put(
+                    JSONObject()
+                        .put("type", "socks")
+                        .put("tag", "socks-in")
+                        .put("listen", "127.0.0.1")
+                        .put("listen_port", socksPort)
+                )
+            )
             .put("outbounds", outs)
             .put(
                 "route", JSONObject()
@@ -104,7 +107,7 @@ object ConfigBuilder {
             .put("type", "trojan")
             .put("server", host(u))
             .put("server_port", u.port)
-            .put("password", URLDecoder.decode(u.rawUserInfo, "UTF-8"))
+            .put("password", java.net.URLDecoder.decode(u.rawUserInfo, "UTF-8"))
         tls(withDefault, host(u))?.let { o.put("tls", it) }
         transport(withDefault)?.let { o.put("transport", it) }
         return o
@@ -121,7 +124,7 @@ object ConfigBuilder {
     }
 
     private fun vmess(link: String): JSONObject {
-        val j = LinkParser.vmessJson(link)
+        val j = JSONObject(LinkParser.decodeB64(link.removePrefix("vmess://"))!!)
         val net = j.optString("net", "tcp").ifEmpty { "tcp" }
         val q = mutableMapOf(
             "type" to net,
@@ -236,6 +239,7 @@ object ConfigBuilder {
 
         val fp = q["fp"].orEmpty()
         if (security == "reality") {
+
             t.put("utls", JSONObject().put("enabled", true).put("fingerprint", fp.ifEmpty { "chrome" }))
             t.put(
                 "reality", JSONObject()

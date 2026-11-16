@@ -15,9 +15,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -75,7 +78,12 @@ internal fun UsagePage(onBack: () -> Unit) {
     }
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-        BackBar("Usage & history", onBack)
+        Spacer(Modifier.height(20.dp))
+        Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp).height(44.dp), verticalAlignment = Alignment.CenterVertically) {
+            HeaderIcon(Icons.AutoMirrored.Filled.ArrowBack, "Back") { onBack() }
+            Spacer(Modifier.width(6.dp))
+            Text("Usage & history", color = C.Text, fontSize = 22.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+        }
 
         Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Summary("Today", today, Modifier.weight(1f))
@@ -83,7 +91,7 @@ internal fun UsagePage(onBack: () -> Unit) {
             Summary("30 days", month, Modifier.weight(1f))
         }
 
-        Section("Last 14 days", first = true)
+        Heading("Last 14 days")
         Column(Modifier.padding(horizontal = 16.dp).fillMaxWidth().clip(RoundedCornerShape(Radius.Card)).background(C.Card).padding(16.dp)) {
             val peak = days.maxOf { it.second + it.third }
             Canvas(Modifier.fillMaxWidth().height(110.dp)) {
@@ -106,7 +114,7 @@ internal fun UsagePage(onBack: () -> Unit) {
             }
         }
 
-        Section("Apps, last 7 days", first = true)
+        Heading("Apps, last 7 days")
         Column(Modifier.padding(horizontal = 16.dp).fillMaxWidth().clip(RoundedCornerShape(Radius.Card)).background(C.Card)) {
             if (!access) {
                 Text(
@@ -139,7 +147,7 @@ internal fun UsagePage(onBack: () -> Unit) {
             }
         }
 
-        Section("Connection history", first = true)
+        Heading("Connection history")
         Column(Modifier.padding(horizontal = 16.dp).fillMaxWidth().clip(RoundedCornerShape(Radius.Card)).background(C.Card)) {
             if (sessions.isEmpty()) Text("No connections recorded yet.", color = C.Muted, fontSize = 14.sp, modifier = Modifier.padding(16.dp))
             sessions.take(30).forEachIndexed { i, s ->
@@ -157,6 +165,11 @@ internal fun UsagePage(onBack: () -> Unit) {
         }
         Spacer(Modifier.height(24.dp))
     }
+}
+
+@Composable
+private fun Heading(text: String) {
+    Text(text, color = C.Accent, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(start = 20.dp, top = 12.dp, bottom = 8.dp))
 }
 
 @Composable

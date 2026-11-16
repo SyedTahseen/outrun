@@ -217,7 +217,6 @@ RE|Reunion
 GF|French Guiana
 NU|Niue
 AX|Aland
-XK|Kosovo
 """.trimIndent()
 
     private val codes = HashSet<String>()

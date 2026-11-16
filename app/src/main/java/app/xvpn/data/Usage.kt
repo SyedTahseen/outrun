@@ -16,7 +16,7 @@ import java.util.Locale
 
 data class Session(val start: Long, val end: Long, val server: String, val up: Long, val down: Long)
 
-data class AppUsage(val label: String, val bytes: Long)
+data class AppUsage(val uid: Int, val pkg: String, val label: String, val bytes: Long)
 
 object Usage {
     private const val FILE = "xvpn_usage"
@@ -123,7 +123,7 @@ object Usage {
             .mapNotNull { (uid, bytes) ->
                 val pkg = pm.getPackagesForUid(uid)?.firstOrNull() ?: return@mapNotNull null
                 val label = runCatching { pm.getApplicationInfo(pkg, 0).loadLabel(pm).toString() }.getOrDefault(pkg)
-                AppUsage(label, bytes)
+                AppUsage(uid, pkg, label, bytes)
             }
             .sortedByDescending { it.bytes }
             .take(limit)

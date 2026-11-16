@@ -2,20 +2,28 @@ package app.xvpn.ui
 
 import android.content.Intent
 import android.graphics.Bitmap
-import android.net.Uri
 import android.provider.Settings
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.Image
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
-import androidx.compose.foundation.Image
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.ScrollState
+import androidx.compose.runtime.MutableState
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -27,48 +35,48 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.outlined.AddCircleOutline
+import androidx.compose.material.icons.outlined.PhoneAndroid
+import androidx.compose.material.icons.outlined.RemoveCircleOutline
+import androidx.compose.material.icons.outlined.Terminal
+import androidx.compose.material.icons.outlined.Tune
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.OpenInNew
-import androidx.compose.material.icons.outlined.AddCircleOutline
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.outlined.AltRoute
 import androidx.compose.material.icons.outlined.BarChart
+import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.BugReport
 import androidx.compose.material.icons.outlined.ContentCopy
+import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Dns
 import androidx.compose.material.icons.outlined.Info
-import androidx.compose.material.icons.outlined.Language
-import androidx.compose.material.icons.outlined.PhoneAndroid
 import androidx.compose.material.icons.outlined.PowerSettingsNew
-import androidx.compose.material.icons.outlined.RemoveCircleOutline
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material.icons.outlined.Sync
-import androidx.compose.material.icons.outlined.Terminal
-import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -77,22 +85,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -147,6 +146,7 @@ private fun MenuPage(
     var page by pageState
 
     var splitOn by remember { mutableStateOf(store.splitEnabled) }
+    var splitApps by remember { mutableStateOf(store.splitApps) }
     var dns by remember { mutableStateOf(store.dnsChoice) }
     var dnsCustom by remember { mutableStateOf(store.dnsCustom) }
     var testUrl by remember { mutableStateOf(store.testUrlChoice) }
@@ -280,7 +280,7 @@ private fun MenuPage(
             return
         }
         "kill" -> {
-            val bold = SpanStyle(fontWeight = FontWeight.Bold)
+            val bold = androidx.compose.ui.text.SpanStyle(fontWeight = FontWeight.Bold)
             SubPage(
                 "Kill switch", { page = "main" },
                 bottom = {
@@ -289,7 +289,7 @@ private fun MenuPage(
                     }
                     Spacer(Modifier.height(12.dp))
                     ActionButton("What is kill switch?", filled = false, trailing = Icons.AutoMirrored.Outlined.OpenInNew) {
-                        runCatching { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(KILL_SWITCH_HELP_URL)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+                        runCatching { ctx.startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(KILL_SWITCH_HELP_URL)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
                     }
                 },
             ) {
@@ -299,9 +299,9 @@ private fun MenuPage(
                 Spacer(Modifier.height(14.dp))
                 Column(Modifier.padding(horizontal = 20.dp)) {
                     Text("1. Open your device settings", color = C.Text, fontSize = 17.sp)
-                    Text("2. Find ESMI VPN and tap the gear icon", color = C.Text, fontSize = 17.sp)
+                    Text("2. Find SingBox VPN and tap the gear icon", color = C.Text, fontSize = 17.sp)
                     Text(
-                        buildAnnotatedString {
+                        androidx.compose.ui.text.buildAnnotatedString {
                             append("3. Enable \""); pushStyle(bold); append("Always-on VPN"); pop(); append("\" and \"")
                             pushStyle(bold); append("Block connections without VPN"); pop(); append("\"")
                         },
@@ -394,9 +394,17 @@ private fun MenuPage(
 }
 
 @Composable
+private fun Section(label: String, first: Boolean = false) {
+    Text(
+        label, color = C.Accent, fontSize = 16.sp, fontWeight = FontWeight.SemiBold,
+        modifier = Modifier.padding(start = 20.dp, top = if (first) 12.dp else 28.dp, bottom = 8.dp),
+    )
+}
+
+@Composable
 private fun SettingRow(
     icon: ImageVector, title: String, subtitle: String? = null,
-    onClick: () -> Unit,
+    trailing: (@Composable () -> Unit)? = null, chevron: Boolean = false, onClick: () -> Unit,
 ) {
     Row(
         Modifier.fillMaxWidth().heightIn(min = 56.dp).clickable(onClick = onClick).padding(horizontal = 20.dp, vertical = 12.dp),
@@ -408,6 +416,7 @@ private fun SettingRow(
             Text(title, color = C.Text, fontSize = 17.sp)
             if (subtitle != null) Text(subtitle, color = C.Muted, fontSize = 16.sp, maxLines = 2)
         }
+        if (trailing != null) { Spacer(Modifier.width(12.dp)); trailing() }
     }
 }
 
@@ -425,6 +434,7 @@ private fun Toggle(checked: Boolean, onChange: (Boolean) -> Unit) {
 @Composable
 private fun SheetDialog(title: String, onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
     Dialog(onDismissRequest = onDismiss) {
+
         var visible by remember { mutableStateOf(false) }
         LaunchedEffect(Unit) { visible = true }
         AnimatedVisibility(
@@ -468,6 +478,42 @@ private fun ChoiceRow(label: String, note: String, selected: Boolean, onClick: (
     }
 }
 
+@Composable
+private fun Hint(text: String) {
+    Spacer(Modifier.height(8.dp))
+    Text(text, color = C.Muted, fontSize = 12.sp)
+}
+
+@Composable
+private fun TextDialog(
+    title: String, placeholder: String, initial: String, help: String,
+    validate: (String) -> Boolean, onSave: (String) -> Unit, onDismiss: () -> Unit,
+) {
+    var text by remember { mutableStateOf(initial) }
+    var error by remember { mutableStateOf(false) }
+    SheetDialog(title, onDismiss) {
+        Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(Radius.Small)).background(C.Bg).padding(14.dp)) {
+            BasicTextField(
+                value = text, onValueChange = { text = it; error = false }, singleLine = true,
+                textStyle = TextStyle(color = C.Text, fontSize = 15.sp), cursorBrush = SolidColor(C.Accent),
+                modifier = Modifier.fillMaxWidth(),
+                decorationBox = { inner -> if (text.isEmpty()) Text(placeholder, color = C.Muted, fontSize = 15.sp); inner() },
+            )
+        }
+        Spacer(Modifier.height(8.dp))
+        Text(if (error) "Not a valid IPv4 address list." else help, color = if (error) C.Red else C.Muted, fontSize = 12.sp)
+        Spacer(Modifier.height(14.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = androidx.compose.foundation.layout.Arrangement.End) {
+            Text("Cancel", color = C.Muted, fontSize = 16.sp, fontWeight = FontWeight.Medium, modifier = Modifier.clickable(onClick = onDismiss).padding(12.dp))
+            Spacer(Modifier.width(8.dp))
+            Text(
+                "Save", color = C.Accent, fontSize = 16.sp, fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.clickable { if (validate(text)) onSave(text) else error = true }.padding(12.dp),
+            )
+        }
+    }
+}
+
 private val AppRowIcon = 32.dp
 
 @Composable
@@ -486,7 +532,10 @@ private fun SplitPage(
     }
     val word = if (including) "Included" else "Excluded"
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-        BackBar(onBack = onBack)
+        Spacer(Modifier.height(20.dp))
+        Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp).height(44.dp), verticalAlignment = Alignment.CenterVertically) {
+            HeaderIcon(Icons.AutoMirrored.Filled.ArrowBack, "Back") { onBack() }
+        }
         Spacer(Modifier.height(16.dp))
         Column(Modifier.padding(horizontal = 20.dp)) {
             Box(
@@ -510,11 +559,11 @@ private fun SplitPage(
         }
         if (on) {
             Spacer(Modifier.height(8.dp))
-            SettingRow(Icons.Outlined.Tune, "Mode", if (including) "Include" else "Exclude") { onMode() }
-            SettingRow(Icons.Outlined.PhoneAndroid, "$word apps", appsText) { onApps() }
+            SettingRow(Icons.Outlined.Tune, "Mode", if (including) "Include" else "Exclude", chevron = true) { onMode() }
+            SettingRow(Icons.Outlined.PhoneAndroid, "$word apps", appsText, chevron = true) { onApps() }
             SettingRow(
                 Icons.Outlined.Terminal, "$word IP addresses",
-                if (ipCount == 0) "None" else "$ipCount address${if (ipCount == 1) "" else "es"}",
+                if (ipCount == 0) "None" else "$ipCount address${if (ipCount == 1) "" else "es"}", chevron = true,
             ) { onIps() }
             Spacer(Modifier.height(8.dp))
             Text(
@@ -681,7 +730,7 @@ private fun IpPage(title: String, initial: List<String>, onSave: (List<String>) 
 @Composable
 private fun AppIcon(pkg: String) {
     val pm = LocalContext.current.packageManager
-    val icon by produceState<ImageBitmap?>(null, pkg) {
+    val icon by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, pkg) {
         value = withContext(Dispatchers.Default) {
             runCatching {
                 val d = pm.getApplicationIcon(pkg)
@@ -708,7 +757,14 @@ private fun SubPage(
 ) {
     BackHandler(true) { onBack() }
     Column(Modifier.fillMaxSize()) {
-        BackBar(title, onBack)
+        Spacer(Modifier.height(20.dp))
+        Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp).height(44.dp), verticalAlignment = Alignment.CenterVertically) {
+            HeaderIcon(Icons.AutoMirrored.Filled.ArrowBack, "Back") { onBack() }
+            if (title != null) {
+                Spacer(Modifier.width(6.dp))
+                Text(title, color = C.Text, fontSize = 22.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+            }
+        }
         Spacer(Modifier.height(16.dp))
         Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())) { content(); Spacer(Modifier.height(16.dp)) }
         if (bottom != null) Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 20.dp)) { bottom() }
@@ -716,7 +772,7 @@ private fun SubPage(
 }
 
 @Composable
-private fun Hero(icon: ImageVector, size: Dp = 64.dp, centered: Boolean = false, tint: Color = C.Accent) {
+private fun Hero(icon: ImageVector, size: androidx.compose.ui.unit.Dp = 64.dp, centered: Boolean = false, tint: Color = C.Accent) {
     Box(Modifier.fillMaxWidth().padding(horizontal = 20.dp), contentAlignment = if (centered) Alignment.Center else Alignment.CenterStart) {
         Box(
             Modifier.size(size).clip(RoundedCornerShape(Radius.Card)).background(Brush.linearGradient(listOf(C.AccentMid, C.AccentDeep))),

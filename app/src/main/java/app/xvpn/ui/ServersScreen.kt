@@ -1,19 +1,10 @@
 package app.xvpn.ui
 
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.ContentTransform
-import androidx.compose.animation.Crossfade
-import androidx.compose.animation.SizeTransform
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
+import app.xvpn.data.SubInfo
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -26,47 +17,66 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.ContentTransform
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.outlined.Sort
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.automirrored.outlined.Sort
+import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.ContentCopy
+import androidx.compose.material.icons.outlined.Link
+import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material.icons.outlined.ContentPaste
 import androidx.compose.material.icons.outlined.DeleteOutline
-import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.ErrorOutline
+import androidx.compose.material.icons.outlined.WifiOff
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.foundation.layout.widthIn
+import app.xvpn.data.ConfigBuilder
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.InsertDriveFile
-import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.QrCodeScanner
 import androidx.compose.material.icons.outlined.Refresh
-import androidx.compose.material.icons.outlined.Speed
-import androidx.compose.material.icons.outlined.StarBorder
-import androidx.compose.material.icons.outlined.WifiOff
+import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.SideEffect
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -81,19 +91,14 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import app.xvpn.data.ConfigBuilder
-import app.xvpn.data.LinkParser
 import app.xvpn.data.Profile
-import app.xvpn.data.SubInfo
-import java.net.URI
 
 enum class SortMode(val label: String) { Default("Default"), Name("Name"), Latency("Latency"), Protocol("Protocol") }
 
 private fun subHost(url: String): String =
-    runCatching { URI(url).host }.getOrNull()?.removePrefix("www.")?.takeIf { it.isNotBlank() } ?: url.take(24)
+    runCatching { java.net.URI(url).host }.getOrNull()?.removePrefix("www.")?.takeIf { it.isNotBlank() } ?: url.take(24)
 
 @Composable
 fun ServersScreen(
@@ -169,6 +174,7 @@ fun ServersScreen(
     DisposableEffect(Unit) { onDispose { onScrolledChange(false) } }
 
     Column(Modifier.fillMaxSize()) {
+
         Column(Modifier.fillMaxWidth().background(headerColor)) {
             Spacer(Modifier.height(20.dp))
             Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp).height(44.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -225,7 +231,7 @@ fun ServersScreen(
                                     when (menuPage) {
                                         "sort" -> {
                                             MenuBack("Sort") { menuPage = "main" }
-                                            SortMode.entries.forEach { m ->
+                                            SortMode.values().forEach { m ->
                                                 DropdownMenuItem(
                                                     text = { Text(m.label, color = if (m == sort) C.Accent else C.Text, fontSize = 17.sp) },
                                                     trailingIcon = { if (m == sort) Icon(Icons.Filled.Check, null, tint = C.Accent, modifier = Modifier.size(20.dp)) },
@@ -336,25 +342,55 @@ fun ServersScreen(
     }
 
     confirmDel?.let { d ->
-        AppDialog(
-            title = d.title, confirmLabel = "Delete", confirmColor = C.Red,
-            onConfirm = {
-                if (d.links == null) onDeleteAll() else onDeleteMany(d.links)
-                confirmDel = null
+        AlertDialog(
+            onDismissRequest = { confirmDel = null },
+            containerColor = C.Card,
+            shape = RoundedCornerShape(Radius.Card),
+            title = { Text(d.title, color = C.Text, fontSize = 20.sp) },
+            text = { Text(d.text, color = C.Muted, fontSize = 14.sp) },
+            confirmButton = {
+                TextButton({
+                    if (d.links == null) onDeleteAll() else onDeleteMany(d.links)
+                    confirmDel = null
+                }) { Text("Delete", color = C.Red) }
             },
-            onDismiss = { confirmDel = null },
-        ) { Text(d.text, color = C.Muted, fontSize = 14.sp) }
+            dismissButton = { TextButton({ confirmDel = null }) { Text("Cancel", color = C.Muted) } },
+        )
     }
     delSub?.let { url ->
         val n = sources.count { it.value == url }
-        AppDialog(
-            title = "Delete subscription?", confirmLabel = "Delete", confirmColor = C.Red,
-            onConfirm = { onDeleteSubscription(url); delSub = null; onFilterChange(null) },
-            onDismiss = { delSub = null },
-        ) { Text("${subHost(url)} and its $n server(s) will be removed.", color = C.Muted, fontSize = 14.sp) }
+        AlertDialog(
+            onDismissRequest = { delSub = null },
+            containerColor = C.Card,
+            shape = RoundedCornerShape(Radius.Card),
+            title = { Text("Delete subscription?", color = C.Text, fontSize = 20.sp) },
+            text = { Text("${subHost(url)} and its $n server(s) will be removed.", color = C.Muted, fontSize = 14.sp) },
+            confirmButton = { TextButton({ onDeleteSubscription(url); delSub = null; onFilterChange(null) }) { Text("Delete", color = C.Red) } },
+            dismissButton = { TextButton({ delSub = null }) { Text("Cancel", color = C.Muted) } },
+        )
     }
     if (subDialog) SubscriptionDialog(onDismiss = { subDialog = false }, onAdd = { onAddSubscription(it); subDialog = false })
     if (manual) ManualDialog(onDismiss = { manual = false }, onAdd = { onAddManual(it).also { ok -> if (ok) manual = false } })
+}
+
+@Composable
+internal fun HeaderIcon(icon: ImageVector, desc: String, tint: Color = C.Text, onClick: () -> Unit) {
+    val color by animateColorAsState(tint, tween(Motion.Short + 50), label = "headerIconTint")
+    Box(Modifier.size(44.dp).pressable(RoundedCornerShape(22.dp), 0.86f, onClick = onClick), contentAlignment = Alignment.Center) {
+        Icon(icon, desc, tint = color, modifier = Modifier.size(26.dp))
+    }
+}
+
+private fun fmtBytes(b: Long): String {
+    val units = arrayOf("B", "KB", "MB", "GB", "TB")
+    var v = b.toDouble(); var i = 0
+    while (v >= 1024 && i < units.lastIndex) { v /= 1024; i++ }
+    return if (i == 0) "$b B" else String.format(java.util.Locale.US, if (v >= 100) "%.0f %s" else "%.1f %s", v, units[i])
+}
+
+private fun fmtAgo(ms: Long): String {
+    val m = (System.currentTimeMillis() - ms) / 60000
+    return when { m < 1 -> "just now"; m < 60 -> "${m}m ago"; m < 1440 -> "${m / 60}h ago"; else -> "${m / 1440}d ago" }
 }
 
 @Composable
@@ -391,7 +427,7 @@ private fun SubscriptionBar(url: String, info: SubInfo?, host: String, onRefresh
                 if (info != null && (info.total > 0 || info.used > 0)) {
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        if (info.total > 0) "${fmtSize(info.used, binary = true)} of ${fmtSize(info.total, binary = true)} used" else "${fmtSize(info.used, binary = true)} used · Unlimited",
+                        if (info.total > 0) "${fmtBytes(info.used)} of ${fmtBytes(info.total)} used" else "${fmtBytes(info.used)} used · Unlimited",
                         color = if (exhausted) C.Red else C.Muted, fontSize = 13.sp, maxLines = 1,
                     )
                     if (info.total > 0) {
@@ -494,6 +530,7 @@ private fun ServerRow(
     val rowBg by animateColorAsState(if (selected) C.Card else C.Bg, tween(Motion.Medium), label = "rowBg")
     val nameColor by animateColorAsState(if (selected) C.Green else C.Text, tween(Motion.Medium), label = "rowName")
     Column(modifier.fillMaxWidth().background(rowBg)) {
+      Box(Modifier.fillMaxWidth()) {
         Row(
             Modifier.fillMaxWidth().clickable(onClick = onConnect).padding(start = 20.dp, end = 8.dp).height(84.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -503,7 +540,7 @@ private fun ServerRow(
             Column(Modifier.weight(1f)) {
                 Text(Flags.clean(p.name), color = nameColor, fontSize = 17.sp, maxLines = 1)
                 Text("${p.host}:${p.port}", color = C.Muted, fontSize = 13.sp, maxLines = 1)
-                Text(LinkParser.describe(p.link), color = C.Muted.copy(alpha = 0.8f), fontSize = 12.sp, maxLines = 1)
+                Text(app.xvpn.data.LinkParser.describe(p.link), color = C.Muted.copy(alpha = 0.8f), fontSize = 12.sp, maxLines = 1)
             }
             PingLabel(ping, testing)
             FavStar(fav, onFavorite)
@@ -515,6 +552,7 @@ private fun ServerRow(
                 }
             }
         }
+      }
         Box(Modifier.fillMaxWidth().height(1.dp).background(C.CardBorder))
     }
 }
@@ -557,64 +595,57 @@ private fun FavStar(fav: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-private fun AppDialog(
-    title: String, confirmLabel: String, confirmColor: Color,
-    onConfirm: () -> Unit, onDismiss: () -> Unit,
-    content: @Composable () -> Unit,
-) {
+private fun ManualDialog(onDismiss: () -> Unit, onAdd: (String) -> Boolean) {
+    var text by remember { mutableStateOf("") }
+    var bad by remember { mutableStateOf(false) }
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = C.Card,
         shape = RoundedCornerShape(Radius.Card),
-        title = { Text(title, color = C.Text, fontSize = 20.sp) },
-        text = content,
-        confirmButton = { TextButton(onConfirm) { Text(confirmLabel, color = confirmColor) } },
+        title = { Text("Add manually", color = C.Text, fontSize = 20.sp) },
+        text = {
+            Column {
+                Text("Paste a WireGuard .conf or a vless://, trojan://, ss://, vmess://, hysteria2://, tuic:// or wireguard:// link (one per line).", color = C.Muted, fontSize = 13.sp)
+                Spacer(Modifier.height(12.dp))
+                BasicTextField(
+                    value = text, onValueChange = { text = it; bad = false },
+                    textStyle = TextStyle(color = C.Text, fontSize = 13.sp),
+                    cursorBrush = SolidColor(C.Accent),
+                    modifier = Modifier.fillMaxWidth().height(120.dp).clip(RoundedCornerShape(Radius.Small)).background(C.Bg).padding(12.dp),
+                )
+                if (bad) Text("No valid link found", color = C.Red, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
+            }
+        },
+        confirmButton = { TextButton({ if (!onAdd(text)) bad = true }) { Text("Add", color = C.Accent) } },
         dismissButton = { TextButton(onDismiss) { Text("Cancel", color = C.Muted) } },
     )
 }
 
 @Composable
-private fun ManualDialog(onDismiss: () -> Unit, onAdd: (String) -> Boolean) {
-    var text by remember { mutableStateOf("") }
-    var bad by remember { mutableStateOf(false) }
-    AppDialog(
-        title = "Add manually", confirmLabel = "Add", confirmColor = C.Accent,
-        onConfirm = { if (!onAdd(text)) bad = true }, onDismiss = onDismiss,
-    ) {
-        Column {
-            Text("Paste a WireGuard .conf or a vless://, trojan://, ss://, vmess://, hysteria2://, tuic:// or wireguard:// link (one per line).", color = C.Muted, fontSize = 13.sp)
-            Spacer(Modifier.height(12.dp))
-            BasicTextField(
-                value = text, onValueChange = { text = it; bad = false },
-                textStyle = TextStyle(color = C.Text, fontSize = 13.sp),
-                cursorBrush = SolidColor(C.Accent),
-                modifier = Modifier.fillMaxWidth().height(120.dp).clip(RoundedCornerShape(Radius.Small)).background(C.Bg).padding(12.dp),
-            )
-            if (bad) Text("No valid link found", color = C.Red, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
-        }
-    }
-}
-
-@Composable
 private fun SubscriptionDialog(onDismiss: () -> Unit, onAdd: (String) -> Unit) {
     var url by remember { mutableStateOf("") }
-    AppDialog(
-        title = "Add subscription link", confirmLabel = "Add", confirmColor = C.Accent,
-        onConfirm = { if (url.isNotBlank()) onAdd(url.trim()) }, onDismiss = onDismiss,
-    ) {
-        Column {
-            Text("Servers from this URL are added now and when you update subscriptions.", color = C.Muted, fontSize = 13.sp)
-            Spacer(Modifier.height(12.dp))
-            BasicTextField(
-                value = url, onValueChange = { url = it }, singleLine = true,
-                textStyle = TextStyle(color = C.Text, fontSize = 14.sp),
-                cursorBrush = SolidColor(C.Accent),
-                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(Radius.Small)).background(C.Bg).padding(14.dp),
-                decorationBox = { inner ->
-                    if (url.isEmpty()) Text("https://…", color = C.Muted, fontSize = 14.sp)
-                    inner()
-                },
-            )
-        }
-    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = C.Card,
+        shape = RoundedCornerShape(Radius.Card),
+        title = { Text("Add subscription link", color = C.Text, fontSize = 20.sp) },
+        text = {
+            Column {
+                Text("Servers from this URL are added now and when you update subscriptions.", color = C.Muted, fontSize = 13.sp)
+                Spacer(Modifier.height(12.dp))
+                BasicTextField(
+                    value = url, onValueChange = { url = it }, singleLine = true,
+                    textStyle = TextStyle(color = C.Text, fontSize = 14.sp),
+                    cursorBrush = SolidColor(C.Accent),
+                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(Radius.Small)).background(C.Bg).padding(14.dp),
+                    decorationBox = { inner ->
+                        if (url.isEmpty()) Text("https://…", color = C.Muted, fontSize = 14.sp)
+                        inner()
+                    },
+                )
+            }
+        },
+        confirmButton = { TextButton({ if (url.isNotBlank()) onAdd(url.trim()) }) { Text("Add", color = C.Accent) } },
+        dismissButton = { TextButton(onDismiss) { Text("Cancel", color = C.Muted) } },
+    )
 }

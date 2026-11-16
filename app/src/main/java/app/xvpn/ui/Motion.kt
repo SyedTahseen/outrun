@@ -4,6 +4,8 @@ package app.xvpn.ui
 
 import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearOutSlowInEasing
@@ -18,14 +20,18 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -38,11 +44,15 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.delay
 
 object Motion {
     const val Short = 150
     const val Medium = 300
+    const val Long = 420
     val Standard = FastOutSlowInEasing
+    val Emphasized = CubicBezierEasing(0.2f, 0f, 0f, 1f)
 }
 
 @Composable
@@ -121,4 +131,19 @@ fun numberTransition(up: Boolean): ContentTransform {
         0f,
         SizeTransform(clip = false),
     )
+}
+
+@Composable
+fun Reveal(index: Int, content: @Composable () -> Unit) {
+    val progress = remember { Animatable(0f) }
+    LaunchedEffect(Unit) {
+        delay(index * 60L)
+        progress.animateTo(1f, tween(Motion.Long, easing = Motion.Standard))
+    }
+    Column(
+        Modifier.fillMaxWidth().graphicsLayer {
+            alpha = progress.value
+            translationY = (1f - progress.value) * 20.dp.toPx()
+        },
+    ) { content() }
 }

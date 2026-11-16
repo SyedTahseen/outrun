@@ -10,6 +10,5 @@
 app/build/
 build-native/
 dist/
-__pycache__/
-*.pyc
+
 app/src/main/jniLibs/

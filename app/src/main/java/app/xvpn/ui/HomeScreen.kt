@@ -2,17 +2,25 @@ package app.xvpn.ui
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.unit.Dp
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.material.icons.filled.Public
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -32,7 +40,6 @@ import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
-import androidx.compose.material.icons.filled.Public
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -51,18 +58,28 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.sp
 import app.xvpn.data.IpInfo
 import app.xvpn.data.Profile
 import app.xvpn.vpn.Status
 import app.xvpn.vpn.VpnState
 import kotlinx.coroutines.delay
+
+internal fun fmtKb(b: Long): String = "%.2f KB/s".format(b / 1000.0)
+
+internal fun fmtDuration(ms: Long): String {
+    val s = (ms / 1000).coerceAtLeast(0)
+    val h = s / 3600; val m = (s % 3600) / 60; val sec = s % 60
+    return when {
+        h > 0 -> "$h h %02d min".format(m)
+        m > 0 -> "$m min $sec sec"
+        else -> "$sec sec"
+    }
+}
 
 private object MapMemory {
     var pos: GeoPoint? = null
@@ -220,7 +237,7 @@ fun HomeScreen(
 @Composable
 private fun UnprotectedHeader(real: IpInfo?, error: String?) {
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-        Icon(Icons.Filled.LockOpen, null, tint = C.Red, modifier = Modifier.size(40.dp))
+        PopIcon(Icons.Filled.LockOpen, C.Red, 40.dp)
         Spacer(Modifier.height(14.dp))
         Text(
             "You are unprotected",
@@ -277,7 +294,7 @@ private fun ScrambleText(text: String, color: Color, fontSize: TextUnit) {
 private fun ProtectedHeader(time: String, up: Long, down: Long) {
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Filled.Lock, null, tint = C.Green, modifier = Modifier.size(34.dp))
+            PopIcon(Icons.Filled.Lock, C.Green, 34.dp)
             Spacer(Modifier.width(12.dp))
             Text("Protected", color = C.Green, fontSize = 30.sp, fontWeight = FontWeight.Bold)
         }
@@ -324,6 +341,11 @@ private fun OutlineButton(label: String, onClick: () -> Unit) {
             .border(1.dp, Color(0xFF4F4D5C), RoundedCornerShape(Radius.Small)),
         contentAlignment = Alignment.Center,
     ) { Text(label, color = C.Text, fontSize = 19.sp, fontWeight = FontWeight.Medium) }
+}
+
+@Composable
+private fun PopIcon(icon: ImageVector, tint: Color, size: Dp) {
+    Icon(icon, null, tint = tint, modifier = Modifier.size(size))
 }
 
 @Composable

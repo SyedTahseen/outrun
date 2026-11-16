@@ -20,8 +20,9 @@ object RealDelay {
     private const val BATCH = 20
     private const val PARALLEL = 10
     private const val TIMEOUT_MS = 12_000
+    const val DEFAULT_URL = "https://www.gstatic.com/generate_204"
 
-    suspend fun test(ctx: Context, links: List<String>, url: String, onResult: (String, Int) -> Unit) = withContext(Dispatchers.IO) {
+    suspend fun test(ctx: Context, links: List<String>, url: String = DEFAULT_URL, onResult: (String, Int) -> Unit) = withContext(Dispatchers.IO) {
         suspend fun emit(link: String, ms: Int) = withContext(Dispatchers.Main) { onResult(link, ms) }
         for (chunk in links.chunked(BATCH)) {
             val usable = ArrayList<Pair<String, JSONObject>>()
@@ -43,6 +44,7 @@ object RealDelay {
         val ports = freePorts(items.size)
         val core = SingBoxCore(ctx, "singbox-test")
         try {
+
             core.start(ConfigBuilder.buildMulti(items.map { JSONObject(it.second.toString()) }, ports), ports.first())
         } catch (e: Exception) {
             core.stop()

@@ -2,6 +2,8 @@ package app.xvpn.ui
 
 import android.content.Context
 import android.util.Log
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathFillType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.DataInputStream
@@ -11,6 +13,7 @@ import kotlin.math.tan
 
 class Country(
     val code: String,
+    val path: Path,
     val rings: List<FloatArray>,
     val minX: Float, val maxX: Float, val minY: Float, val maxY: Float,
 )
@@ -42,6 +45,7 @@ object WorldGeo {
             val out = ArrayList<Country>(n)
             repeat(n) {
                 val code = String(charArrayOf(d.readByte().toInt().toChar(), d.readByte().toInt().toChar()))
+                val path = Path().apply { fillType = PathFillType.EvenOdd }
                 val rings = ArrayList<FloatArray>()
                 var x0 = Float.MAX_VALUE; var x1 = -Float.MAX_VALUE
                 var y0 = Float.MAX_VALUE; var y1 = -Float.MAX_VALUE
@@ -53,12 +57,14 @@ object WorldGeo {
                         val lat = d.readShort() / 100f
                         ring[i * 2] = lon; ring[i * 2 + 1] = lat
                         val y = mercY(lat.toDouble())
+                        if (i == 0) path.moveTo(lon, y) else path.lineTo(lon, y)
                         if (lon < x0) x0 = lon; if (lon > x1) x1 = lon
                         if (y < y0) y0 = y; if (y > y1) y1 = y
                     }
+                    path.close()
                     rings += ring
                 }
-                out += Country(code, rings, x0, x1, y0, y1)
+                out += Country(code, path, rings, x0, x1, y0, y1)
             }
             out
         }

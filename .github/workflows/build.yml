@@ -69,7 +69,7 @@ jobs:
           mkdir -p dist
           for f in app/build/outputs/apk/release/*.apk; do
             abi=$(basename "$f" .apk | sed 's/^app-//; s/-release$//')
-            cp "$f" "dist/EsmiVpn-${GITHUB_REF_NAME//\//-}-$abi.apk"
+            cp "$f" "dist/SingBoxVpn-${GITHUB_REF_NAME//\//-}-$abi.apk"
           done
           ls -lh dist
 

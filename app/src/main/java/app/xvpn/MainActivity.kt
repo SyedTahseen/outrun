@@ -2,20 +2,21 @@ package app.xvpn
 
 import android.Manifest
 import android.app.Activity
-import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
 import android.net.VpnService
 import android.os.Build
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
-import android.widget.Toast
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.BackHandler
+import androidx.activity.SystemBarStyle
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
@@ -28,28 +29,49 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.LocalIndication
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.indication
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.graphics.graphicsLayer
+import app.xvpn.ui.AppIndication
+import app.xvpn.ui.Motion
+import app.xvpn.ui.axisTransition
+import app.xvpn.ui.rememberTick
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.rememberCoroutineScope
+import app.xvpn.data.RealDelay
+import kotlinx.coroutines.joinAll
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
+import app.xvpn.data.GeoIp
+import app.xvpn.data.NetInfo
+import app.xvpn.ui.StatsScreen
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsTopHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.windowInsetsTopHeight
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Public
@@ -57,55 +79,56 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import app.xvpn.data.GeoIp
 import app.xvpn.data.LinkParser
-import app.xvpn.data.NetInfo
-import app.xvpn.data.RealDelay
+import app.xvpn.data.Profile
 import app.xvpn.data.Store
-import app.xvpn.ui.AppIndication
 import app.xvpn.ui.C
-import app.xvpn.ui.DesignScale
 import app.xvpn.ui.HomeScreen
 import app.xvpn.ui.MenuScreen
-import app.xvpn.ui.Motion
 import app.xvpn.ui.Radius
 import app.xvpn.ui.ServersScreen
 import app.xvpn.ui.SortMode
-import app.xvpn.ui.StatsScreen
-import app.xvpn.ui.axisTransition
-import app.xvpn.ui.rememberTick
-import app.xvpn.ui.setUpEdgeToEdge
-import app.xvpn.vpn.EsmiVpnService
 import app.xvpn.vpn.Status
 import app.xvpn.vpn.VpnState
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import app.xvpn.vpn.SingBoxVpnService
 import kotlin.concurrent.thread
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        setUpEdgeToEdge()
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
+            navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
+        )
+        window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(C.Bg.toArgb()))
         setContent { DesignScale { AppIndication { App() } } }
     }
+}
+
+@Composable
+internal fun DesignScale(content: @Composable () -> Unit) {
+    val d = LocalDensity.current
+    val cfg = LocalConfiguration.current
+    val scale = minOf(cfg.screenWidthDp, cfg.screenHeightDp) / 360f
+    CompositionLocalProvider(
+        LocalDensity provides Density(d.density * scale, fontScale = 1f),
+        content = content,
+    )
 }
 
 private enum class Tab(val label: String, val icon: ImageVector) {
@@ -120,7 +143,7 @@ private fun Tab.screen() = when (this) { Tab.Home -> Screen.Home; Tab.Servers ->
 
 @Composable
 private fun App() {
-    val ctx = LocalContext.current
+    val ctx = androidx.compose.ui.platform.LocalContext.current
     val store = remember { Store(ctx) }
 
     remember { if (NetInfo.real.value == null) NetInfo.real.value = store.lastReal }
@@ -128,12 +151,13 @@ private fun App() {
     var profiles by remember { mutableStateOf(store.profiles()) }
     var selectedLink by remember { mutableStateOf(store.selected ?: profiles.firstOrNull()?.link) }
 
-    var sort by remember { mutableStateOf(SortMode.entries.firstOrNull { it.name == store.sortName } ?: SortMode.Default) }
+    var sort by remember { mutableStateOf(SortMode.values().firstOrNull { it.name == store.sortName } ?: SortMode.Default) }
     var serverFilter by remember { mutableStateOf<String?>(null) }
     var subs by remember { mutableStateOf(store.subscriptions) }
     var favs by remember { mutableStateOf(store.favorites) }
     var sources by remember { mutableStateOf(store.sources) }
     var subInfo by remember { mutableStateOf(store.subInfo) }
+    var message by remember { mutableStateOf<String?>(null) }
     var pendingSub by remember { mutableStateOf<String?>(null) }
     val status by VpnState.status.collectAsState()
     val socks by VpnState.socksPort.collectAsState()
@@ -183,6 +207,7 @@ private fun App() {
         testing = true; pings = emptyMap()
         val list = profiles.map { it.link }
         scope.launch {
+
             runCatching { RealDelay.test(ctx, list, store.testUrl()) { link, ms -> pings = pings + (link to ms) } }
             testing = false
         }
@@ -192,11 +217,7 @@ private fun App() {
         (ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager)
             .primaryClip?.getItemAt(0)?.coerceToText(ctx)?.toString().orEmpty()
 
-    fun toast(m: String) = Toast.makeText(ctx, m, Toast.LENGTH_SHORT).show()
-
-    fun copyToClipboard(label: String, text: String) {
-        (ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(ClipData.newPlainText(label, text))
-    }
+    fun toast(m: String) = android.widget.Toast.makeText(ctx, m, android.widget.Toast.LENGTH_SHORT).show()
 
     fun importText(text: String): Boolean {
         val t = text.trim()
@@ -206,7 +227,8 @@ private fun App() {
         }
         val found = LinkParser.parseMany(text)
         val n = store.add(found)
-        toast(if (found.isEmpty()) "No valid links found" else "Added $n server(s)")
+        message = if (found.isEmpty()) "No valid links found" else "Added $n server(s)"
+        toast(message!!)
         reload()
         return found.isNotEmpty()
     }
@@ -224,21 +246,21 @@ private fun App() {
     }
 
     val vpnPermission = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { r ->
-        if (r.resultCode == Activity.RESULT_OK) selectedLink?.let { EsmiVpnService.start(ctx, it) }
+        if (r.resultCode == Activity.RESULT_OK) selectedLink?.let { SingBoxVpnService.start(ctx, it) }
     }
     val notifPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
 
     fun connect(link: String) {
         selectedLink = link; store.selected = link
         val intent = VpnService.prepare(ctx)
-        if (intent != null) vpnPermission.launch(intent) else EsmiVpnService.start(ctx, link)
+        if (intent != null) vpnPermission.launch(intent) else SingBoxVpnService.start(ctx, link)
     }
 
     fun toggle() {
         if (Build.VERSION.SDK_INT >= 33) notifPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
         when (status) {
             Status.Disconnected -> selectedLink?.let { connect(it) } ?: run { tab = Tab.Servers }
-            else -> EsmiVpnService.stop(ctx)
+            else -> SingBoxVpnService.stop(ctx)
         }
     }
 
@@ -247,6 +269,7 @@ private fun App() {
     }
 
     fun refreshSubs(list: List<String>, silent: Boolean = false) {
+        if (!silent) message = "Updating…"
         thread {
             var added = 0; var removed = 0; var failed = 0; var err = ""; var total = 0
             val skipped = HashMap<String, Int>()
@@ -255,17 +278,16 @@ private fun App() {
                     .onSuccess { r -> added += r.added; removed += r.removed; total += r.total; r.skipped.forEach { (k, v) -> skipped[k] = (skipped[k] ?: 0) + v } }
                     .onFailure { e -> failed++; err = e.message ?: e.javaClass.simpleName }
             }
-            Handler(Looper.getMainLooper()).post {
+            android.os.Handler(android.os.Looper.getMainLooper()).post {
                 reload()
                 if (!silent) {
-                    toast(
-                        when {
-                            failed > 0 && failed == list.size -> "Couldn't update: $err"
-                            else -> "Updated: $added new, $removed removed ($total in subscription)" +
-                                (if (failed > 0) ", $failed failed" else "") +
-                                (if (skipped.isNotEmpty()) ". Skipped unsupported: " + skipped.entries.joinToString { "${it.key} ×${it.value}" } else "")
-                        },
-                    )
+                    message = when {
+                        failed > 0 && failed == list.size -> "Couldn't update: $err"
+                        else -> "Updated: $added new, $removed removed ($total in subscription)" +
+                            (if (failed > 0) ", $failed failed" else "") +
+                            (if (skipped.isNotEmpty()) ". Skipped unsupported: " + skipped.entries.joinToString { "${it.key} ×${it.value}" } else "")
+                    }
+                    toast(message!!)
                 }
             }
         }
@@ -328,9 +350,11 @@ private fun App() {
                             profiles = profiles,
                             selectedLink = selectedLink,
                             onConnect = { p -> connect(p.link); tab = Tab.Home },
-                            onDelete = { p -> store.remove(p.link); reload() },
+                            onDelete = { p -> store.remove(p.link); store.favorites = store.favorites - p.link; favs = store.favorites; reload() },
                             onPasteClipboard = ::importClipboard,
-                            onScanQr = { qrLauncher.launch(Unit) },
+                            onScanQr = {
+                                qrLauncher.launch(Unit)
+                            },
                             onImportFile = { fileLauncher.launch(arrayOf("*/*")) },
                             onAddManual = { importText(it) },
                             onRefreshSubscriptions = { if (subs.isEmpty()) toast("No subscriptions added") else refreshSubs(subs) },
@@ -346,38 +370,42 @@ private fun App() {
                                 favs = store.favorites
                             },
                             onCopy = { p ->
-                                copyToClipboard("proxy", p.link)
+                                (ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager)
+                                    .setPrimaryClip(android.content.ClipData.newPlainText("proxy", p.link))
                                 toast("Copied ${p.name}")
                             },
                             onAddSubscription = { refreshSubs(listOf(it)) },
                             onDeleteMany = { links ->
                                 val n = store.removeMany(links)
-                                reload(); toast("Deleted $n server${if (n == 1) "" else "s"}")
+                                favs = store.favorites; reload(); toast("Deleted $n server${if (n == 1) "" else "s"}")
                             },
-                            onDeleteAll = { store.clear(); reload(); toast("All servers deleted") },
+                            onDeleteAll = { store.clear(); favs = emptySet(); reload(); toast("All servers deleted") },
                             sort = sort, onSortChange = { sort = it; store.sortName = it.name },
                             filter = serverFilter, onFilterChange = { serverFilter = it },
                             onScrolledChange = { serversScrolled = it },
                             subInfo = subInfo,
                             onRefreshSubscription = { refreshSubs(listOf(it)) },
                             onCopySubscription = { url ->
-                                copyToClipboard("subscription", url)
+                                (ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager)
+                                    .setPrimaryClip(android.content.ClipData.newPlainText("subscription", url))
                                 toast("Subscription link copied")
                             },
                         )
                         Screen.Menu -> MenuScreen(
                             store = store,
                             onExport = {
-                                copyToClipboard("servers", profiles.joinToString("\n") { it.link })
+                                (ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager)
+                                    .setPrimaryClip(android.content.ClipData.newPlainText("servers", profiles.joinToString("\n") { it.link }))
                                 toast("Copied ${profiles.size} server link${if (profiles.size == 1) "" else "s"}")
                             },
                             onDebugInfo = {
                                 val info = "App ${runCatching { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName }.getOrNull()}\n" +
-                                    "Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})\n" +
-                                    "Device ${Build.MANUFACTURER} ${Build.MODEL}\n" +
+                                    "Android ${android.os.Build.VERSION.RELEASE} (API ${android.os.Build.VERSION.SDK_INT})\n" +
+                                    "Device ${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}\n" +
                                     "Status $status\nServers ${profiles.size}\nSubscriptions ${subs.size}\n" +
                                     "Last error ${VpnState.error.value ?: "none"}"
-                                copyToClipboard("debug", info)
+                                (ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager)
+                                    .setPrimaryClip(android.content.ClipData.newPlainText("debug", info))
                                 toast("Debug info copied")
                             },
                             onScrolledChange = { serversScrolled = it },
@@ -398,10 +426,11 @@ private fun App() {
             exit = slideOutVertically(tween(Motion.Medium, easing = Motion.Standard)) { it } + fadeOut(tween(Motion.Short)),
         ) {
             Row(
+
                 Modifier.fillMaxWidth().background(C.Card).navigationBarsPadding().height(72.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Tab.entries.forEach { t -> DockItem(t, selected = t == tab) { tab = t } }
+                Tab.values().forEach { t -> DockItem(t, selected = t == tab) { tab = t } }
             }
         }
     }
