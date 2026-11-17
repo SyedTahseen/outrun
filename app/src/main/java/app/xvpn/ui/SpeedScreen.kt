@@ -405,7 +405,7 @@ private fun StartRing(enabled: Boolean, onClick: () -> Unit) {
             Modifier.size(Sizes.SpeedRing).pressable(CircleShape, 0.94f, enabled = enabled, ripple = false) { tick(); onClick() },
             contentAlignment = Alignment.Center,
         ) {
-            Text("START", style = Type.Subtitle, color = if (enabled) C.OnPrimary else Dim)
+            Text("START", style = Type.Subtitle, color = if (enabled) C.Text else Dim)   // C.Text: the ring face is C.Bg, so white text vanished on the light theme
         }
     }
 }
