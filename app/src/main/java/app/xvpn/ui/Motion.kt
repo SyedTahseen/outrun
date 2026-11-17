@@ -102,14 +102,15 @@ fun Modifier.pressable(
         )
 }
 
-fun axisTransition(forward: Boolean, distance: Float = 0.12f): ContentTransform {
-    val dir = if (forward) 1 else -1
-    val enter = slideInHorizontally(tween(Motion.Medium, easing = Motion.Standard)) { (it * distance).toInt() * dir } +
-        fadeIn(tween(Motion.Medium - Motion.Overlap, delayMillis = Motion.Overlap, easing = Motion.Enter))
-    val exit = slideOutHorizontally(tween(Motion.Medium, easing = Motion.Standard)) { -(it * distance).toInt() * dir } +
-        fadeOut(tween(Motion.Overlap, easing = Motion.Exit))
-    return ContentTransform(enter, exit, 0f, SizeTransform(clip = false))
-}
+/**
+ * Screen / page / tab changes. Proton VPN uses Navigation Compose's default for every top-level and settings
+ * destination (BaseNav.NavigationTransition.DefaultFade): a plain 700 ms cross-fade, no sliding.
+ * Signature kept so the call sites in MainActivity and MenuScreen are unchanged; [forward] and [distance] are ignored.
+ */
+@Suppress("UNUSED_PARAMETER")
+fun axisTransition(forward: Boolean, distance: Float = 0f): ContentTransform = ContentTransform(
+    fadeIn(tween(700)), fadeOut(tween(700)), 0f, SizeTransform(clip = false),
+)
 
 fun fadeTransition(): ContentTransform = ContentTransform(
     fadeIn(tween(Motion.Short, delayMillis = Motion.Overlap / 2, easing = Motion.Enter)),

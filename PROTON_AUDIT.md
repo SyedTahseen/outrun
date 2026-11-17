@@ -87,3 +87,7 @@ Corrections to earlier "verified" entries (the tv* resources were Android-TV onl
 | Dialog title | 18 SemiBold | 20 Bold (headline) | ProtonAlert `headlineNorm` |
 Confirmed correct: card radius 12 (`shapes.large` in VpnStatusView / VpnConnectionCard), card border = separatorNorm, dialog shape 28 + `backgroundSecondary` fill, sheet fill `backgroundNorm` + `iconHint` handle, top bar scrolled fill `backgroundSecondary`, text-field focus border `interactionNorm`, section header 14 Medium accent 24/8, settings row 16dp vertical + 4dp gap, snackbar 12dp margin + `shapes.medium`.
 Still open: Medium/Expanded window padding (56/128dp), selected/unselected bottom-bar icon variants (Proton `getIcon(isSelected)`), dialog body text (14sp body2Regular) must be set by each caller, widget/launcher colours, light theme.
+
+## Pass 5: motion
+Proton VPN has no custom screen transitions: tabs and settings pages use Navigation Compose's default (`NavigationTransition.DefaultFade`, fade in/out 700 ms; only profile creation slides). Outrun's `axisTransition` (300 ms slide + fade) now cross-fades for 700 ms. Press feedback = ripple only and no haptics were already matched. Status gradient 500 ms matched earlier.
+Not matched: Outrun's `statusTransition` (slide + scale + fade on the home status) vs Proton's 500 ms alpha only on Connecting -> Connected and snap for everything else; card/recents slide, 200 ms fades with 600/1100/1300 ms delays in VpnConnectionCard, M3 scroll-linked collapsing top bar (Outrun animates a scrolled flag).
