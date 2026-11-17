@@ -1,8 +1,11 @@
 package app.xvpn.ui
 
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
@@ -87,4 +90,20 @@ object Type {
     val Button = style(16, FontWeight.Normal, 24, 0.03f)       // [PV] ProtonButton style = defaultUnspecified = body1Regular
     val ButtonSmall = style(16, FontWeight.Medium, 24, 0.03f)  // chips, compact buttons, text actions
     val Mono = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 12.sp, lineHeight = 18.sp, letterSpacing = 0.sp)
+}
+
+/**
+ * Proton Dimensions.kt `extraPaddingForWindowSize`: beyond the 16dp gutter, Medium windows (600-839dp wide) get 56dp,
+ * Expanded (840dp+) get 128dp, and content never grows wider than 800dp.
+ */
+@Composable
+fun largeScreenContentPadding(): Dp {
+    val width = LocalConfiguration.current.screenWidthDp.dp
+    val extra = when {
+        width >= 840.dp -> 128.dp
+        width >= 600.dp -> 56.dp
+        else -> 0.dp
+    }
+    val maxWidthPadding = (width - Sizes.MaxContent) / 2 - Space.Gutter
+    return if (maxWidthPadding > extra) maxWidthPadding else extra
 }

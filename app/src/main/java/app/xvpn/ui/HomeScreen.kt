@@ -92,7 +92,7 @@ fun HomeScreen(
 
     // Proton vpnStatusOverlayBackground: vpnGreen / white / notificationError at 50%, fading to transparent, animated over 500ms.
     val overlay by animateColorAsState(
-        when (status) { Status.Connected -> C.Green; Status.Connecting -> Color.White; Status.Disconnected -> C.Red }.copy(alpha = 0.5f),
+        when (status) { Status.Connected -> C.Green.copy(alpha = C.OverlayConnected); Status.Connecting -> Color.White.copy(alpha = 0.5f); Status.Disconnected -> C.Red.copy(alpha = C.OverlayDisconnected) },
         tween(500), label = "overlay",
     )
 

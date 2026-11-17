@@ -38,7 +38,7 @@
                 android:ellipsize="end"
                 android:maxLines="1"
                 android:text="@string/widget_title_off"
-                android:textColor="@color/outrun_text"
+                android:textColor="@color/widget_text"
                 android:textSize="15sp"
                 android:textStyle="bold" />
 
@@ -50,7 +50,7 @@
                 android:ellipsize="end"
                 android:maxLines="1"
                 android:text="@string/widget_sub_choose_server"
-                android:textColor="@color/outrun_muted"
+                android:textColor="@color/widget_muted"
                 android:textSize="11sp" />
         </LinearLayout>
 

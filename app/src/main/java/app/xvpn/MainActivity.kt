@@ -10,7 +10,6 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -98,6 +97,10 @@ import app.xvpn.ui.ProtonIcons
 import app.xvpn.ui.axisTransition
 import app.xvpn.ui.rememberTick
 import app.xvpn.ui.setUpEdgeToEdge
+import app.xvpn.ui.AppSnackbarHost
+import app.xvpn.ui.Snack
+import app.xvpn.ui.SnackType
+import app.xvpn.ui.largeScreenContentPadding
 import app.xvpn.vpn.OutrunVpnService
 import app.xvpn.vpn.Status
 import app.xvpn.vpn.VpnState
@@ -222,7 +225,7 @@ private fun App() {
         (ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager)
             .primaryClip?.getItemAt(0)?.coerceToText(ctx)?.toString().orEmpty()
 
-    fun toast(m: String) = Toast.makeText(ctx, m, Toast.LENGTH_SHORT).show()
+    fun toast(m: String, type: SnackType = SnackType.Norm) = Snack.show(m, type)
 
     fun copyToClipboard(label: String, text: String) {
         (ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(ClipData.newPlainText(label, text))
@@ -236,7 +239,7 @@ private fun App() {
         }
         val found = LinkParser.parseMany(text)
         val n = store.add(found)
-        toast(if (found.isEmpty()) "No valid links found" else "Added $n server(s)")
+        if (found.isEmpty()) toast("No valid links found", SnackType.Error) else toast("Added $n server(s)", SnackType.Success)
         reload()
         return found.isNotEmpty()
     }
@@ -249,7 +252,7 @@ private fun App() {
     val fileLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
             val text = runCatching { ctx.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() } }.getOrNull()
-            if (text == null) toast("Couldn't read file") else importText(text)
+            if (text == null) toast("Couldn't read file", SnackType.Error) else importText(text)
         }
     }
 
@@ -343,8 +346,8 @@ private fun App() {
 
                 Box(
                     Modifier.fillMaxSize()
-                        // Proton caps page content at 800dp (Dimensions.kt MaxContentWidth) and centres it on tablets; Home stays full-bleed for the map.
-                        .then(if (s == Screen.Home) Modifier else Modifier.wrapContentWidth(Alignment.CenterHorizontally).widthIn(max = Sizes.MaxContent).fillMaxSize())
+                        // Proton: extra 56dp (Medium) / 128dp (Expanded) side padding and an 800dp content cap (Dimensions.kt); Home stays full-bleed for the map.
+                        .then(if (s == Screen.Home) Modifier else Modifier.padding(horizontal = largeScreenContentPadding()))
                         .then(if (s == Screen.Home) Modifier else Modifier.statusBarsPadding())
                         .navigationBarsPadding().padding(bottom = if (s == Screen.Stats) 0.dp else dockInset),
                 ) {
@@ -369,7 +372,7 @@ private fun App() {
                             onScanQr = { qrLauncher.launch(Unit) },
                             onImportFile = { fileLauncher.launch(arrayOf("*/*")) },
                             onAddManual = { importText(it) },
-                            onRefreshSubscriptions = { if (subs.isEmpty()) toast("No subscriptions added") else refreshSubs(subs) },
+                            onRefreshSubscriptions = { if (subs.isEmpty()) toast("No subscriptions added", SnackType.Warning) else refreshSubs(subs) },
                             favorites = favs,
                             pings = pings, testing = testing, onTestLatency = ::testLatency,
                             subscriptions = subs, sources = sources,
@@ -440,6 +443,8 @@ private fun App() {
                 Tab.entries.forEach { t -> DockItem(t, selected = t == tab) { tab = t } }
             }
         }
+        // Proton shows ProtonSnackbar above the bottom bar, never a system toast.
+        AppSnackbarHost(Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = dockInset).widthIn(max = Sizes.MaxContent))
     }
 }
 

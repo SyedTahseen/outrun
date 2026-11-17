@@ -42,9 +42,9 @@ class OutrunWidget : AppWidgetProvider() {
     companion object {
         const val ACTION_TOGGLE = "app.xvpn.widget.TOGGLE"
 
-        // Same palette as the in-app UI.
-        private val GREEN = C.Green.toArgb()
-        private val AMBER = C.Amber.toArgb()
+        // The widget art is always dark (own design), so it uses the dark values of the app palette regardless of the system theme.
+        private val GREEN = 0xFF2CFFCC.toInt()   // vpnGreen (dark)
+        private val AMBER = 0xFFFFB84D.toInt()   // notificationWarning (dark)
         private val WHITE = Color.WHITE
 
         /** Re-draws every placed widget from the current [VpnState]. Safe to call from any thread. */

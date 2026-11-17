@@ -88,9 +88,9 @@ fun AppCard(
     )
 }
 
-/** Proton TranslucentSurfaceBorder: 1dp vertical gradient, white 8% -> 2%, for surfaces floating over the map. */
+/** Proton TranslucentSurfaceBorder: 1dp vertical gradient, shade100 8% -> 2%, for surfaces floating over the map. */
 fun Modifier.translucentBorder(shape: androidx.compose.ui.graphics.Shape): Modifier =
-    border(1.dp, Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.08f), Color.White.copy(alpha = 0.02f))), shape)
+    border(1.dp, Brush.verticalGradient(listOf(C.Text.copy(alpha = 0.08f), C.Text.copy(alpha = 0.02f))), shape)   // [PV] shade100 @ 8% -> 2%
 
 /** Hairline between rows (Proton VpnDivider: separatorNorm, Dp.Hairline). */
 @Composable

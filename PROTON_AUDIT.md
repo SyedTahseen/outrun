@@ -109,3 +109,26 @@ Proton `BottomBarView.getIcon(selected)`: outline icon when idle, filled when se
 Confirmed correct, no change: all `ProtonColors.Dark` values in `Colors.kt`, radii 4/8/12, 48dp button min height, outline-accent border = `textAccent` in the VPN app (proton-core's own version uses `brandNorm`, but the VPN app overrides it), dialog button style `body1Medium`.
 Corrects an earlier note: the "Secondary" button in the VPN app is `VpnWeakSolidButton` (48dp, fill-width), not `ProtonSecondaryButton` (32dp, caption text).
 Not changed: Outrun's own brand art (launcher icon, widget globe, world map shape), which has no Proton counterpart.
+
+## Pass 8: snackbar, tablet padding, map colours, light theme (still uncompiled)
+| Area | Before | Now | Source |
+|---|---|---|---|
+| Messages | system `Toast` everywhere | `Snack.show(msg, SnackType)` + `AppSnackbarHost` above the bottom bar: solid status fill (success 4AB89A / warning FFB84D / error F08FA4 / norm white), `textInverted` 14sp text, 8dp shape, 12dp margin, Short duration | `ProtonSnackbar.kt` |
+| Tablet padding | centred, capped at 800dp | plus 56dp (Medium, 600-839dp) / 128dp (Expanded) side padding, `largeScreenContentPadding()` | `base/ui/Dimensions.kt` |
+| Map border | 5A5866 | 5B576B (shade50) | `HomeMap.kt` MapConfig (the phone app does not use the `tvMap*` colours) |
+| Connecting pin / tone | A6A3B2 | A7A4B5 (`iconWeak`) | `HomeMap.kt` pinColorConfig |
+| Light theme | dark only | follows the system: `Palette.dark` drives every `C.*` colour; light values from `ProtonColors.Light` (Carrara cards, white bg, Cinder text, brand 6D4AFF text, Pomegranate / Sunglow / Apple) and `vpnGreen` 1C9C7C | `Colors.kt` (proton-core), `VpnColors.kt` |
+| Status overlay (light) | 50% always | connected 20%, disconnected 24%, connecting white 50% | `VpnStatusView.getOverlayGradientTop` |
+| Translucent card border | white 8% -> 2% | `shade100` 8% -> 2% (white on dark, black on light) | `VpnStatusView` |
+| Ripple | forced white | default (content colour) | invisible on light otherwise |
+| System bars, window bg, Material theme | dark only | `SystemBarStyle.auto`, `values` / `values-night` colours and themes, `lightColorScheme` in light | |
+| Widget | shared colours | fixed dark colours (`widget_*`), because its art is always dark | |
+
+Derived, not from Proton (no light equivalent exists in either repo): `Outline`, `Track`, `TextDim`, `AccentMid`/`AccentDeep` tile tints and `Divider` in light mode. Review them on a device.
+
+### Genuinely not applicable, so not "fixed"
+- **Bottom sheets**: Outrun has none (it uses dialogs and dropdown menus). When one is added: container `C.Bg`, handle `C.Shade50`, top corners `Radius.Control` (proton-core `shapes.bottomSheet` is 8dp top).
+- **ServerLoadBar**: needs per-server load data that Outrun's own servers do not have.
+- **Text-field labels**: Outrun's fields use placeholders only; error border is done (`isError`).
+- **Own design with no Proton counterpart**: speed gauge, HeroIcon tinted tiles, globe/map art, launcher icon, widget art, Speed tab.
+- `ScanActivity` still uses a system `Toast` for "No QR code found in image" (separate camera activity).

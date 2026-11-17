@@ -12,6 +12,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
@@ -27,16 +29,31 @@ fun OutrunApp(content: @Composable () -> Unit) {
 /** Material theme built from the app's own tokens, so any stock Material component that slips in looks like the rest of the app. */
 @Composable
 fun OutrunTheme(content: @Composable () -> Unit) {
-    val scheme = darkColorScheme(
-        primary = C.Primary, onPrimary = C.OnPrimary,
-        secondary = C.Accent, onSecondary = C.OnPrimary,
-        background = C.Bg, onBackground = C.Text,
-        surface = C.Card, onSurface = C.Text,
-        surfaceVariant = C.Control, onSurfaceVariant = C.Muted,
-        surfaceContainer = C.Card, surfaceContainerHigh = C.Card, surfaceContainerHighest = C.Card,
-        outline = C.Outline, outlineVariant = C.Border,
-        error = C.Red, onError = C.OnPrimary,
-    )
+    val dark = isSystemInDarkTheme()   // Proton follows the system theme
+    Palette.dark = dark
+    val scheme = if (dark) {
+        darkColorScheme(
+            primary = C.Primary, onPrimary = C.OnPrimary,
+            secondary = C.Accent, onSecondary = C.OnPrimary,
+            background = C.Bg, onBackground = C.Text,
+            surface = C.Card, onSurface = C.Text,
+            surfaceVariant = C.Control, onSurfaceVariant = C.Muted,
+            surfaceContainer = C.Card, surfaceContainerHigh = C.Card, surfaceContainerHighest = C.Card,
+            outline = C.Outline, outlineVariant = C.Border,
+            error = C.Red, onError = C.OnPrimary,
+        )
+    } else {
+        lightColorScheme(
+            primary = C.Primary, onPrimary = C.OnPrimary,
+            secondary = C.Accent, onSecondary = C.OnPrimary,
+            background = C.Bg, onBackground = C.Text,
+            surface = C.Card, onSurface = C.Text,
+            surfaceVariant = C.Control, onSurfaceVariant = C.Muted,
+            surfaceContainer = C.Card, surfaceContainerHigh = C.Card, surfaceContainerHighest = C.Card,
+            outline = C.Outline, outlineVariant = C.Border,
+            error = C.Red, onError = C.OnPrimary,
+        )
+    }
     val typography = Typography(
         displaySmall = Type.Display, headlineMedium = Type.Headline, titleLarge = Type.Title, titleMedium = Type.Subtitle,
         bodyLarge = Type.Body, bodyMedium = Type.Small, bodySmall = Type.Caption,
@@ -67,10 +84,12 @@ fun OutrunTheme(content: @Composable () -> Unit) {
 internal fun DesignScale(content: @Composable () -> Unit) = content()
 
 /** Transparent system bars drawn over the app background; shared by every activity. */
-internal fun ComponentActivity.setUpEdgeToEdge(navigationBarColor: Int = android.graphics.Color.TRANSPARENT) {
+internal fun ComponentActivity.setUpEdgeToEdge(navigationBarFromBg: Boolean = false) {
+    Palette.dark = (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES
+    val navigationBarColor = if (navigationBarFromBg) C.Bg.toArgb() else android.graphics.Color.TRANSPARENT
     enableEdgeToEdge(
-        statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
-        navigationBarStyle = SystemBarStyle.dark(navigationBarColor),
+        statusBarStyle = SystemBarStyle.auto(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT),
+        navigationBarStyle = SystemBarStyle.auto(navigationBarColor, navigationBarColor),
     )
     window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(C.Bg.toArgb()))
 }

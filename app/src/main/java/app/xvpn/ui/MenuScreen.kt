@@ -12,7 +12,6 @@ import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
-import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -448,7 +447,7 @@ private const val KEY_NOTIF_ASKED = "notif_asked"
 
 private fun Context.uiPrefs() = getSharedPreferences("ui", Context.MODE_PRIVATE)
 
-private fun Context.toast(msg: String) = Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
+private fun Context.toast(msg: String) = Snack.show(msg)
 
 private fun Context.launch(intent: Intent, failMsg: String) {
     runCatching { startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.onFailure { toast(failMsg) }

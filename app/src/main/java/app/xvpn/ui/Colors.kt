@@ -3,52 +3,65 @@ package app.xvpn.ui
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
 
+/** Which palette [C] resolves to. Set once per composition root in [OutrunTheme] from the system setting; the activity is recreated when it changes. */
+object Palette {
+    @Volatile var dark: Boolean = true
+}
+
+private fun pick(dark: Long, light: Long) = Color(if (Palette.dark) dark else light)
+
 /**
  * The one color palette of the app. Nothing outside this file should contain a color literal.
+ * Every entry resolves to proton-core `ProtonColors.Dark` or `ProtonColors.Light` (plus the VPN app's `vpnGreen`).
  *
  * Surfaces, from back to front:  Bg  ->  Card  ->  Control  (a Card holds Controls; Bg sits behind everything).
- * Primary is a *fill* (buttons, selected chips, switches); Accent is the same hue as *text / icons / lines* on dark.
+ * Primary is a *fill* (buttons, selected chips, switches); Accent is the same hue as *text / icons / lines* (lighter on dark).
+ * Tags: [PC] proton-core ProtonColors, [PV] Proton VPN app, [own] Outrun-specific (no Proton equivalent).
  */
 object C {
     // Surfaces
-    // Values marked [PV] are taken from Proton VPN's own resources (tv* colors in res/values/colors.xml, VpnColors.kt,
-    // VpnStatusView.kt). The rest are unverifiable from the open-source repo (they live in the proton-core library).
-    val Bg = Color(0xFF1C1B24)          // [PV] backgroundNorm (tvBackground): screen background, sheets
-    val Card = Color(0xFF292733)        // [PV] backgroundSecondary (tvCardBackground): cards, bottom bar, menus, dialogs
-    val Header = Card                   // header and status bar once the page is scrolled (same as Card)
-    val CardOverlay = Color(0xDB292733) // [PV] backgroundSecondary @ 0.86 over the map (VpnStatusView)
-    val Control = Color(0xFF3B3747)     // [PC] interactionWeakNorm = shade20 (BlackCurrant);  unselected chips, secondary buttons, pills
-    val Border = Color(0xFF3B3747)      // [PC] separatorNorm = shade20;  1dp hairlines: card borders, dividers, chart grid
-    val Divider = Color(0x0AFFFFFF)     // hairlines between rows (4 % white: subtle on both Bg and Card)
-    val Outline = Color(0xFF4F4D5C)     // border of outlined buttons
-    val Track = Color(0xFF2A2933)       // faint guide lines on dark (gauge track)
-    val Scrim = Color(0x66000000)       // dark chip over the map
+    val Bg get() = pick(0xFF1C1B24, 0xFFFFFFFF)          // [PC] backgroundNorm (dark shade10 BalticSea / light shade0 white)
+    val Card get() = pick(0xFF292733, 0xFFF5F4F2)        // [PC] backgroundSecondary (dark shade15 Bastille / light shade10 Carrara)
+    val Header get() = Card                              // header and status bar once the page is scrolled
+    val CardOverlay get() = Card.copy(alpha = 0.86f)     // [PV] backgroundSecondary @ 0.86 over the map (VpnStatusView)
+    val Control get() = pick(0xFF3B3747, 0xFFEAE7E4)     // [PC] interactionWeakNorm = shade20
+    val Border get() = pick(0xFF3B3747, 0xFFEAE7E4)      // [PC] separatorNorm = shade20
+    val Divider get() = pick(0x0AFFFFFF, 0x0A000000)     // [own] hairlines between rows
+    val Outline get() = pick(0xFF4F4D5C, 0xFFD1CFCD)     // [own] border of outlined buttons (light: shade40)
+    val Track get() = pick(0xFF2A2933, 0xFFEAE7E4)       // [own] faint guide lines (gauge track)
+    val Scrim get() = Color(0x66000000)                  // dark chip over the map
 
     // Brand
-    val Primary = Color(0xFF6D4AFF)     // [PV] interactionNorm (tvAccent): filled controls, checked switch, selected radio
-    val Accent = Color(0xFF8A6EFF)      // [PV] textAccent / brandNorm on dark (tvAccentLighten): accent text, icons, section headings
-    val AccentMid = Color(0xFF3B3175)   // tinted tile (top of gradient), inactive chart bars
-    val AccentDeep = Color(0xFF1B2250)  // tinted tile (bottom of gradient)
-    val NavPill = Accent.copy(alpha = 0.32f).compositeOver(Card) // [PV] BottomBarView: textAccent @ 0.32 over the bar
-    val Blue = Color(0xFF2F7BF0)        // speed-gauge tip
+    val Primary = Color(0xFF6D4AFF)                      // [PC] interactionNorm = brandNorm: filled controls, checked switch, selected radio
+    val Accent get() = pick(0xFF8A6EFF, 0xFF6D4AFF)      // [PC] textAccent = brandLighten20 (dark) / brandNorm (light)
+    val AccentMid get() = pick(0xFF3B3175, 0xFFE4DDFF)   // [own] tinted tile (top of gradient), inactive chart bars
+    val AccentDeep get() = pick(0xFF1B2250, 0xFFCFC5FF)  // [own] tinted tile (bottom of gradient)
+    val NavPill get() = Accent.copy(alpha = 0.32f).compositeOver(Card) // [PV] BottomBarView: textAccent @ 0.32 over the bar
+    val Blue = Color(0xFF2F7BF0)                         // [own] speed-gauge tip
 
     // Content
-    val Text = Color(0xFFFFFFFF)            // textNorm (white on dark)
-    val TextDim = Color(0xFFC4C3CB)     // gauge numbers
-    val Muted = Color(0xFFA7A4B5)       // [PV] textWeak / shade80 (tvInMaintenance): secondary text and icons
-    val Shade50 = Color(0xFF6D697D)     // [PC] shade60 (Dolphin) = textHint/iconHint; [PV] tvButtonBg. (name kept for call sites): hints, placeholder, unchecked switch track, unselected radio
-    val OnPrimary = Color(0xFFFFFFFF)
-    val PrimaryDisabled = Color(0xFF372580) // [PV] interactionDisabled = brandDarken40: disabled solid button fill
-    val Disabled = Color(0xFF5B576B)    // [PC] shade50 (Smoky) = textDisabled / iconDisabled
+    val Text get() = pick(0xFFFFFFFF, 0xFF0C0C14)        // [PC] textNorm = shade100
+    val TextDim get() = pick(0xFFC4C3CB, 0xFF4A4658)     // [own] gauge numbers
+    val Muted get() = pick(0xFFA7A4B5, 0xFF706D6B)       // [PC] textWeak / iconWeak = shade80
+    val Shade50 get() = pick(0xFF6D697D, 0xFF999693)     // [PC] textHint / iconHint = shade60 (name kept for call sites)
+    val OnPrimary = Color(0xFFFFFFFF)                    // white on a Primary fill, both themes
+    val PrimaryDisabled get() = pick(0xFF372580, 0xFFC4B7FF) // [PC] interactionDisabled: brandDarken40 (dark) / brandLighten40 (light)
+    val Disabled get() = pick(0xFF5B576B, 0xFFC2BFBC)    // [PC] textDisabled / iconDisabled = shade50
+    val Inverted get() = pick(0xFF0C0C14, 0xFFFFFFFF)    // [PC] textInverted = shade0
 
     // Status
-    val Green = Color(0xFF2CFFCC)       // [PV] vpnGreen (dark): connected, ok, download
-    val Red = Color(0xFFF08FA4)         // [PC] notificationError (dark, Mauvelous), used by VpnStatusView/ProtonSnackbar: disconnected, error, upload, destructive
-    val Amber = Color(0xFFFFB84D)       // [PC] notificationWarning (dark, TexasRose): warning, favorite
-    val Neutral = Color(0xFFA6A3B2)     // in-progress
+    val Green get() = pick(0xFF2CFFCC, 0xFF1C9C7C)       // [PV] vpnGreen
+    val Red get() = pick(0xFFF08FA4, 0xFFCC2D4F)         // [PC] notificationError (Mauvelous / Pomegranate)
+    val Amber get() = pick(0xFFFFB84D, 0xFFE65200)       // [PC] notificationWarning (TexasRose / Sunglow)
+    val SuccessSolid get() = pick(0xFF4AB89A, 0xFF007B58) // [PC] notificationSuccess (PuertoRico / Apple): snackbar fill
+    val Neutral get() = Muted                            // [PV] connecting pin = iconWeak
 
-    // World map
-    val Land = Card
-    val LandActive = Color(0xFF4A4658) // [PC] shade40 (GunPowder) / interactionWeakPressed
-    val LandLine = Color(0xFF5A5866)
+    /** Status overlay gradient alphas: [PV] VpnStatusView.getOverlayGradientTop. */
+    val OverlayConnected get() = if (Palette.dark) 0.5f else 0.2f
+    val OverlayDisconnected get() = if (Palette.dark) 0.5f else 0.24f
+
+    // World map: [PV] HomeMap MapConfig
+    val Land get() = pick(0xFF292733, 0xFFF1EEEB)       // country = shade15
+    val LandActive get() = pick(0xFF4A4658, 0xFFD1CFCD)  // selected / connecting / connected = shade40
+    val LandLine get() = pick(0xFF5B576B, 0xFFC2BFBC)    // border = shade50
 }

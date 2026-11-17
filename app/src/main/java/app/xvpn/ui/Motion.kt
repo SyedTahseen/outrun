@@ -64,7 +64,7 @@ object Press {
 
 @Composable
 fun AppIndication(content: @Composable () -> Unit) {
-    val indication = remember { ripple(color = Color.White) }
+    val indication = remember { ripple() }   // default colour = LocalContentColor (white on dark, near-black on light)
     CompositionLocalProvider(LocalIndication provides indication, content = content)
 }
 

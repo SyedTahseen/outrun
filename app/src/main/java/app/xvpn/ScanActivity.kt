@@ -111,7 +111,7 @@ class ScanActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setUpEdgeToEdge(navigationBarColor = C.Bg.toArgb())
+        setUpEdgeToEdge(navigationBarFromBg = true)
         setContent { OutrunApp { ScanScreen() } }
     }
 

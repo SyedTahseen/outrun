@@ -3,7 +3,6 @@ package app.xvpn.ui
 import android.content.Intent
 import android.graphics.Bitmap
 import android.os.Build
-import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
@@ -122,10 +121,10 @@ import kotlin.math.sin
 import kotlin.math.sqrt
 
 // Same colors as the rest of the app: green = download, red = upload.
-private val DownColor = C.Green
-private val UpColor = C.Red
+private val DownColor get() = C.Green
+private val UpColor get() = C.Red
 private val BlueTip = C.Blue
-private val Dim = C.Muted         // label of a tile that isn't being measured
+private val Dim get() = C.Muted         // label of a tile that isn't being measured
 
 private enum class SpeedView { Start, Running, Done }
 
@@ -157,7 +156,7 @@ fun SpeedScreen(serverName: String?, onPickServer: () -> Unit = {}, onFullScreen
             "Download ${mbps(ui.downMbps)} Mbps, Upload ${mbps(ui.upMbps)} Mbps, Ping ${ms(ui.pingMs)} ms, Jitter ${ms(ui.jitterMs)} ms"
         val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text)
         runCatching { ctx.startActivity(Intent.createChooser(send, "Share result").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
-            .onFailure { Toast.makeText(ctx, "Couldn't share result", Toast.LENGTH_SHORT).show() }
+            .onFailure { Snack.show("Couldn't share result", SnackType.Error) }
     }
 
     // Like the video: the old screen dims and shrinks away first, then the new one fades in and its parts arrive one after another.
