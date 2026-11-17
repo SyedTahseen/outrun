@@ -434,18 +434,21 @@ private fun ServerRow(
 ) {
     var menu by remember { mutableStateOf(false) }
 
-    val rowBg by animateColorAsState(if (selected) C.Card else C.Bg, tween(Motion.Medium), label = "rowBg")
-    val nameColor by animateColorAsState(if (selected) C.Green else C.Text, tween(Motion.Medium), label = "rowName")
-    Column(modifier.fillMaxWidth().background(rowBg)) {
+    // Proton ConnectIntentBlankRow: no row highlight; the active server gets a pulsing ActiveDot after its title.
+    Column(modifier.fillMaxWidth().background(C.Bg)) {
         Row(
-            Modifier.fillMaxWidth().clickable(onClick = onConnect).padding(start = Space.Gutter, end = Space.Sm).height(Sizes.ServerRow),
+            Modifier.fillMaxWidth().clickable(onClick = onConnect).heightIn(min = Sizes.ServerRow)
+                .padding(start = Space.Gutter, end = Space.Sm, top = Space.Md, bottom = Space.Md),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             FlagBadge(p.name)
             Spacer(Modifier.width(Space.Lg))
             Column(Modifier.weight(1f)) {
-                Text(Flags.clean(p.name), style = Type.Body, color = nameColor, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text("${p.host}:${p.port}", style = Type.Small, color = C.Muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(Flags.clean(p.name), style = Type.Body, color = C.Text, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                    if (selected) ActiveDot(Modifier.padding(start = Space.Sm))
+                }
+                Text("${p.host}:${p.port}", style = Type.Small, color = C.Muted, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = Space.Xs))
                 Text(LinkParser.describe(p.link), style = Type.Caption, color = C.Muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             PingLabel(ping, testing)

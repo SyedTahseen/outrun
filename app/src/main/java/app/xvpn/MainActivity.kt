@@ -48,6 +48,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsTopHeight
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -331,6 +333,8 @@ private fun App() {
 
                 Box(
                     Modifier.fillMaxSize()
+                        // Proton caps page content at 800dp (Dimensions.kt MaxContentWidth) and centres it on tablets; Home stays full-bleed for the map.
+                        .then(if (s == Screen.Home) Modifier else Modifier.wrapContentWidth(Alignment.CenterHorizontally).widthIn(max = Sizes.MaxContent).fillMaxSize())
                         .then(if (s == Screen.Home) Modifier else Modifier.statusBarsPadding())
                         .navigationBarsPadding().padding(bottom = if (s == Screen.Stats) 0.dp else dockInset),
                 ) {

@@ -4,6 +4,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -56,6 +57,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 
 // ------------------------------------------------------------------ surfaces
@@ -71,6 +73,7 @@ fun AppCard(
     containerColor: Color = C.Card,
     onClick: (() -> Unit)? = null,
     bordered: Boolean = false,
+    translucentBorder: Boolean = false,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val shape = RoundedCornerShape(Radius.Card)
@@ -79,10 +82,15 @@ fun AppCard(
             .then(if (onClick != null) Modifier.pressable(shape, Press.Card, onClick = onClick) else Modifier.clip(shape))
             .background(containerColor)
             .then(if (bordered) Modifier.border(1.dp, C.Border, shape) else Modifier)
+            .then(if (translucentBorder) Modifier.translucentBorder(shape) else Modifier)
             .padding(padding),
         content = content,
     )
 }
+
+/** Proton TranslucentSurfaceBorder: 1dp vertical gradient, white 8% -> 2%, for surfaces floating over the map. */
+fun Modifier.translucentBorder(shape: androidx.compose.ui.graphics.Shape): Modifier =
+    border(1.dp, Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.08f), Color.White.copy(alpha = 0.02f))), shape)
 
 /** Hairline between rows (Proton VpnDivider: separatorNorm, Dp.Hairline). */
 @Composable
@@ -130,20 +138,25 @@ fun HeaderSurface(scrolled: Boolean = false, content: @Composable ColumnScope.()
     Column(Modifier.fillMaxWidth().background(bg), content = content)
 }
 
-/** The 44dp row under the status bar. [backEdge]: the first item is a back arrow, so the row starts closer to the edge. */
+/**
+ * The 64dp app-bar row (Material 3 TopAppBar, as Proton's SimpleTopAppBar). [backEdge]: the first item is a 48dp back
+ * button, so the row starts 4dp from the edge instead of the 16dp gutter.
+ */
 @Composable
 fun HeaderBar(backEdge: Boolean = false, content: @Composable RowScope.() -> Unit) {
-    Spacer(Modifier.height(Space.Xl))
     Row(
-        Modifier.fillMaxWidth().padding(start = if (backEdge) Space.Sm else Space.Gutter, end = Space.Sm).height(Sizes.Control),
+        Modifier.fillMaxWidth().padding(start = if (backEdge) Space.Xs else Space.Gutter, end = Space.Xs).height(Sizes.TopBar),
         verticalAlignment = Alignment.CenterVertically,
         content = content,
     )
 }
 
 /**
- * Standard screen header. A top-level screen shows a big title; a sub-page ([onBack] set) shows a back arrow and a smaller title.
- * [actions] sit at the end of the row.
+ * Standard screen header, following Proton's two app bars.
+ *  - Sub-page ([onBack] set): Material 3 TopAppBar. 64dp, back button, 16sp Medium title (SimpleTopAppBar / body1Medium).
+ *  - Top-level screen: Material 3 MediumTopAppBar (CollapsibleToolbarScaffold). 112dp with a 28sp title at the bottom; once the
+ *    page is [scrolled] it collapses to 64dp with a 16sp title. The background goes Bg -> Card at the same moment.
+ * [actions] sit at the end of the first 64dp row.
  */
 @Composable
 fun ScreenHeader(
@@ -154,24 +167,46 @@ fun ScreenHeader(
     actions: @Composable RowScope.() -> Unit = {},
 ) {
     HeaderSurface(scrolled) {
-        HeaderBar(backEdge = onBack != null) {
-            if (onBack != null) {
+        if (onBack != null) {
+            HeaderBar(backEdge = true) {
                 IconAction(Icons.AutoMirrored.Filled.ArrowBack, "Back", onClick = onBack)
-                Spacer(Modifier.width(Space.Xs))
+                Spacer(Modifier.width(Space.Sm))
+                Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+                    if (title != null) Text(
+                        title, style = Type.BodyMedium, color = C.Text, maxLines = 1,
+                        modifier = Modifier.weight(1f, fill = false),
+                    )
+                    if (titleTrailing != null) {
+                        Spacer(Modifier.width(Space.Md))
+                        titleTrailing()
+                    }
+                }
+                actions()
             }
-            Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
-                if (title != null) Text(
-                    title, style = if (onBack == null) Type.Headline else Type.Title, color = C.Text, maxLines = 1,
-                    modifier = Modifier.weight(1f, fill = false),
+        } else {
+            val spec = tween<androidx.compose.ui.unit.Dp>(Motion.Medium, easing = Motion.Standard)
+            val height by androidx.compose.animation.core.animateDpAsState(if (scrolled) Sizes.TopBar else Sizes.TopBarExpanded, spec, label = "headerHeight")
+            val size by animateFloatAsState(if (scrolled) 16f else 28f, tween(Motion.Medium, easing = Motion.Standard), label = "headerTitle")
+            Box(Modifier.fillMaxWidth().height(height)) {
+                Row(
+                    Modifier.align(Alignment.TopEnd).padding(end = Space.Xs).height(Sizes.TopBar),
+                    verticalAlignment = Alignment.CenterVertically, content = actions,
                 )
-                if (titleTrailing != null) {
-                    Spacer(Modifier.width(Space.Md))
-                    titleTrailing()
+                Row(
+                    Modifier.align(Alignment.BottomStart).padding(start = Space.Gutter, end = Space.Gutter * 3, bottom = if (scrolled) Space.Lg else Space.Xxl),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    if (title != null) Text(
+                        title, style = Type.Headline.copy(fontSize = size.sp, lineHeight = (size * 1.2f).sp), color = C.Text, maxLines = 1,
+                        modifier = Modifier.weight(1f, fill = false),
+                    )
+                    if (titleTrailing != null) {
+                        Spacer(Modifier.width(Space.Md))
+                        titleTrailing()
+                    }
                 }
             }
-            actions()
         }
-        Spacer(Modifier.height(Space.Sm))
     }
 }
 
@@ -361,4 +396,20 @@ fun AppMenuHeader(title: String, onClick: () -> Unit) {
         leadingIcon = { Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = C.Text, modifier = Modifier.size(Sizes.Icon)) },
         onClick = onClick,
     )
+}
+
+/** Proton ActiveDot: a vpnGreen dot with an expanding, fading ping ring; marks the connected/selected row. */
+@Composable
+fun ActiveDot(modifier: Modifier = Modifier) {
+    val t = androidx.compose.animation.core.rememberInfiniteTransition("activeDot")
+    val spec = androidx.compose.animation.core.infiniteRepeatable<Float>(
+        animation = tween(1200, 2000), repeatMode = androidx.compose.animation.core.RepeatMode.Restart,
+    )
+    val scale by t.animateFloat(0.4f, 1f, spec, "scale")
+    val alpha by t.animateFloat(0.8f, 0f, spec, "alpha")
+    androidx.compose.foundation.Canvas(modifier.size(Sizes.Dot * 2)) {
+        val r = Sizes.Dot.toPx() / 2
+        drawCircle(C.Green, radius = r)
+        drawCircle(C.Green.copy(alpha = alpha), radius = size.minDimension / 2 * scale)
+    }
 }

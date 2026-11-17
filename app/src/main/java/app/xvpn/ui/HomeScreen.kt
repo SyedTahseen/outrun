@@ -45,6 +45,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -88,6 +90,12 @@ fun HomeScreen(
         label = "tone",
     )
 
+    // Proton vpnStatusOverlayBackground: vpnGreen / white / notificationError at 50%, fading to transparent, animated over 500ms.
+    val overlay by animateColorAsState(
+        when (status) { Status.Connected -> C.Green; Status.Connecting -> Color.White; Status.Disconnected -> C.Red }.copy(alpha = 0.5f),
+        tween(500), label = "overlay",
+    )
+
     fun place(): Pair<GeoPoint, String?>? {
         if (connecting) {
             val c = selected?.name?.let { Flags.iso(it) }
@@ -118,7 +126,7 @@ fun HomeScreen(
             modifier = Modifier.fillMaxSize(), centerY = 0.46f, halo = !connecting,
         )
 
-        Box(Modifier.fillMaxWidth().fillMaxHeight(0.5f).background(Brush.verticalGradient(listOf(tone.copy(alpha = 0.55f), Color.Transparent))))
+        Box(Modifier.fillMaxWidth().fillMaxHeight(0.5f).background(Brush.verticalGradient(listOf(overlay, overlay.copy(alpha = 0f)))))
         Box(
             Modifier.align(Alignment.BottomCenter).fillMaxWidth().fillMaxHeight(0.4f)
                 .background(Brush.verticalGradient(listOf(Color.Transparent, C.Bg))),
@@ -151,17 +159,17 @@ fun HomeScreen(
             }
             AppCard(Modifier.fillMaxWidth(), bordered = true) {
                 Row(
-                    Modifier.fillMaxWidth().then(if (on) Modifier.pressable(RoundedCornerShape(Radius.Small), Press.Card, onClick = onOpenStats) else Modifier),
+                    Modifier.fillMaxWidth().heightIn(min = 42.dp).then(if (on) Modifier.pressable(RoundedCornerShape(Radius.Small), Press.Card, onClick = onOpenStats) else Modifier),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     FlagBadge(selected?.name)
-                    Spacer(Modifier.width(Space.Md))
+                    Spacer(Modifier.width(Space.Lg))   // Proton: 16dp between icon and labels
                     Column(Modifier.weight(1f)) {
                         AnimatedContent(
                             targetState = selected?.let { Flags.clean(it.name) } ?: "No server selected",
                             transitionSpec = { fadeTransition() }, label = "serverName",
                         ) { name ->
-                            Text(name, style = Type.Subtitle, color = C.Text, maxLines = 1)
+                            Text(name, style = Type.Subtitle.copy(fontWeight = FontWeight.Medium), color = C.Text, maxLines = 1) // body1Medium @ 18sp
                         }
                         AnimatedContent(
                             targetState = when {
@@ -190,19 +198,19 @@ fun HomeScreen(
                                 AppButton("Cancel", onToggle, Modifier.fillMaxWidth(), ButtonStyle.Secondary)
                                 AnimatedVisibility(slow) {
                                     Column {
-                                        Spacer(Modifier.height(Space.Md))
+                                        Spacer(Modifier.height(Space.Sm))
                                         AppButton("Change server", onChangeServer, Modifier.fillMaxWidth(), ButtonStyle.Outline)
                                     }
                                 }
                             }
                             Status.Connected -> {
                                 AppButton("Disconnect", onToggle, Modifier.fillMaxWidth(), ButtonStyle.Secondary)
-                                Spacer(Modifier.height(Space.Md))
+                                Spacer(Modifier.height(Space.Sm))
                                 AppButton("Change server", onChangeServer, Modifier.fillMaxWidth(), ButtonStyle.Outline)
                             }
                             Status.Disconnected -> {
                                 AppButton("Connect", onToggle, Modifier.fillMaxWidth(), ButtonStyle.Primary)
-                                Spacer(Modifier.height(Space.Md))
+                                Spacer(Modifier.height(Space.Sm))
                                 AppButton("Change server", onChangeServer, Modifier.fillMaxWidth(), ButtonStyle.Outline)
                             }
                         }
@@ -216,8 +224,10 @@ fun HomeScreen(
 
 @Composable
 private fun StatusChip(content: @Composable () -> Unit) {
+    // Proton LocationTextAnimated / VpnDisabledView: backgroundSecondary @ 0.86, translucent border, shapes.medium, 8x4 padding.
+    val shape = RoundedCornerShape(Radius.Control)
     Row(
-        Modifier.clip(RoundedCornerShape(Radius.Control)).background(C.Scrim).padding(horizontal = Space.Lg, vertical = Space.Sm),
+        Modifier.clip(shape).background(C.CardOverlay).translucentBorder(shape).padding(horizontal = Space.Sm, vertical = Space.Xs),
         verticalAlignment = Alignment.CenterVertically,
     ) { content() }
 }
@@ -225,10 +235,8 @@ private fun StatusChip(content: @Composable () -> Unit) {
 @Composable
 private fun UnprotectedHeader(real: IpInfo?, error: String?) {
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-        Icon(Icons.Filled.LockOpen, null, tint = C.Red, modifier = Modifier.size(Sizes.IconHero))
-        Spacer(Modifier.height(Space.Lg))
-        Text("You are unprotected", style = Type.Headline, color = C.Text, textAlign = TextAlign.Center)
-        Spacer(Modifier.height(Space.Md))
+        Icon(Icons.Filled.LockOpen, null, tint = C.Red, modifier = Modifier.padding(Space.Sm).size(Sizes.IconLg))
+        Text("You are unprotected", style = Type.BodyMedium, color = C.Text, textAlign = TextAlign.Center, modifier = Modifier.padding(Space.Sm))
         StatusChip {
             Text(real?.let { r -> r.city.ifBlank { r.country } } ?: "Locating…", style = Type.Body, color = C.Text)
             if (real != null) Text("  ·  ${real.ip}", style = Type.Body, color = C.Muted)
@@ -243,15 +251,13 @@ private fun UnprotectedHeader(real: IpInfo?, error: String?) {
 @Composable
 private fun ConnectingHeader(real: IpInfo?) {
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(Modifier.size(Sizes.IconHero), contentAlignment = Alignment.Center) {
+        Box(Modifier.padding(Space.Sm).size(Sizes.IconLg), contentAlignment = Alignment.Center) {
             CircularProgressIndicator(
-                modifier = Modifier.size(36.dp), color = C.OnPrimary, trackColor = C.OnPrimary.copy(alpha = 0.18f),
-                strokeWidth = 2.5.dp, strokeCap = StrokeCap.Round,
+                modifier = Modifier.size(Sizes.IconLg), color = C.Text, trackColor = Color.Transparent,
+                strokeWidth = 2.dp,
             )
         }
-        Spacer(Modifier.height(Space.Lg))
-        Text("Protecting your digital identity", style = Type.Title, color = C.Text, textAlign = TextAlign.Center)
-        Spacer(Modifier.height(Space.Md))
+        Text("Protecting your digital identity", style = Type.BodyMedium, color = C.Text, textAlign = TextAlign.Center, modifier = Modifier.padding(Space.Sm))
         StatusChip {
             val label = real?.let { r -> listOf(r.city.ifBlank { r.country }, "·", r.ip).joinToString(" ") } ?: "Locating…"
             ScrambleText(label, C.Text, Type.Body)
@@ -275,11 +281,11 @@ private fun ProtectedHeader(time: String, up: Long, down: Long) {
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Filled.Lock, null, tint = C.Green, modifier = Modifier.size(Sizes.IconLg))
-            Spacer(Modifier.width(Space.Md))
+            Spacer(Modifier.width(Space.Sm))   // Proton: 8dp between lock icon and "Connected"
             Text("Protected", style = Type.Display, color = C.Green)
         }
-        Spacer(Modifier.height(Space.Lg))
-        AppCard(Modifier.fillMaxWidth(), containerColor = C.CardOverlay) {
+        Spacer(Modifier.height(Space.Sm))
+        AppCard(Modifier.fillMaxWidth(), containerColor = C.CardOverlay, translucentBorder = true) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text("Connected for", style = Type.Small, color = C.Muted)

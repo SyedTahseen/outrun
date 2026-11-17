@@ -41,10 +41,14 @@ object Sizes {
     val Button = 48.dp      // large buttons (Proton ButtonDefaults min height)
     val Row = 64.dp         // minimum height of a list row (ConnectIntentBlankRow heightIn(min = 64.dp))
     val ServerRow = 64.dp
+    val TopBar = 64.dp      // Material 3 TopAppBar / collapsed MediumTopAppBar
+    val TopBarExpanded = 112.dp // expanded MediumTopAppBar
     val Dock = 80.dp        // bottom navigation (Material 3 NavigationBar, as BottomBarView)
     val DockPillWidth = 64.dp   // selected-tab indicator (Material 3)
     val DockPillHeight = 32.dp
 
+    val MaxContent = 800.dp // widest page content (Proton ProtonTheme.MaxContentWidth)
+    val Dot = 8.dp          // active-server dot (server_load_dot_size)
     val IconSm = 16.dp      // inline glyphs next to small text
     val Icon = 24.dp        // default icon: rows, menus, header actions
     val IconLg = 32.dp

@@ -36,17 +36,19 @@ live in the external `me.proton.core:compose` library, which is NOT in that repo
 | Density | forced 360dp-wide scaling, fontScale=1 | real dp, system font scale | Proton uses native dp |
 | res/values/colors.xml | old palette | synced | |
 
-## NOT done (hand-off to the next pass)
-1. **Compile and run.** No Gradle dependencies / network here: nothing was built. First step: `./gradlew assembleDebug`, then walk every screen.
-2. **Top app bar**: Proton uses M3 `MediumTopAppBar` (collapsing 28sp -> 16sp title, bg Bg -> Card on scroll). Outrun has a fixed 20dp spacer + 48dp row (`HeaderBar` in Components.kt). Rebuild `ScreenHeader` to match the 112dp/64dp heights and collapse behaviour.
-3. **Home screen** (HomeScreen.kt, WorldMap.kt): compare against `VpnConnectionCard.kt` / `VpnStatusView.kt` (card padding 16, border 1dp separatorNorm, shapes.large, status icon 32dp, status text `headline` in vpnGreen, 16dp vertical padding between map and card). Display 30sp status text and the connect-button layout are unverified.
-4. **Server list** (ServersScreen.kt): Proton `ConnectIntentBlankRow` = min 64dp, vertical 12, horizontal 16, text gap 16, title body1Regular, subtitle body2Regular with 4dp top, "…" overflow button 8dp padded 24dp icon, `ActiveDot` for connected. Flag badge 36x24 vs Proton flag assets; server-load bar (`ServerLoadBar.kt`).
-5. **Typography**: Display 30 / Title 22 / Subtitle 18 are Outrun's own sizes; map them to proton-core `hero / headline / subheadline / body1 / body2 / caption / overline` once proton-core is available. Dialog title = `headlineNorm`, dialog buttons `headlineSmall`.
-6. **Bottom sheets**: Proton `SimpleModalBottomSheet` = containerColor Bg, M3 drag handle in 6D697D, expanded only. Check Outrun sheets in MenuScreen/ServersScreen.
-7. **Text field**: Proton uses `ProtonOutlineDecorationBox` (label above, assistive/error text with `notificationError` border, 16dp padding). Outrun field has no label/error state.
-8. **Snackbars/toasts**: Proton `ProtonSnackbar` (shapes.medium, solid success/warning/error fills, 12dp margin, textInverted).
-9. **Icons**: Proton uses its own `ic_proton_*` set (outline vs filled for selected nav); Outrun uses Material icons. Needs asset import (check licence: Proton icons are GPL with the app).
-10. **HeroIcon tiles / AccentMid / AccentDeep gradient, speed gauge Blue, world-map colours** (tvMapCountry 3F3B4C, tvMapSelected 6D697D, tvMapConnected = accent): no Proton equivalent for the tiles; map colours can be aligned.
-11. **Widget + launcher** (`res/drawable/widget_*.xml`, OutrunWidget.kt): still use F0728C/FFB74D gradient stops; Proton widget gradients are in its colors.xml (`protonWidget*`).
-12. **Tablet/landscape**: Proton caps content at 800dp (`MaxContentWidth`) with extra padding on Medium/Expanded window classes (Dimensions.kt). Not implemented.
-13. **Light theme**: Proton supports light/dark; Outrun is dark-only (kept).
+## Pass 2 (also done, still uncompiled)
+- **Top bars**: sub-pages = 64dp bar, 48dp back button 4dp from the edge, 16sp Medium title (SimpleTopAppBar). Top-level screens = 112dp expanded bar with a 28sp bottom-left title that collapses to 64dp / 16sp and Bg -> Card when `scrolled` (CollapsibleToolbarScaffold). The old 20dp spacer is gone. Note: Outrun animates on a scrolled flag, not M3's continuous scroll-linked collapse.
+- **Home**: status overlay gradient = green / white / red at 50% over 500ms; status texts are body1-strong, not 26/22sp headings; 32dp status icon + 2dp spinner; location chip = Card @ 86% with Proton's translucent 8%->2% border, 8x4 padding; connected stats card has the same border; card row min 42dp, 16dp icon gap, 18sp Medium server name; 8dp between buttons.
+- **Server list**: rows are heightIn(min 64) with 12dp vertical padding, 4dp subtitle gap, no row highlight; the selected server gets Proton's pulsing `ActiveDot` after its name.
+- **Tablet**: non-Home pages are centred and capped at 800dp. Not done: the extra 56/128dp side padding for Medium/Expanded window classes.
+
+## Still open
+1. **Compile and run** (`./gradlew assembleDebug`); not possible offline here.
+2. Proton `ServerLoadBar` (36x4dp, green <=75%, amber <=90%, red above): Outrun has no load data, so nothing to show.
+3. Typography mapping to proton-core `hero/headline/subheadline/body1/body2/caption/overline`; "defaultStrong" is approximated with 16sp Medium; Display 30 ("Protected") still Outrun's own.
+4. Bottom sheets (Bg fill, 6D697D drag handle), text-field label/error states, snackbars (ProtonSnackbar: shapes.medium, solid status fills, 12dp margin).
+5. Proton icon set (outline/filled nav icons), flag assets vs the 36x24 badge.
+6. HeroIcon gradient tiles, speed-gauge blue, world-map colours (tvMapCountry 3F3B4C, tvMapSelected 6D697D, tvMapConnected = accent).
+7. Widget / launcher gradients (`res/drawable/widget_*.xml`, OutrunWidget.kt) still use the old red/amber.
+8. Light theme (Outrun is dark-only).
+9. proton-core theme source, to confirm the "inferred" values flagged above.
