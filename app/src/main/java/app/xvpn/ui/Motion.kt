@@ -55,9 +55,11 @@ object Motion {
 
 /** How far a pressed element shrinks. Icons shrink most, large surfaces least. */
 object Press {
-    const val Icon = 0.88f
-    const val Control = 0.96f
-    const val Card = 0.985f
+    // Proton VPN gives pressed feedback with the standard Material ripple only; it never scales pressed elements.
+    // Kept as tokens (at 1f) so every call site stays valid; raise a value to bring the shrink effect back.
+    const val Icon = 1f
+    const val Control = 1f
+    const val Card = 1f
 }
 
 @Composable
@@ -68,10 +70,9 @@ fun AppIndication(content: @Composable () -> Unit) {
 
 @Composable
 fun rememberTick(strong: Boolean = false): () -> Unit {
-    val haptic = LocalHapticFeedback.current
-    return remember(haptic, strong) {
-        { haptic.performHapticFeedback(if (strong) HapticFeedbackType.LongPress else HapticFeedbackType.TextHandleMove) }
-    }
+    // Proton VPN adds no custom haptics to taps, selections or switches (only the custom-DNS list reorders with a tick),
+    // so the tick is a no-op. Re-enable by restoring LocalHapticFeedback here.
+    return remember(strong) { {} }
 }
 
 fun Modifier.pressable(

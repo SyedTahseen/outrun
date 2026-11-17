@@ -1,6 +1,7 @@
 package app.xvpn.ui
 
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.compositeOver
 
 /**
  * The one color palette of the app. Nothing outside this file should contain a color literal.
@@ -10,10 +11,12 @@ import androidx.compose.ui.graphics.Color
  */
 object C {
     // Surfaces
-    val Bg = Color(0xFF1C1B23)          // screen background
-    val Card = Color(0xFF292734)        // cards, bottom bar, menus, dialogs, sheets
+    // Values marked [PV] are taken from Proton VPN's own resources (tv* colors in res/values/colors.xml, VpnColors.kt,
+    // VpnStatusView.kt). The rest are unverifiable from the open-source repo (they live in the proton-core library).
+    val Bg = Color(0xFF1C1B24)          // [PV] backgroundNorm (tvBackground): screen background, sheets
+    val Card = Color(0xFF292733)        // [PV] backgroundSecondary (tvCardBackground): cards, bottom bar, menus, dialogs
     val Header = Card                   // header and status bar once the page is scrolled (same as Card)
-    val CardOverlay = Color(0xEB292734) // Card over the map (92 %)
+    val CardOverlay = Color(0xDB292733) // [PV] backgroundSecondary @ 0.86 over the map (VpnStatusView)
     val Control = Color(0xFF3B3746)     // unselected chips, secondary buttons, pills
     val Border = Color(0xFF3A3944)      // 1dp hairlines: card borders, dividers, chart grid
     val Divider = Color(0x0AFFFFFF)     // hairlines between rows (4 % white: subtle on both Bg and Card)
@@ -22,23 +25,24 @@ object C {
     val Scrim = Color(0x66000000)       // dark chip over the map
 
     // Brand
-    val Primary = Color(0xFF6D4AFF)     // filled controls
-    val Accent = Primary                // accent text, icons, strokes (same purple as Primary)
+    val Primary = Color(0xFF6D4AFF)     // [PV] interactionNorm (tvAccent): filled controls, checked switch, selected radio
+    val Accent = Color(0xFF8A6EFF)      // [PV] textAccent / brandNorm on dark (tvAccentLighten): accent text, icons, section headings
     val AccentMid = Color(0xFF3B3175)   // tinted tile (top of gradient), inactive chart bars
     val AccentDeep = Color(0xFF1B2250)  // tinted tile (bottom of gradient)
-    val NavPill = Color(0xFF4A3F8A)     // selected tab indicator
+    val NavPill = Accent.copy(alpha = 0.32f).compositeOver(Card) // [PV] BottomBarView: textAccent @ 0.32 over the bar
     val Blue = Color(0xFF2F7BF0)        // speed-gauge tip
 
     // Content
-    val Text = Color(0xFFF2F2F7)
+    val Text = Color(0xFFFFFFFF)            // textNorm (white on dark)
     val TextDim = Color(0xFFC4C3CB)     // gauge numbers
-    val Muted = Color(0xFF9A98A8)       // secondary text and icons
+    val Muted = Color(0xFFA7A4B5)       // [PV] textWeak / shade80 (tvInMaintenance): secondary text and icons
+    val Shade50 = Color(0xFF6D697D)     // [PV] shade50 (tvButtonBg): hints, placeholder, unchecked switch track, unselected radio
     val OnPrimary = Color(0xFFFFFFFF)
 
     // Status
-    val Green = Color(0xFF2DF5C0)       // connected, ok, download
-    val Red = Color(0xFFF0728C)         // disconnected, error, upload, destructive
-    val Amber = Color(0xFFFFB74D)       // warning, favorite
+    val Green = Color(0xFF2CFFCC)       // [PV] vpnGreen (dark): connected, ok, download
+    val Red = Color(0xFFDC3251)         // [PV] notificationError (tvAlert): disconnected, error, upload, destructive
+    val Amber = Color(0xFFFF9900)       // [PV] notificationWarning (tvServerLoadMedium): warning, favorite
     val Neutral = Color(0xFFA6A3B2)     // in-progress
 
     // World map

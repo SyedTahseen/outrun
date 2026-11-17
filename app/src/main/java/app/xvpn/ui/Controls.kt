@@ -22,6 +22,8 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Icon
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -82,13 +84,13 @@ fun AppButton(
     )
     val large = size == ButtonSize.Large
     val outlined = style == ButtonStyle.Outline || style == ButtonStyle.OutlineAccent
-    val content = when (style) { ButtonStyle.Outline -> C.Text; ButtonStyle.OutlineAccent -> C.Accent; else -> C.OnPrimary }
+    val content = when (style) { ButtonStyle.Outline -> C.Text; ButtonStyle.OutlineAccent -> C.Primary; else -> C.OnPrimary }
     Box(
         modifier.alpha(if (enabled) 1f else 0.4f)
             .height(if (large) Sizes.Button else Sizes.Control)
             .pressable(shape, Press.Control, enabled) { tick(); onClick() }
             .background(container)
-            .then(if (outlined) Modifier.border(if (style == ButtonStyle.OutlineAccent) 1.5.dp else 1.dp, if (style == ButtonStyle.OutlineAccent) C.Accent else C.Outline, shape) else Modifier)
+            .then(if (outlined) Modifier.border(1.dp, if (style == ButtonStyle.OutlineAccent) C.Primary else C.Text, shape) else Modifier)
             .padding(horizontal = if (large) Space.Xxl else Space.Xl),
         contentAlignment = Alignment.Center,
     ) {
@@ -170,28 +172,20 @@ fun AppSwitch(checked: Boolean, onChange: (Boolean) -> Unit) {
     Switch(
         checked = checked, onCheckedChange = { tick(); onChange(it) },
         colors = SwitchDefaults.colors(
-            checkedThumbColor = C.OnPrimary, checkedTrackColor = C.Accent, checkedBorderColor = Color.Transparent,
-            uncheckedThumbColor = C.Muted, uncheckedTrackColor = C.Border, uncheckedBorderColor = Color.Transparent,
+            // ProtonSwitch: Material 3 defaults when checked (primary track, white thumb); shade50 track/border and shade80 thumb when off.
+            checkedThumbColor = C.OnPrimary, checkedTrackColor = C.Primary, checkedBorderColor = C.Primary,
+            uncheckedThumbColor = C.Muted, uncheckedTrackColor = C.Shade50, uncheckedBorderColor = C.Shade50,
         ),
     )
 }
 
-/** Radio indicator: the ring recolors, the dot springs in. */
+/** Radio indicator: the stock Material 3 RadioButton coloured as Proton's ProtonRadio (interactionNorm / iconHint). */
 @Composable
 fun AppRadio(selected: Boolean) {
-    val ring by animateColorAsState(if (selected) C.Accent else C.Muted, tween(Motion.Short), label = "radioRing")
-    val dot by animateFloatAsState(
-        targetValue = if (selected) 1f else 0f,
-        animationSpec = if (selected) spring(dampingRatio = 0.45f, stiffness = 420f) else tween(Motion.Fast),
-        label = "radioDot",
+    RadioButton(
+        selected = selected, onClick = null,
+        colors = RadioButtonDefaults.colors(selectedColor = C.Primary, unselectedColor = C.Shade50),
     )
-    Box(Modifier.size(Sizes.Icon - 2.dp).border(2.dp, ring, CircleShape), contentAlignment = Alignment.Center) {
-        Box(
-            Modifier.size(10.dp)
-                .graphicsLayer { scaleX = dot; scaleY = dot; alpha = dot.coerceIn(0f, 1f) }
-                .clip(CircleShape).background(C.Accent),
-        )
-    }
 }
 
 /**
@@ -229,7 +223,7 @@ fun AppTextField(
             modifier = Modifier.weight(1f).onFocusChanged { focused = it.isFocused },
             decorationBox = { inner ->
                 Box {
-                    if (value.isEmpty()) Text(placeholder, style = Type.Body, color = C.Muted)
+                    if (value.isEmpty()) Text(placeholder, style = Type.Body, color = C.Shade50)
                     inner()
                 }
             },

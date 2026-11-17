@@ -438,9 +438,6 @@ private fun RowScope.DockItem(t: Tab, selected: Boolean, onClick: () -> Unit) {
     val pillScale by animateFloatAsState(
         if (selected) 1f else 0.5f, spring(dampingRatio = 0.75f, stiffness = Spring.StiffnessMediumLow), label = "pillScale",
     )
-    val iconScale by animateFloatAsState(
-        if (selected) 1.1f else 1f, spring(dampingRatio = 0.45f, stiffness = Spring.StiffnessMedium), label = "iconScale",
-    )
     val pill = RoundedCornerShape(Radius.Pill)
     Column(
         Modifier.weight(1f).clickable(interactionSource = source, indication = null) {
@@ -458,7 +455,7 @@ private fun RowScope.DockItem(t: Tab, selected: Boolean, onClick: () -> Unit) {
             )
             Icon(
                 t.icon, t.label, tint = tint,
-                modifier = Modifier.size(Sizes.Icon).graphicsLayer { scaleX = iconScale; scaleY = iconScale },
+                modifier = Modifier.size(Sizes.Icon),
             )
         }
         Text(t.label, style = Type.Label, color = tint)

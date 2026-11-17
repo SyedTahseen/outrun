@@ -17,29 +17,32 @@ object Space {
     val Xxxl = 32.dp
     val Huge = 40.dp
 
-    /** Left/right margin of every screen. */
-    val Gutter = Xl
+    /** Left/right margin of every screen: Proton screen_padding_horizontal = 16dp. */
+    val Gutter = Lg
 }
 
-/** Corner radii: 9dp for everything except the flag badge (4dp) and the round tab indicator (16dp). */
+/**
+ * Corner radii, mirroring ProtonTheme.shapes: small 4, medium 8, large 16; dialogs/sheets use the Material 3
+ * AlertDialog / ModalBottomSheet default (28dp); the nav indicator is the Material 3 full pill.
+ */
 object Radius {
-    val Badge = 4.dp    // flags only
-    val Small = 9.dp
-    val Control = 9.dp  // buttons, chips, inputs
-    val Card = 9.dp     // cards, tiles, menus
-    val Sheet = 9.dp    // dialogs, sheets
-    val Pill = 16.dp    // selected-tab indicator: fully round, as originally
+    val Badge = 4.dp    // flags, small tags (shapes.small)
+    val Small = 8.dp
+    val Control = 8.dp  // buttons, chips, inputs, menus (shapes.medium)
+    val Card = 16.dp    // cards, tiles (shapes.large)
+    val Sheet = 28.dp   // dialogs, sheets (Material 3 default, as used by ProtonAlert)
+    val Pill = 16.dp    // selected-tab indicator: fully round
 }
 
 /** Fixed dimensions shared by components. */
 object Sizes {
-    val Control = 44.dp     // header row, icon buttons, chips, segmented controls, compact buttons
-    val Field = 52.dp       // text fields, card actions
-    val Button = 56.dp      // large buttons
-    val Row = 56.dp         // minimum height of a list row
-    val ServerRow = 80.dp
-    val Dock = 72.dp        // bottom navigation
-    val DockPillWidth = 56.dp   // selected-tab indicator
+    val Control = 48.dp     // header row, icon buttons, chips, segmented controls, compact buttons (48dp touch target)
+    val Field = 56.dp       // text fields, card actions (16dp padding + 24dp line, as ProtonOutlinedTextField)
+    val Button = 48.dp      // large buttons (Proton ButtonDefaults min height)
+    val Row = 64.dp         // minimum height of a list row (ConnectIntentBlankRow heightIn(min = 64.dp))
+    val ServerRow = 64.dp
+    val Dock = 80.dp        // bottom navigation (Material 3 NavigationBar, as BottomBarView)
+    val DockPillWidth = 64.dp   // selected-tab indicator (Material 3)
     val DockPillHeight = 32.dp
 
     val IconSm = 16.dp      // inline glyphs next to small text
@@ -51,7 +54,7 @@ object Sizes {
 
 /** Shadow depth. The UI is flat; only surfaces that float above the page get a shadow. */
 object Elevation {
-    val Menu = 8.dp
+    val Menu = 3.dp   // Material 3 DropdownMenu default, which Proton does not override
 }
 
 /** The type scale. Colors are applied at the call site. */
@@ -62,17 +65,17 @@ object Type {
     )
 
     val Display = style(30, FontWeight.Bold, 36)        // connection state
-    val Headline = style(26, FontWeight.Bold, 32)       // screen titles, page headings
+    val Headline = style(28, FontWeight.Bold, 34)       // screen titles (Proton "hero": 28sp expanded title)
     val Title = style(22, FontWeight.SemiBold, 28)      // sub-page titles, key figures
     val Subtitle = style(18, FontWeight.SemiBold, 24)   // card titles, dialog titles
     val Body = style(16, FontWeight.Normal, 22)         // default text
     val BodyMedium = style(16, FontWeight.Medium, 22)   // values, emphasised rows
     val Small = style(14, FontWeight.Normal, 20)        // descriptions, captions of rows
     val SmallMedium = style(14, FontWeight.Medium, 20)
-    val Section = style(14, FontWeight.SemiBold, 20)    // accent section headings
+    val Section = style(14, FontWeight.Medium, 20)      // accent section headings (body2Medium)
     val Caption = style(12, FontWeight.Normal, 16)      // hints, units, footnotes
     val Label = style(12, FontWeight.Medium, 16)        // tab labels, chart labels
-    val Button = style(18, FontWeight.Medium, 24)       // large buttons
+    val Button = style(16, FontWeight.Medium, 24)       // large buttons
     val ButtonSmall = style(16, FontWeight.Medium, 22)  // chips, compact buttons, text actions
     val Mono = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 12.sp, lineHeight = 18.sp, letterSpacing = 0.sp)
 }

@@ -17,9 +17,6 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.Density
 
 /** Root of every activity: scales the layout to the device, then applies the theme. */
 @Composable
@@ -61,17 +58,13 @@ fun OutrunTheme(content: @Composable () -> Unit) {
     }
 }
 
-/** Lays the UI out as if the shortest screen side were 360dp, so the design scales with the device. */
+/**
+ * Proton VPN lays out in real dp and honours the system font scale; it does not rescale density to a reference width.
+ * This used to force "shortest side = 360dp" and fontScale = 1, which made every size differ from Proton on any
+ * device that is not 360dp wide. Kept as a pass-through so the call site (and the history) stays obvious.
+ */
 @Composable
-internal fun DesignScale(content: @Composable () -> Unit) {
-    val d = LocalDensity.current
-    val cfg = LocalConfiguration.current
-    val scale = minOf(cfg.screenWidthDp, cfg.screenHeightDp) / 360f
-    CompositionLocalProvider(
-        LocalDensity provides Density(d.density * scale, fontScale = 1f),
-        content = content,
-    )
-}
+internal fun DesignScale(content: @Composable () -> Unit) = content()
 
 /** Transparent system bars drawn over the app background; shared by every activity. */
 internal fun ComponentActivity.setUpEdgeToEdge(navigationBarColor: Int = android.graphics.Color.TRANSPARENT) {

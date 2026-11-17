@@ -84,10 +84,10 @@ fun AppCard(
     )
 }
 
-/** 1dp line between rows. */
+/** Hairline between rows (Proton VpnDivider: separatorNorm, Dp.Hairline). */
 @Composable
 fun HairlineDivider(modifier: Modifier = Modifier) {
-    Box(modifier.fillMaxWidth().height(1.dp).background(C.Divider))
+    Box(modifier.fillMaxWidth().height(Dp.Hairline).background(C.Border))
 }
 
 @Composable
@@ -180,7 +180,7 @@ fun ScreenHeader(
 fun SectionHeader(text: String, modifier: Modifier = Modifier, first: Boolean = false, horizontal: Dp = Space.Gutter) {
     Text(
         text, style = Type.Section, color = C.Accent,
-        modifier = modifier.padding(start = horizontal, end = horizontal, top = if (first) Space.Md else Space.Xxl, bottom = Space.Sm),
+        modifier = modifier.padding(start = horizontal, end = horizontal, top = Space.Xxl, bottom = Space.Sm), // Proton SettingsSectionHeading: top 24, bottom 8 (first = same)
     )
 }
 
@@ -196,14 +196,14 @@ fun FieldLabel(text: String, modifier: Modifier = Modifier) {
 @Composable
 fun ListRow(icon: ImageVector, title: String, subtitle: String? = null, external: Boolean = false, onClick: () -> Unit) {
     Row(
-        Modifier.fillMaxWidth().heightIn(min = Sizes.Row).clickable(onClick = onClick).padding(horizontal = Space.Gutter, vertical = Space.Md),
+        Modifier.fillMaxWidth().heightIn(min = Sizes.Row).clickable(onClick = onClick).padding(horizontal = Space.Gutter, vertical = Space.Lg),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(icon, null, tint = C.Text, modifier = Modifier.size(Sizes.Icon))
         Spacer(Modifier.width(Space.Lg))
         Column(Modifier.weight(1f)) {
             Text(title, style = Type.Body, color = C.Text)
-            if (subtitle != null) Text(subtitle, style = Type.Small, color = C.Muted, maxLines = 2)
+            if (subtitle != null) Text(subtitle, style = Type.Small, color = C.Muted, maxLines = 2, modifier = Modifier.padding(top = Space.Xs))
         }
         if (external) {
             Spacer(Modifier.width(Space.Md))
@@ -304,12 +304,12 @@ fun AppDialog(
         Column(
             Modifier.fillMaxWidth()
                 .graphicsLayer { alpha = enter.value; scaleX = 0.92f + 0.08f * enter.value; scaleY = 0.92f + 0.08f * enter.value }
-                .clip(shape).background(C.Card).padding(Space.Xl),
+                .clip(shape).background(C.Card).padding(Space.Xxl),
         ) {
             Text(title, style = Type.Subtitle, color = C.Text)
-            Spacer(Modifier.height(Space.Md))
+            Spacer(Modifier.height(Space.Lg))
             content()
-            Spacer(Modifier.height(Space.Md))
+            Spacer(Modifier.height(Space.Xxl))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                 if (dismissLabel != null) TextAction(dismissLabel, onDismiss, color = C.Muted)
                 if (confirmLabel != null) TextAction(confirmLabel, onConfirm, color = confirmColor)
@@ -323,7 +323,7 @@ fun AppDialog(
 fun AppDropdownMenu(expanded: Boolean, onDismiss: () -> Unit, modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
     DropdownMenu(
         expanded = expanded, onDismissRequest = onDismiss, modifier = modifier,
-        shape = RoundedCornerShape(Radius.Card), containerColor = C.Card, tonalElevation = 0.dp, shadowElevation = Elevation.Menu,
+        shape = RoundedCornerShape(Radius.Control), containerColor = C.Card, tonalElevation = 0.dp, shadowElevation = Elevation.Menu,
         content = content,
     )
 }
