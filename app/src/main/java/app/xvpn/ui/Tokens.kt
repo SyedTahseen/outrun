@@ -92,7 +92,7 @@ object Type {
     val Section = style(14, FontWeight.Medium, 20, 0.02f)
     val Caption = style(12, FontWeight.Normal, 16, 0.03f)
     val Label = style(12, FontWeight.Medium, 16, 0.03f)
-    val Button = style(16, FontWeight.Normal, 24, 0.03f)
+    val Button get() = style(16, if (Palette.spark) FontWeight.Medium else FontWeight.Normal, 24, 0.03f)
     val ButtonSmall = style(16, FontWeight.Medium, 24, 0.03f)
     val Overline = style(10, FontWeight.Normal, 16, 0.03f)
     val OverlineMedium = style(10, FontWeight.Medium, 16, 0.03f)

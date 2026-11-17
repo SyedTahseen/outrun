@@ -136,7 +136,7 @@ fun HomeScreen(
             pin = when { on -> MapPin.Connected; connecting -> MapPin.Connecting; else -> MapPin.Selected },
         )
 
-        Box(Modifier.fillMaxWidth().height(200.dp).background(Brush.verticalGradient(listOf(overlay, overlay.copy(alpha = 0f)))))
+        if (!Palette.spark) Box(Modifier.fillMaxWidth().height(200.dp).background(Brush.verticalGradient(listOf(overlay, overlay.copy(alpha = 0f)))))
 
         Column(
             Modifier.align(Alignment.TopCenter).widthIn(max = 480.dp).fillMaxWidth().statusBarsPadding().padding(horizontal = Space.Gutter),

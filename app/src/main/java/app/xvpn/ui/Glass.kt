@@ -82,34 +82,10 @@ fun Modifier.backdropSource(isMap: Boolean = false): Modifier {
         }
 }
 
-/** Dark base with soft warm/cool colour glows, like the blurred cards in the reference. */
+/** Flat Spark page background. Recorded as the backdrop so glass has something to blur; no gradients. */
 @Composable
 fun AmbientBackdrop(modifier: Modifier = Modifier) {
-    Box(
-        modifier.fillMaxSize().backdropSource().drawBehind {
-            drawRect(C.Bg)
-            val w = size.width
-            val h = size.height
-            drawRect(
-                Brush.radialGradient(
-                    listOf(C.AmbientWarm.copy(alpha = 0.55f), Color.Transparent),
-                    center = Offset(w * 0.95f, h * 0.14f), radius = w * 0.85f,
-                ),
-            )
-            drawRect(
-                Brush.radialGradient(
-                    listOf(C.AmbientCool.copy(alpha = 0.5f), Color.Transparent),
-                    center = Offset(w * 0.02f, h * 0.42f), radius = w * 0.9f,
-                ),
-            )
-            drawRect(
-                Brush.radialGradient(
-                    listOf(C.AmbientDeep.copy(alpha = 0.6f), Color.Transparent),
-                    center = Offset(w * 0.9f, h * 0.88f), radius = w * 0.8f,
-                ),
-            )
-        },
-    )
+    Box(modifier.fillMaxSize().backdropSource().background(C.Bg))
 }
 
 /**
@@ -142,16 +118,17 @@ fun Modifier.glass(shape: Shape, strong: Boolean = false, fullBorder: Boolean = 
                 }
                 drawLayer(layer)
             }
-            if (strong) drawRect(C.Bg.copy(alpha = if (shown) 0.35f else 0.7f))
-            drawRect(Brush.verticalGradient(listOf(C.GlassTop, C.GlassBottom)))
+            if (!shown) drawRect(C.Card.copy(alpha = 0.92f))
+            if (strong) drawRect(C.Bg.copy(alpha = if (shown) 0.4f else 0.6f))
+            drawRect(Brush.verticalGradient(listOf(C.GlassFillTop, C.GlassFillBottom)))
             if (!fullBorder) {
-                drawRect(C.GlassEdgeStart, size = androidx.compose.ui.geometry.Size(size.width, 1.dp.toPx()))
+                drawRect(C.GlassEdgeTop, size = androidx.compose.ui.geometry.Size(size.width, 1.dp.toPx()))
             }
         }
         .then(
             if (fullBorder) Modifier.border(
                 1.dp,
-                Brush.linearGradient(listOf(C.GlassEdgeStart, C.GlassEdgeMid, C.GlassEdgeEnd)),
+                Brush.verticalGradient(listOf(C.GlassEdgeTop, C.GlassEdgeBottom)),
                 shape,
             ) else Modifier,
         )
@@ -176,5 +153,5 @@ fun Modifier.cardSurface(shape: Shape): Modifier =
 /** Dialog surface (dialogs live in their own window, so no live blur): opaque card + glass edge. */
 fun Modifier.dialogSurface(shape: Shape): Modifier =
     if (Palette.spark) background(C.Card).border(
-        1.dp, Brush.linearGradient(listOf(C.GlassEdgeStart, C.GlassEdgeMid, C.GlassEdgeEnd)), shape,
+        1.dp, Brush.verticalGradient(listOf(C.GlassEdgeTop, C.GlassEdgeBottom)), shape,
     ) else background(C.Card)
