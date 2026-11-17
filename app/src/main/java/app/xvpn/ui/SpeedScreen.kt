@@ -118,11 +118,10 @@ import kotlin.math.roundToInt
 import kotlin.math.sin
 import kotlin.math.sqrt
 
-// Same colors as the rest of the app: green = download, red = upload.
 private val DownColor get() = C.Green
 private val UpColor get() = C.Red
 private val BlueTip = C.Blue
-private val Dim get() = C.Muted         // label of a tile that isn't being measured
+private val Dim get() = C.Muted
 
 private enum class SpeedView { Start, Running, Done }
 
@@ -134,23 +133,21 @@ fun SpeedScreen(onFullScreenChange: (Boolean) -> Unit = {}, onScrolledChange: (B
     val socks by VpnState.socksPort.collectAsState()
     val ctx = LocalContext.current
     val vpnReady = status == Status.Connected && socks > 0
-    val viaVpn = vpnReady   // connected = the test goes through the VPN, otherwise direct
+    val viaVpn = vpnReady
     val realIp by NetInfo.real.collectAsState()
     val proxyIp by NetInfo.proxy.collectAsState()
     val connecting = status == Status.Connecting
     val connection = if (viaVpn) "VPN" else "Direct"
-    // Where the traffic comes out: the VPN server's location while on VPN, the phone's own location when direct.
     val location = (if (viaVpn) proxyIp else realIp)
         ?.let { ip -> listOf(ip.city, ip.country).filter { it.isNotBlank() }.joinToString(", ") }
         ?.ifBlank { null } ?: "Locating…"
-    var mode by remember { mutableIntStateOf(0) } // 0 = gauge / chart, 1 = log
+    var mode by remember { mutableIntStateOf(0) }
 
     val view = when {
         ui.phase.running -> SpeedView.Running
         ui.phase == SpeedPhase.Done -> SpeedView.Done
         else -> SpeedView.Start
     }
-    // Running and finished tests take over the screen like in the design: no bottom bar.
     LaunchedEffect(view) { onFullScreenChange(view != SpeedView.Start) }
     DisposableEffect(Unit) { onDispose { onFullScreenChange(false) } }
     BackHandler(enabled = view != SpeedView.Start) { if (view == SpeedView.Running) SpeedTest.stop() else SpeedTest.reset() }
@@ -163,7 +160,6 @@ fun SpeedScreen(onFullScreenChange: (Boolean) -> Unit = {}, onScrolledChange: (B
             .onFailure { Snack.show("Couldn't share result", SnackType.Error) }
     }
 
-    // Like the video: the old screen dims and shrinks away first, then the new one fades in and its parts arrive one after another.
     AnimatedContent(
         targetState = view,
         transitionSpec = {
@@ -191,7 +187,6 @@ fun SpeedScreen(onFullScreenChange: (Boolean) -> Unit = {}, onScrolledChange: (B
     }
 }
 
-/** Fades a piece of a screen in and lifts it up; [index] staggers the pieces so they arrive one after another. */
 @Composable
 private fun Modifier.staggerIn(index: Int, rise: Dp = Space.Xl): Modifier {
     val p = remember { Animatable(0f) }
@@ -202,9 +197,6 @@ private fun Modifier.staggerIn(index: Int, rise: Dp = Space.Xl): Modifier {
     }
 }
 
-// ---------------------------------------------------------------- glow helpers
-
-/** A soft round haze of [color]: strongest at the middle, fading smoothly to nothing. Several of them side by side make smoke. */
 private fun DrawScope.haze(center: Offset, radius: Float, color: Color, alpha: Float) {
     drawCircle(
         brush = Brush.radialGradient(
@@ -217,7 +209,6 @@ private fun DrawScope.haze(center: Offset, radius: Float, color: Color, alpha: F
     )
 }
 
-/** Color of a gradient described by [stops] (position 0..1 to color) at position [f]. */
 private fun colorAt(stops: Array<Pair<Float, Color>>, f: Float): Color {
     for (i in 0 until stops.size - 1) {
         val (a, ca) = stops[i]
@@ -226,8 +217,6 @@ private fun colorAt(stops: Array<Pair<Float, Color>>, f: Float): Color {
     }
     return stops.last().second
 }
-
-// ---------------------------------------------------------------- start
 
 @Composable
 private fun StartView(
@@ -240,9 +229,9 @@ private fun StartView(
     Column(Modifier.fillMaxSize()) {
         ScreenHeader("Speed test", scrolled = scrolled)
         Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(scroll).padding(horizontal = Space.Gutter)) {
-            Spacer(Modifier.height(Space.Xxxl)) // headroom so the ring's haze isn't cut off by the scroll area
+            Spacer(Modifier.height(Space.Xxxl))
             Box(Modifier.align(Alignment.CenterHorizontally)) { StartRing(enabled = !connecting, onClick = onStart) }
-            Spacer(Modifier.height(Space.Xxxl)) // same headroom as above the ring, so it sits in the middle between the title and the info card
+            Spacer(Modifier.height(Space.Xxxl))
             val note = when {
                 ui.phase == SpeedPhase.Failed -> ("Couldn't finish the test" + (ui.error.takeIf { it.isNotBlank() }?.let { " ($it)" } ?: "") + ". Check your connection and try again.") to C.Red
                 connecting -> "Wait for the VPN to finish connecting." to C.Muted
@@ -270,7 +259,6 @@ private val ModeItems = listOf(
     TransmitMode.Alternate to "Alternate",
 )
 
-/** Four icon chips with their names underneath: Download, Upload, Bidirectional, Alternate. */
 @Composable
 private fun ModePicker(selected: TransmitMode, onSelect: (TransmitMode) -> Unit) {
     Column {
@@ -300,17 +288,15 @@ private fun ModePicker(selected: TransmitMode, onSelect: (TransmitMode) -> Unit)
     }
 }
 
-/** The ring runs through the app's own colors and comes back to the first one, so the sweep has no seam. Follows the light / dark theme. */
 private fun ringStops(): Array<Pair<Float, Color>> {
     val cols = listOf(C.Accent, C.Blue, C.Green, C.Amber, C.Red)
     return Array(cols.size + 1) { i -> (i / cols.size.toFloat()) to cols[i % cols.size] }
 }
 
-private const val RING_BOX = 250       // dp: the size of the button area
-private const val RING_R = 86.5f       // dp, middle of the ring stroke
-private const val RING_W = 7.5f        // dp, stroke width
+private const val RING_BOX = 250
+private const val RING_R = 86.5f
+private const val RING_W = 7.5f
 
-/** The thick gradient ring drawn once; the caller blurs this layer to get the glow. */
 @Composable
 private fun RingGlowLayer(modifier: Modifier, stops: Array<Pair<Float, Color>>, strokeDp: Float, alpha: Float) {
     Canvas(modifier.fillMaxSize()) {
@@ -321,11 +307,6 @@ private fun RingGlowLayer(modifier: Modifier, stops: Array<Pair<Float, Color>>, 
     }
 }
 
-/**
- * The START button from the design. The glow is the ring itself, really blurred (RenderEffect, Android 12+): the colors of the ring
- * bleed into each other and into the dark, like light through smoke. A wide, faint blur sits under a tighter, brighter one.
- * Blur is not available before Android 12, so older phones get stacked vector rings instead.
- */
 @Composable
 private fun StartRing(enabled: Boolean, onClick: () -> Unit) {
     val on by animateFloatAsState(if (enabled) 1f else 0.35f, tween(Motion.Medium), label = "ringOn")
@@ -337,7 +318,6 @@ private fun StartRing(enabled: Boolean, onClick: () -> Unit) {
             RingGlowLayer(Modifier.blur(18.dp, BlurredEdgeTreatment.Unbounded), stops, RING_W, 0.45f * on)
             RingGlowLayer(Modifier.blur(7.dp, BlurredEdgeTreatment.Unbounded), stops, RING_W, 0.7f * on)
         } else {
-            // Android 11 and older: no blur available, so stack faint, slightly wider copies of the ring. Still pure vector drawing.
             Canvas(Modifier.fillMaxSize()) {
                 val brush = Brush.sweepGradient(*stops, center = center)
                 val layers = 16
@@ -353,22 +333,18 @@ private fun StartRing(enabled: Boolean, onClick: () -> Unit) {
         Canvas(Modifier.fillMaxSize()) {
             val r = RING_R.dp.toPx()
             val w = RING_W.dp.toPx()
-            // Dark face: keeps the glow outside the ring, like the design.
             drawCircle(color = C.Bg, radius = r - w / 2f)
             val brush = Brush.sweepGradient(*stops, center = center)
-            // One crisp, fully opaque pass: the ring edge stays sharp and only the glow around it is soft.
             drawCircle(brush = brush, radius = r, alpha = on, style = Stroke(w))
         }
         Box(
             Modifier.size(Sizes.SpeedRing).pressable(CircleShape, 0.94f, enabled = enabled, ripple = false) { tick(); onClick() },
             contentAlignment = Alignment.Center,
         ) {
-            Text("START", style = Type.Subtitle, color = if (enabled) C.Text else Dim)   // C.Text: the ring face is C.Bg, so white text vanished on the light theme
+            Text("START", style = Type.Subtitle, color = if (enabled) C.Text else Dim)
         }
     }
 }
-
-// ---------------------------------------------------------------- running
 
 @Composable
 private fun RunningView(ui: SpeedUi, mode: Int, onMode: (Int) -> Unit, connection: String) {
@@ -376,7 +352,6 @@ private fun RunningView(ui: SpeedUi, mode: Int, onMode: (Int) -> Unit, connectio
     LaunchedEffect(Unit) { while (true) { now = System.currentTimeMillis(); delay(250) } }
     val cfg = ui.cfg
     val bidir = cfg.mode == TransmitMode.Bidirectional
-    // Like the design: the phase length ("07s") and how far into the current phase we are ("00:03s").
     val secs = if (ui.phase == SpeedPhase.Ping) 0L
     else ((now - ui.phaseStartedAt) / 1000).coerceIn(0, cfg.seconds.toLong())
     val live = if (ui.phase == SpeedPhase.Download || ui.phase == SpeedPhase.Upload) ui.live else 0.0
@@ -394,7 +369,6 @@ private fun RunningView(ui: SpeedUi, mode: Int, onMode: (Int) -> Unit, connectio
                 }
                 ModeToggle(mode, onMode)
             }
-            // The gauge and tiles stay put (so the gauge's glow is never clipped); only the info rows scroll.
             Column(Modifier.weight(1f).fillMaxWidth().padding(horizontal = Space.Gutter)) {
                 Spacer(Modifier.height(Space.Md))
                 Box(Modifier.fillMaxWidth().staggerIn(1)) {
@@ -413,16 +387,12 @@ private fun RunningView(ui: SpeedUi, mode: Int, onMode: (Int) -> Unit, connectio
     }
 }
 
-// The needle sits at DIAL_START degrees at 0 Mbps and sweeps DIAL_SWEEP degrees to the full scale (clockwise from 3 o'clock),
-// so the first label (1/10 of the scale) lands exactly on the left horizontal and the last one on the right, as in the design.
 private const val DIAL_START = 160f
 private const val DIAL_SWEEP = 200f
 private val DialSteps = doubleArrayOf(100.0, 200.0, 500.0, 1000.0, 2000.0, 5000.0, 10000.0)
 
-/** Full-scale value of the dial: the smallest step that still leaves headroom above [peak]. 1000 gives the 100..1000 scale of the design. */
 private fun dialMax(peak: Double): Double = DialSteps.firstOrNull { peak <= it * 0.92 } ?: DialSteps.last()
 
-/** Gradient colors are tied to the position on the dial, so the arc keeps its colors as it grows. */
 private fun dialStops(upload: Boolean): Array<Pair<Float, Color>> {
     fun at(f: Float) = (DIAL_START + DIAL_SWEEP * f) / 360f
     return if (upload) arrayOf(
@@ -432,11 +402,9 @@ private fun dialStops(upload: Boolean): Array<Pair<Float, Color>> {
     )
 }
 
-/** Where the gauge's arc sits inside a canvas of [size]: hub (center of the half circle) and radius. */
 private fun DrawScope.dialHub() = Offset(size.width / 2, size.height - 30.dp.toPx())
 private fun DrawScope.dialRadius() = size.width * 0.375f
 
-/** The filled part of the gauge arc, drawn on its own so the caller can blur it into a glow. Same geometry as [SpeedDial]. */
 @Composable
 private fun DialGlowLayer(modifier: Modifier, frac: Float, upload: Boolean, strokeDp: Float, alpha: Float) {
     Canvas(modifier.fillMaxSize()) {
@@ -452,10 +420,6 @@ private fun DialGlowLayer(modifier: Modifier, frac: Float, upload: Boolean, stro
     }
 }
 
-/**
- * Half-circle gauge like the design: a gradient arc with a real blurred copy of itself as the glow (same technique as the START ring),
- * ten numbers, a thin needle. No tick marks. Blur needs Android 12; older phones keep the soft round hazes.
- */
 @Composable
 private fun SpeedDial(value: Double, max: Double, upload: Boolean, modifier: Modifier = Modifier) {
     val frac by animateFloatAsState((value / max).toFloat().coerceIn(0f, 1f), tween(Motion.Medium, easing = Motion.Standard), label = "dial")
@@ -481,7 +445,6 @@ private fun SpeedDial(value: Double, max: Double, upload: Boolean, modifier: Mod
 
             val sweep = DIAL_START + DIAL_SWEEP * frac - 180f
             if (!blurOk && sweep > 0.5f) {
-                // Fallback smoke for Android 11 and older: soft hazes along the filled arc, with a bigger bloom at the tip.
                 val n = (sweep / 7f).toInt() + 1
                 for (k in 0..n) {
                     val deg = 180f + minOf(sweep, k * 7f)
@@ -508,8 +471,6 @@ private fun SpeedDial(value: Double, max: Double, upload: Boolean, modifier: Mod
         }
     }
 }
-
-// ---------------------------------------------------------------- done
 
 @Composable
 private fun rememberCountUp(target: Double): Double {
@@ -562,9 +523,6 @@ private fun DoneView(ui: SpeedUi, mode: Int, onMode: (Int) -> Unit, connection: 
     }
 }
 
-// ---------------------------------------------------------------- shared pieces
-
-/** Gauge / log switch. */
 @Composable
 private fun ModeToggle(mode: Int, onMode: (Int) -> Unit) {
     val tick = rememberTick()
@@ -582,7 +540,6 @@ private fun ModeToggle(mode: Int, onMode: (Int) -> Unit) {
     }
 }
 
-/** Download / Upload on top, Ping / Jitter below. The tile being measured gets a colored label, the others are muted. */
 @Composable
 private fun StatGrid(ui: SpeedUi, highlightDown: Boolean, highlightUp: Boolean, modifier: Modifier = Modifier) {
     val bidirLive = ui.cfg.mode == TransmitMode.Bidirectional && ui.phase == SpeedPhase.Download
@@ -600,7 +557,6 @@ private fun StatGrid(ui: SpeedUi, highlightDown: Boolean, highlightUp: Boolean, 
     }
 }
 
-/** Muted label, big value, small unit, on a card. */
 @Composable
 private fun StatTile(label: String, labelColor: Color, value: String, unit: String, modifier: Modifier = Modifier) {
     val labelShown by animateColorAsState(labelColor, tween(Motion.Medium), label = "tileLabel")
@@ -614,7 +570,6 @@ private fun StatTile(label: String, labelColor: Color, value: String, unit: Stri
     }
 }
 
-/** Same figures, without a card of their own (they sit inside one). */
 @Composable
 private fun BigStat(label: String, labelColor: Color, value: String, unit: String, modifier: Modifier = Modifier) {
     Column(modifier) {
@@ -640,7 +595,6 @@ private fun LogCard(log: List<String>) {
     }
 }
 
-/** Smooth area chart of the live speed samples of both phases. [progress] reveals it from left to right. */
 @Composable
 private fun SpeedChart(down: List<Float>, up: List<Float>, progress: Float, modifier: Modifier = Modifier) {
     Canvas(modifier) {
@@ -678,7 +632,6 @@ private fun SpeedChart(down: List<Float>, up: List<Float>, progress: Float, modi
     }
 }
 
-/** The connection details as one card with divider lines. */
 @Composable
 private fun InfoRows(connection: String, cfg: SpeedConfig) {
     DetailCard(

@@ -43,7 +43,6 @@ import java.net.InetAddress
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 
-/** establish() returned null: the user has not granted (or has revoked) VPN permission, so trying other servers can't help. */
 private class NoVpnPermission : Exception("VPN permission was not granted")
 
 class OutrunVpnService : VpnService() {
@@ -54,10 +53,10 @@ class OutrunVpnService : VpnService() {
         const val EXTRA_LINK = "link"
         private const val TAG = "OutrunVpnService"
         private const val VERIFY_TIMEOUT_MS = 20_000L
-        private const val MAX_FALLBACKS = 3            // other servers tried when one fails to connect
-        private const val NET_DEBOUNCE_MS = 1_500L     // network callbacks come in bursts; reconnect once they settle
-        private const val HEALTH_INTERVAL_MS = 20_000L // tunnel health probe while connected
-        private const val HEALTH_FAILS = 2             // consecutive failed probes before reconnecting
+        private const val MAX_FALLBACKS = 3
+        private const val NET_DEBOUNCE_MS = 1_500L
+        private const val HEALTH_INTERVAL_MS = 20_000L
+        private const val HEALTH_FAILS = 2
         private val PROBE_URLS = Choices.testUrls.take(2).map { it.url }
         private const val CHANNEL = "vpn"
         private const val NOTIFICATION_ID = 1
@@ -80,15 +79,12 @@ class OutrunVpnService : VpnService() {
     private var currentLink: String? = null
     private var currentName: String = ""
 
-    /** True while the user wants the VPN up (set on start, cleared on disconnect); gates every automatic reconnect. */
     @Volatile private var wanted = false
     private var healthJob: Job? = null
     private var netJob: Job? = null
     private var netCallback: ConnectivityManager.NetworkCallback? = null
     private var lastNet: Network? = null
-    /** Every non-VPN network with internet capability the system currently reports -> whether we consider it usable (see [isUsable]). */
     private val underlying = ConcurrentHashMap<Network, Boolean>()
-    /** Networks that have been validated (real internet) at least once; losing validation later means internet went away behind a live link. */
     private val validatedOnce: MutableSet<Network> = ConcurrentHashMap.newKeySet()
     private var netLost = false
     @Volatile private var waitingNet = false
@@ -116,7 +112,6 @@ class OutrunVpnService : VpnService() {
                 begin(link)
             }
             else -> {
-                // Started by the system as an Always-on VPN (no action of ours): connect to the selected server.
                 val link = Store(this).selected?.takeIf { LinkParser.parse(it) != null }
                 if (link != null) begin(link)
                 else {
@@ -135,7 +130,6 @@ class OutrunVpnService : VpnService() {
         registerNetworkWatch()
         if (hasUnderlyingNetwork()) launchConnect(link)
         else {
-            // Nothing to connect over (e.g. Wi-Fi is off): wait, and connect as soon as a network returns.
             currentLink = link
             Store(this).selected = link
             VpnState.activeLink.value = link
@@ -144,18 +138,9 @@ class OutrunVpnService : VpnService() {
         }
     }
 
-    /**
-     * True if the device has a usable real (non-VPN) network. Uses the network watch's own bookkeeping rather than `activeNetwork`,
-     * which on older Android versions reports the VPN itself and so could never tell us that the real network is gone.
-     */
     private fun hasUnderlyingNetwork(): Boolean =
         if (netCallback == null) true else underlying.values.any { it }
 
-    /**
-     * A network counts as usable if it has internet and is not a VPN. Once a network has been validated, losing validation means
-     * the link is up but internet is gone (router/data switched off), which is treated like losing the network (Proton does the same).
-     * A network that never validated (captive portal, blocked connectivity check) is still trusted, as the proxy may work over it.
-     */
     private fun isUsable(network: Network, caps: NetworkCapabilities): Boolean {
         if (caps.hasTransport(NetworkCapabilities.TRANSPORT_VPN)) return false
         if (!caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)) return false
@@ -163,10 +148,6 @@ class OutrunVpnService : VpnService() {
         return network !in validatedOnce
     }
 
-    /**
-     * The underlying network is gone: stop pretending to be connected (Proton's WaitingForNetwork state). The tunnel interface is left up
-     * so traffic is blocked rather than leaking; it is rebuilt by [reevaluateNetwork] when a network returns.
-     */
     @Synchronized
     private fun enterWaitingForNetwork() {
         waitingNet = true
@@ -180,7 +161,6 @@ class OutrunVpnService : VpnService() {
         notificationManager.notify(NOTIFICATION_ID, notification(getString(R.string.app_name), "Waiting for network…"))
     }
 
-    /** Cancels any attempt in progress and connects to [link] (with fallback to other servers if enabled). */
     private fun launchConnect(link: String) {
         val prev = connectJob
         connectJob = scope.launch { prev?.cancelAndJoin(); connect(link, emptySet()) }
@@ -195,7 +175,6 @@ class OutrunVpnService : VpnService() {
         return pool[(pool.indexOf(currentLink) + 1) % pool.size]
     }
 
-    /** Next server to try after [exclude] failed: favorites first, then every other server, in list order. */
     private fun fallbackLink(exclude: Set<String>): String? {
         val store = Store(this)
         val all = store.links().filter { LinkParser.parse(it) != null && it !in exclude }
@@ -211,13 +190,6 @@ class OutrunVpnService : VpnService() {
         launchConnect(next)
     }
 
-    // ---- network changes and tunnel health ----
-
-    /**
-     * Watches every real (non-VPN) network with internet. Unlike the default-network callback (which can report the VPN itself as the
-     * default, and never fires when a link stays up without internet) this sees networks being lost and validation changing, so
-     * the app can move to WaitingForNetwork and rebuild the tunnel when a network returns or changes (Wi-Fi <-> mobile).
-     */
     private fun registerNetworkWatch() {
         if (netCallback != null) return
         val cm = getSystemService(ConnectivityManager::class.java) ?: return
@@ -255,7 +227,6 @@ class OutrunVpnService : VpnService() {
         netJob?.cancel(); netJob = null
     }
 
-    /** Called whenever the set of usable networks changes: enter WaitingForNetwork when none is left, reconnect on change/recovery. */
     @Synchronized
     private fun reevaluateNetwork() {
         val best = underlying.entries.filter { it.value }.map { it.key }.let { usable -> usable.firstOrNull { it == lastNet } ?: usable.firstOrNull() }
@@ -283,7 +254,6 @@ class OutrunVpnService : VpnService() {
         } else { netLost = false; waitingNet = false }
     }
 
-    /** While connected, probes the tunnel every [HEALTH_INTERVAL_MS]; after [HEALTH_FAILS] failures in a row it reconnects (and falls back if needed). */
     private fun startHealth(port: Int) {
         healthJob?.cancel()
         healthJob = scope.launch {
@@ -293,7 +263,6 @@ class OutrunVpnService : VpnService() {
                 if (waitingNet || VpnState.status.value != Status.Connected) { fails = 0; continue }
                 val ok = withContext(Dispatchers.IO) { PROBE_URLS.any { probe(port, it) } }
                 fails = if (ok) 0 else fails + 1
-                // Ask Android to re-validate the real network: if internet is really gone it drops VALIDATED and we show WaitingForNetwork.
                 if (fails == 1) lastNet?.let { n -> runCatching { getSystemService(ConnectivityManager::class.java)?.reportNetworkConnectivity(n, false) } }
                 if (fails >= HEALTH_FAILS) {
                     val link = currentLink ?: return@launch
@@ -325,7 +294,6 @@ class OutrunVpnService : VpnService() {
         if (b >= 1_000_000) String.format(Locale.US, "%.1f MB/s", b / 1_000_000.0)
         else String.format(Locale.US, "%.0f KB/s", b / 1000.0)
 
-    /** Prefix length of "addr/len"; a bare address is a single host (/32 or /128). */
     private fun prefixLength(ip: String): Int = ip.substringAfter('/', if (':' in ip) "128" else "32").toInt()
 
     private suspend fun connect(link: String, tried: Set<String>) {
@@ -336,7 +304,7 @@ class OutrunVpnService : VpnService() {
         val hadSession = tun != null || core != null
         teardownSession()
         currentLink = link
-        if (tried.isEmpty()) Store(this).selected = link   // a fallback server doesn't replace the user's choice
+        if (tried.isEmpty()) Store(this).selected = link
         VpnState.activeLink.value = link
         canSwitch = nextLink() != null
         if (hadSession) delay(300)
@@ -350,7 +318,7 @@ class OutrunVpnService : VpnService() {
             x = SingBoxCore(this)
             core = x
             val settings = Store(this)
-            val dns = settings.dnsServers()       // custom DNS, else NetShield's filtering DNS when it is on
+            val dns = settings.dnsServers()
             val mtu = settings.mtu
             x.start(ConfigBuilder.build(link, port, settings.resolverDns()), port)
             currentCoroutineContext().ensureActive()
@@ -406,7 +374,7 @@ class OutrunVpnService : VpnService() {
             if (!verifyProxy(port)) error("Server is not responding")
 
             currentCoroutineContext().ensureActive()
-            if (!hasUnderlyingNetwork()) {   // the network dropped while connecting: wait instead of reporting Connected
+            if (!hasUnderlyingNetwork()) {
                 netLost = true
                 enterWaitingForNetwork()
                 return
@@ -434,7 +402,6 @@ class OutrunVpnService : VpnService() {
             } else {
                 Log.w(TAG, "connect failed: ${e.javaClass.simpleName}")
                 if (wanted && e !is NoVpnPermission && !hasUnderlyingNetwork()) {
-                    // Failed because there is no network at all: not the server's fault, so no fallback and no error. Wait for it to return.
                     netLost = true
                     enterWaitingForNetwork()
                     return

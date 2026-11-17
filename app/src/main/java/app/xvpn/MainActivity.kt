@@ -129,7 +129,6 @@ class MainActivity : ComponentActivity() {
         OutrunWidget.refresh(this)
     }
 
-    // Pick up a newly selected server / VPN permission when the user leaves the app.
     override fun onStop() {
         super.onStop()
         OutrunWidget.refresh(this)
@@ -143,7 +142,6 @@ private enum class Tab(val label: String) {
     Menu("Settings"),
 }
 
-/** Proton BottomBarView.getIcon(selected): outline when idle, filled when selected (no filled bolt exists, so Speed keeps one glyph). */
 @Composable
 private fun Tab.icon(selected: Boolean): ImageVector = when (this) {
     Tab.Home -> if (selected) ProtonIcons.HouseFilled else ProtonIcons.House
@@ -274,7 +272,6 @@ private fun App() {
         if (intent != null) vpnPermission.launch(intent) else OutrunVpnService.start(ctx, link)
     }
 
-    /** Connects to the lowest-latency server. Reuses a latency test from the last 10 minutes, otherwise runs one first. */
     fun connectFastest() {
         if (profiles.isEmpty()) { tab = Tab.Servers; return }
         scope.launch {
@@ -289,7 +286,6 @@ private fun App() {
         }
     }
 
-    /** Connects to a random server other than the current one. */
     fun connectRandom() {
         val current = VpnState.activeLink.value ?: selectedLink
         val pool = profiles.filter { it.link != current }
@@ -345,7 +341,6 @@ private fun App() {
         if (stale.isNotEmpty()) refreshSubs(stale, silent = true)
     }
 
-    // Recents: the last servers connected to (newest first), only those that still exist.
     val recents = remember(status, profiles) {
         store.recentLinks().mapNotNull { l -> profiles.firstOrNull { it.link == l } }.take(3)
     }
@@ -364,7 +359,6 @@ private fun App() {
 
     val stripAlpha by animateFloatAsState(if (homeVisible) 0f else 1f, tween(Motion.Medium), label = "stripAlpha")
 
-    // Room reserved for the bottom bar; animated so screens that hide it (logs, speed test, stats) don't jump.
     val dockInset by animateDpAsState(if (dockHidden) 0.dp else Sizes.Dock, tween(Motion.Medium, easing = Motion.Standard), label = "dockInset")
 
     Box(Modifier.fillMaxSize().background(C.Bg).imePadding()) {
@@ -378,7 +372,6 @@ private fun App() {
 
                 Box(
                     Modifier.fillMaxSize()
-                        // Proton: extra 56dp (Medium) / 128dp (Expanded) side padding and an 800dp content cap (Dimensions.kt); Home stays full-bleed for the map.
                         .then(if (s == Screen.Home) Modifier else Modifier.padding(horizontal = largeScreenContentPadding()))
                         .then(if (s == Screen.Home) Modifier else Modifier.statusBarsPadding())
                         .navigationBarsPadding().padding(bottom = if (s == Screen.Stats) 0.dp else dockInset),
@@ -470,8 +463,6 @@ private fun App() {
             enter = slideInVertically(tween(Motion.Medium, easing = Motion.Standard)) { it } + fadeIn(tween(Motion.Medium)),
             exit = slideOutVertically(tween(Motion.Medium, easing = Motion.Standard)) { it } + fadeOut(tween(Motion.Fast)),
         ) {
-            // [PV] BottomBarView: stock Material 3 NavigationBar (80dp + system inset), backgroundSecondary, no tonal elevation,
-            // textAccent @ 32% indicator over the bar, textAccent / textWeak content, captionStrong labels.
             NavigationBar(containerColor = C.Card, tonalElevation = 0.dp) {
                 Tab.entries.forEach { t ->
                     val selected = t == tab
@@ -489,7 +480,6 @@ private fun App() {
                 }
             }
         }
-        // Proton shows ProtonSnackbar above the bottom bar, never a system toast.
         AppSnackbarHost(Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = dockInset).widthIn(max = Sizes.MaxContent))
     }
 }

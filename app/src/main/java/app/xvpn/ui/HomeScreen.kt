@@ -99,7 +99,6 @@ fun HomeScreen(
         label = "tone",
     )
 
-    // Proton vpnStatusOverlayBackground: vpnGreen / white / notificationError at 50%, fading to transparent, animated over 500ms.
     val overlay by animateColorAsState(
         when (status) { Status.Connected -> C.Green.copy(alpha = C.OverlayConnected); Status.Connecting, Status.WaitingForNetwork -> Color.White.copy(alpha = 0.5f); Status.Disconnected -> C.Red.copy(alpha = C.OverlayDisconnected) },
         tween(500), label = "overlay",
@@ -136,11 +135,8 @@ fun HomeScreen(
             pin = when { on -> MapPin.Connected; connecting -> MapPin.Connecting; else -> MapPin.Selected },
         )
 
-        // [PV] Home.kt: a fixed 200dp status overlay at the top of the screen.
         Box(Modifier.fillMaxWidth().height(200.dp).background(Brush.verticalGradient(listOf(overlay, overlay.copy(alpha = 0f)))))
 
-        // [PV] The status block sits directly under the status bar (VpnStatusTop: 8dp content padding, min height 48dp),
-        // never wider than 480dp (VpnStatusBottom).
         Column(
             Modifier.align(Alignment.TopCenter).widthIn(max = 480.dp).fillMaxWidth().statusBarsPadding().padding(horizontal = Space.Gutter),
         ) {
@@ -154,15 +150,13 @@ fun HomeScreen(
                 when (st) {
                     Status.Connected -> ProtectedHeader(fmtDuration(now - connectedAt), up, down)
                     Status.Connecting -> ConnectingHeader(real)
-                    Status.WaitingForNetwork -> WaitingForNetworkHeader()   // [PV] VpnStatusViewState.WaitingForNetwork
+                    Status.WaitingForNetwork -> WaitingForNetworkHeader()
                     Status.Disconnected -> UnprotectedHeader(real, error)
                 }
             }
 
         }
 
-        // [PV] Home.kt RecentsList background: transparent -> backgroundNorm over 100dp, solid below; the first item starts 68dp
-        // (ListBgGradientOffsetBasic) from the top of the list.
         Column(
             Modifier.align(Alignment.BottomCenter).fillMaxWidth()
                 .drawBehind {
@@ -172,7 +166,6 @@ fun HomeScreen(
                 }
                 .padding(top = 68.dp).padding(horizontal = Space.Gutter),
         ) {
-            // [PV] VpnConnectionCard ContainerLabelRow: Box padding(vertical = 8) around a body2Regular label with padding(vertical = 16).
             AnimatedContent(
                 targetState = when { on -> "Browsing safely from"; connecting -> "Connecting to…"; else -> "Selected server" },
                 transitionSpec = { fadeTransition() },
@@ -186,13 +179,13 @@ fun HomeScreen(
                     verticalAlignment = Alignment.Top,
                 ) {
                     FlagBadge(selected?.name)
-                    Spacer(Modifier.width(Space.Lg))   // Proton: 16dp between icon and labels
+                    Spacer(Modifier.width(Space.Lg))
                     Column(Modifier.weight(1f)) {
                         AnimatedContent(
                             targetState = selected?.let { Flags.clean(it.name) } ?: "No server selected",
                             transitionSpec = { fadeTransition() }, label = "serverName",
                         ) { name ->
-                            Text(name, style = Type.Subtitle.copy(fontWeight = FontWeight.Medium), color = C.Text, maxLines = 1) // body1Medium @ 18sp
+                            Text(name, style = Type.Subtitle.copy(fontWeight = FontWeight.Medium), color = C.Text, maxLines = 1)
                         }
                         AnimatedContent(
                             targetState = when {
@@ -201,13 +194,13 @@ fun HomeScreen(
                                 else -> "Add one in Servers"
                             },
                             transitionSpec = { fadeTransition() }, label = "serverSub",
-                        ) { sub -> Text(sub, style = Type.Small, color = C.Muted, maxLines = 1, modifier = Modifier.padding(top = 2.dp)) }   // secondaryLabelVerticalPadding = 2dp
+                        ) { sub -> Text(sub, style = Type.Small, color = C.Muted, maxLines = 1, modifier = Modifier.padding(top = 2.dp)) }
                     }
                     AnimatedVisibility(
                         visible = on,
                         enter = fadeIn(tween(Motion.Short)) + expandHorizontally(tween(Motion.Medium, easing = Motion.Standard)),
                         exit = fadeOut(tween(Motion.Fast)) + shrinkHorizontally(tween(Motion.Short, easing = Motion.Standard)),
-                    ) { Icon(ProtonIcons.ChevronUp, "Statistics", tint = C.Muted, modifier = Modifier.size(Sizes.Icon)) }   // [PV] OpenPanelButton: ic_proton_chevron_up, iconWeak
+                    ) { Icon(ProtonIcons.ChevronUp, "Statistics", tint = C.Muted, modifier = Modifier.size(Sizes.Icon)) }
                 }
                 Spacer(Modifier.height(Space.Lg))
                 AnimatedContent(
@@ -241,7 +234,6 @@ fun HomeScreen(
                     }
                 }
             }
-            // Recents: one-tap reconnect to the last servers used (shown while disconnected; hidden when the list is empty).
             AnimatedVisibility(visible = status == Status.Disconnected && recents.isNotEmpty()) {
                 Column {
                     Text("Recents", style = Type.Small, color = C.Muted, modifier = Modifier.padding(top = Space.Lg, bottom = Space.Xs))
@@ -273,7 +265,6 @@ private fun RecentRow(p: Profile, onClick: () -> Unit) {
 
 @Composable
 private fun StatusChip(content: @Composable () -> Unit) {
-    // Proton LocationTextAnimated / VpnDisabledView: backgroundSecondary @ 0.86, translucent border, shapes.medium, 8x4 padding.
     val shape = RoundedCornerShape(Radius.Control)
     Row(
         Modifier.clip(shape).background(C.CardOverlay).translucentBorder(shape).padding(horizontal = Space.Sm, vertical = Space.Xs),
@@ -288,7 +279,7 @@ private fun UnprotectedHeader(real: IpInfo?, error: String?) {
         Text("You are unprotected", style = Type.BodyMedium, color = C.Text, textAlign = TextAlign.Center, modifier = Modifier.padding(Space.Sm))
         StatusChip {
             Text(real?.let { r -> r.city.ifBlank { r.country } } ?: "Locating…", style = Type.Body, color = C.Text)
-            if (real != null) Text(" · ${real.ip}", style = Type.Body, color = C.Muted)   // [PV] vpn_status_disabled_location = "%1$s · %2$s"
+            if (real != null) Text(" · ${real.ip}", style = Type.Body, color = C.Muted)
         }
         if (error != null) {
             Spacer(Modifier.height(Space.Sm))
@@ -297,7 +288,6 @@ private fun UnprotectedHeader(real: IpInfo?, error: String?) {
     }
 }
 
-/** [PV] Spinner (same as Connecting) with the "Waiting for network" label (error_vpn_waiting_for_network). */
 @Composable
 private fun WaitingForNetworkHeader() {
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -329,10 +319,6 @@ private fun ConnectingHeader(real: IpInfo?) {
     }
 }
 
-/**
- * Proton VpnStatusView.AnimateText: characters are replaced by '*' one at a time in random order, 50 ms apart ('.', ' ' and '-'
- * are kept). Text is textWeak with the [highlight] part (the place) in textNorm; the width is fixed to the unmasked text.
- */
 @Composable
 private fun ScrambleText(text: String, highlight: String, style: TextStyle) {
     val shown = remember(text) { mutableStateOf(text) }
@@ -353,7 +339,6 @@ private fun ScrambleText(text: String, highlight: String, style: TextStyle) {
         if (start >= 0) addStyle(SpanStyle(color = norm), start, start + highlight.length)
     }
     Box {
-        // invisible copy reserves the final width so the chip doesn't resize while masking
         Text(text, style = style, color = Color.Transparent, maxLines = 1)
         Text(annotated, style = style, color = weak, maxLines = 1)
     }
@@ -362,12 +347,12 @@ private fun ScrambleText(text: String, highlight: String, style: TextStyle) {
 @Composable
 private fun ProtectedHeader(time: String, up: Long, down: Long) {
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-        Row(Modifier.padding(Space.Sm), verticalAlignment = Alignment.CenterVertically) {   // [PV] VpnStatusTop contentModifier padding(8.dp)
+        Row(Modifier.padding(Space.Sm), verticalAlignment = Alignment.CenterVertically) {
             Icon(ProtonIcons.LockFilled, null, tint = C.Green, modifier = Modifier.size(Sizes.IconLg))
-            Spacer(Modifier.width(Space.Sm))   // Proton: 8dp between lock icon and "Connected"
-            Text("Protected", style = Type.Heading, color = C.Green)   // [PV] VpnConnectedViewTop: headlineNorm in vpnGreen
+            Spacer(Modifier.width(Space.Sm))
+            Text("Protected", style = Type.Heading, color = C.Green)
         }
-        AppCard(Modifier.fillMaxWidth().padding(top = Space.Sm), containerColor = C.CardOverlay, translucentBorder = true) {   // [PV] VpnConnectedView Surface padding(top = 8.dp)
+        AppCard(Modifier.fillMaxWidth().padding(top = Space.Sm), containerColor = C.CardOverlay, translucentBorder = true) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text("Connected for", style = Type.Small, color = C.Muted)

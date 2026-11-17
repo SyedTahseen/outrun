@@ -5,11 +5,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.vectorResource
 import app.xvpn.R
 
-/**
-* Proton's own icon set (vector drawables copied from proton-core `presentation` module, `ic_proton_*`).
-* Same type as the Material icons they replace, so every `Icon(...)` / `IconAction(...)` call site is unchanged.
-* Colors are applied by the call site's tint; the drawables are white.
-*/
 object ProtonIcons {
     val ArrowDown: ImageVector @Composable get() = ImageVector.vectorResource(R.drawable.ic_proton_arrow_down)
     val ArrowDownArrowUp: ImageVector @Composable get() = ImageVector.vectorResource(R.drawable.ic_proton_arrow_down_arrow_up)

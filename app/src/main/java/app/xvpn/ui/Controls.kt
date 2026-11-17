@@ -44,13 +44,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
-// Interaction rules shared by everything below:
-//  - Buttons, chips, icon buttons and cards shrink slightly when pressed (see Press) and ripple.
-//  - Full-width list rows only ripple; scaling a row that touches both screen edges would look broken.
-//  - A light haptic tick confirms a selection change; a strong one confirms a primary action.
-//  - Color changes always animate (Motion.Short for small controls, Motion.Medium for large surfaces).
-
-/** Round 44dp icon button: header actions, row actions, favorites. */
 @Composable
 fun IconAction(icon: ImageVector, desc: String, modifier: Modifier = Modifier, tint: Color = C.Text, onClick: () -> Unit) {
     val color by animateColorAsState(tint, tween(Motion.Short), label = "iconTint")
@@ -62,10 +55,6 @@ fun IconAction(icon: ImageVector, desc: String, modifier: Modifier = Modifier, t
 enum class ButtonStyle { Primary, Secondary, Outline, OutlineAccent, OutlineCard }
 enum class ButtonSize { Large, Compact }
 
-/**
- * The app's button. Primary = purple fill, Secondary = grey fill, Outline = border only.
- * Give it Modifier.fillMaxWidth() for a full-width button; a [trailingIcon] only makes sense then.
- */
 @Composable
 fun AppButton(
     label: String,
@@ -79,15 +68,15 @@ fun AppButton(
     val tick = rememberTick(strong = style == ButtonStyle.Primary)
     val shape = RoundedCornerShape(Radius.Control)
     val outlinedStyle = style == ButtonStyle.Outline || style == ButtonStyle.OutlineAccent || style == ButtonStyle.OutlineCard
-    val onCardOutline = style == ButtonStyle.OutlineCard   // [PV] ChangeServerButton: backgroundSecondary fill, 1dp separatorNorm border, textNorm label
+    val onCardOutline = style == ButtonStyle.OutlineCard
     val container by animateColorAsState(
         when {
-            !enabled && style == ButtonStyle.Primary -> C.PrimaryDisabled   // [PV] protonButtonColors: interactionDisabled
-            !enabled && style == ButtonStyle.Secondary -> C.Card            // [PV] protonSecondaryButtonColors: interactionWeakDisabled (shade15)
+            !enabled && style == ButtonStyle.Primary -> C.PrimaryDisabled
+            !enabled && style == ButtonStyle.Secondary -> C.Card
             style == ButtonStyle.Primary -> C.Primary
             style == ButtonStyle.Secondary -> C.Control
             onCardOutline -> C.Card
-            outlinedStyle -> C.Bg   // [PV] protonOutlined(Neutral)ButtonColors: backgroundNorm, also on cards
+            outlinedStyle -> C.Bg
             else -> Color.Transparent
         },
         tween(Motion.Medium), label = "buttonContainer",
@@ -95,10 +84,10 @@ fun AppButton(
     val large = size == ButtonSize.Large
     val outlined = outlinedStyle
     val content = when {
-        !enabled && onCardOutline -> C.Shade50                                                        // [PV] ChangeServerButton disabledContentColor: textHint
-        !enabled && outlined -> if (style == ButtonStyle.Outline) C.Disabled else C.PrimaryDisabled   // [PV] textDisabled / interactionDisabled
-        !enabled && style == ButtonStyle.Secondary -> C.Disabled                                      // [PV] textDisabled
-        !enabled -> C.OnPrimary.copy(alpha = 0.5f)                                                    // [PV] Color.White @ 0.5
+        !enabled && onCardOutline -> C.Shade50
+        !enabled && outlined -> if (style == ButtonStyle.Outline) C.Disabled else C.PrimaryDisabled
+        !enabled && style == ButtonStyle.Secondary -> C.Disabled
+        !enabled -> C.OnPrimary.copy(alpha = 0.5f)
         style == ButtonStyle.Outline || onCardOutline -> C.Text
         style == ButtonStyle.OutlineAccent -> C.Accent
         else -> C.OnPrimary
@@ -106,8 +95,8 @@ fun AppButton(
     val borderColor = when {
         onCardOutline -> C.Border
         !enabled -> if (style == ButtonStyle.Outline) C.Disabled else C.PrimaryDisabled
-        style == ButtonStyle.OutlineAccent -> C.Accent   // [PV] protonOutlinedBorder: textAccent
-        else -> C.Text                                    // [PV] protonOutlineNeutralBorder: interactionStrongNorm
+        style == ButtonStyle.OutlineAccent -> C.Accent
+        else -> C.Text
     }
     Box(
         modifier
@@ -115,28 +104,26 @@ fun AppButton(
             .pressable(shape, Press.Control, enabled) { tick(); onClick() }
             .background(container)
             .then(if (outlined) Modifier.border(1.dp, borderColor, shape) else Modifier)
-            .padding(horizontal = if (large) Space.Lg else Space.Xxl),   // [PV] ProtonContentPadding 16dp / ProtonContentPaddingCompact 24dp
+            .padding(horizontal = if (large) Space.Lg else Space.Xxl),
         contentAlignment = Alignment.Center,
     ) {
-        Text(label, style = Type.Button, color = content, maxLines = 1)   // [PV] body1Regular for both sizes
+        Text(label, style = Type.Button, color = content, maxLines = 1)
         if (trailingIcon != null) Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
             Icon(trailingIcon, null, tint = content, modifier = Modifier.size(Sizes.Icon))
         }
     }
 }
 
-/** Colored text button for dialogs, headers and in-card links. */
 @Composable
 fun TextAction(label: String, onClick: () -> Unit, modifier: Modifier = Modifier, color: Color = C.Accent, enabled: Boolean = true) {
     Box(
         modifier.heightIn(min = Sizes.Control)
-            .pressable(RoundedCornerShape(Radius.Badge), Press.Control, enabled, onClick = onClick)  // [PC] ProtonTextButton: shapes.small (4dp)
-            .padding(horizontal = Space.Md),                                                           // [PV] M3 TextButtonContentPadding (12dp)
+            .pressable(RoundedCornerShape(Radius.Badge), Press.Control, enabled, onClick = onClick)
+            .padding(horizontal = Space.Md),
         contentAlignment = Alignment.Center,
-    ) { Text(label, style = Type.ButtonSmall, color = if (enabled) color else C.Disabled, maxLines = 1) }   // [PC] protonTextButtonColors: textDisabled
+    ) { Text(label, style = Type.ButtonSmall, color = if (enabled) color else C.Disabled, maxLines = 1) }
 }
 
-/** Full-width text action at the bottom of a card ("Run test", "Open settings"). Rows only ripple. */
 @Composable
 fun CardAction(label: String, onClick: () -> Unit, color: Color = C.Accent, enabled: Boolean = true) {
     Box(
@@ -145,7 +132,6 @@ fun CardAction(label: String, onClick: () -> Unit, color: Color = C.Accent, enab
     ) { Text(label, style = Type.ButtonSmall, color = if (enabled) color else C.Disabled) }
 }
 
-/** A filled box that turns purple when selected: the base of chips, segmented controls and the transmit-mode picker. */
 @Composable
 fun SelectableBox(
     selected: Boolean,
@@ -172,7 +158,6 @@ fun SelectChip(
     onLongClick: (() -> Unit)? = null, onClick: () -> Unit,
 ) {
     SelectableBox(selected, onClick, modifier, enabled, onLongClick) {
-        // [PV] FiltersRow: body2Regular (14sp), 16dp horizontal padding, white on brandNorm when selected, textNorm on interactionWeakNorm otherwise.
         val base = if (selected) C.OnPrimary else C.Text
         Text(
             label, style = Type.Small, maxLines = 1,
@@ -182,7 +167,6 @@ fun SelectChip(
     }
 }
 
-/** Equal-width options in a row; exactly one is selected. */
 @Composable
 fun Segmented(options: List<String>, selected: Int, enabled: List<Boolean> = options.map { true }, onSelect: (Int) -> Unit) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Space.Sm)) {
@@ -198,14 +182,12 @@ fun AppSwitch(checked: Boolean, onChange: ((Boolean) -> Unit)?) {
     Switch(
         checked = checked, onCheckedChange = onChange?.let { cb -> { v: Boolean -> tick(); cb(v) } },
         colors = SwitchDefaults.colors(
-            // ProtonSwitch: Material 3 defaults when checked (primary track, white thumb); shade50 track/border and shade80 thumb when off.
             checkedThumbColor = C.OnPrimary, checkedTrackColor = C.Primary, checkedBorderColor = C.Primary,
-            uncheckedThumbColor = C.Muted, uncheckedTrackColor = C.Disabled, uncheckedBorderColor = C.Disabled,  // [PV] ProtonSwitch: shade50 / shade80
+            uncheckedThumbColor = C.Muted, uncheckedTrackColor = C.Disabled, uncheckedBorderColor = C.Disabled,
         ),
     )
 }
 
-/** Radio indicator: the stock Material 3 RadioButton coloured as Proton's ProtonRadio (interactionNorm / iconHint). */
 @Composable
 fun AppRadio(selected: Boolean) {
     RadioButton(
@@ -214,11 +196,6 @@ fun AppRadio(selected: Boolean) {
     )
 }
 
-/**
- * Text input on a rounded container. The border lights up while focused.
- * [onCard] = the field sits on a Card (dialogs), so it uses the darker Bg as its fill instead.
- * Single-line fields are [Sizes.Field] tall; multi-line fields take [height].
- */
 @Composable
 fun AppTextField(
     value: String,
@@ -234,7 +211,6 @@ fun AppTextField(
     isError: Boolean = false,
 ) {
     var focused by remember { mutableStateOf(false) }
-    // [PC] protonOutlineTextFieldColors: focused brandNorm, error notificationError, unfocused = fill (invisible); Material outlined field: 2dp focused / 1dp otherwise
     val border by animateColorAsState(if (isError) C.Red else if (focused) C.Primary else Color.Transparent, tween(Motion.Short), label = "fieldBorder")
     val borderWidth = if (focused || isError) 2.dp else 1.dp
     val shape = RoundedCornerShape(Radius.Control)

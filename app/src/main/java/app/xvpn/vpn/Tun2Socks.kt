@@ -1,10 +1,5 @@
 package app.xvpn.vpn
 
-/**
- * Kotlin side of the hev-socks5-tunnel JNI library. The native code is built for exactly this package and class
- * name (see scripts/build-native.sh) and binds all four methods below at load time, so keep every one of them
- * even when it isn't called from Kotlin.
- */
 object Tun2Socks {
     init { System.loadLibrary("hev-socks5-tunnel") }
 

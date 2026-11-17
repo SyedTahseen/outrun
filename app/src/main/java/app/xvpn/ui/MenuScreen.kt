@@ -172,8 +172,6 @@ private fun MenuPage(
     val ctx = LocalContext.current
     var page by pageState
 
-    // General: notification permission and home-screen widget state, re-read whenever the app resumes
-    // (the user may have changed them in system settings or from the launcher).
     var notifOn by remember { mutableStateOf(ctx.notificationsEnabled()) }
     var widgetCount by remember { mutableStateOf(ctx.widgetCount()) }
     DisposableEffect(ctx) {
@@ -300,7 +298,6 @@ private fun MenuPage(
                 )
                 val conflict = customDnsOn && customDns.isNotEmpty()
                 if (conflict) {
-                    // [PV] DnsConflictBanner: backgroundSecondary, shapes.medium, 16dp padding.
                     Column(
                         Modifier.padding(horizontal = Space.Gutter, vertical = Space.Md).fillMaxWidth()
                             .clip(RoundedCornerShape(Radius.Control)).background(C.Card).padding(Space.Lg),
@@ -413,7 +410,6 @@ private fun MenuPage(
                     notifLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                 } else ctx.openNotificationSettings()
             }
-            // [PV] Settings > General: Theme sits between Notifications and the icon / widget rows.
             ListRow(
                 ProtonIcons.CircleHalfFilled, "Theme",
                 when (themeMode) { AppTheme.LIGHT -> "Light"; AppTheme.DARK -> "Dark"; else -> "Device theme" },
@@ -427,7 +423,6 @@ private fun MenuPage(
             ListRow(ProtonIcons.LifeRing, "Support contact", external = true) { ctx.emailSupport() }
             ListRow(ProtonIcons.Bug, "Report an issue", external = true) { ctx.reportIssue(debugInfo()) }
             ListRow(ProtonIcons.Code, "Debug logs") {
-                // [PV] Proton opens its log as a separate Activity, so it gets the system activity transition.
                 ctx.startActivity(Intent(ctx, LogActivity::class.java).putExtra(LogActivity.EXTRA_INFO, debugInfo()))
             }
 
@@ -472,7 +467,6 @@ private fun Context.widgetCount(): Int =
     runCatching { AppWidgetManager.getInstance(this).getAppWidgetIds(ComponentName(this, OutrunWidget::class.java)).size }
         .getOrDefault(0)
 
-/** Asks the launcher to pin the widget; launchers without pinning support get manual instructions instead. */
 private fun Context.requestPinWidget() {
     val manager = AppWidgetManager.getInstance(this)
     val supported = Build.VERSION.SDK_INT >= 26 && manager.isRequestPinAppWidgetSupported
@@ -489,7 +483,6 @@ private fun Context.emailSupport() {
     launch(intent, "No email app found. Write to $SUPPORT_EMAIL")
 }
 
-/** Opens a new GitHub issue with the device details already filled in. */
 private fun Context.reportIssue(info: String) {
     val body = "**What happened?**\n\n\n\n**Environment**\n```\n$info\n```\n"
     openUrl("$REPO_URL/issues/new?body=${Uri.encode(body)}")
@@ -499,7 +492,6 @@ private fun Context.copyText(label: String, text: String) {
     (getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(ClipData.newPlainText(label, text))
 }
 
-/** Header of an editor page: back arrow, title and a Save action. */
 @Composable
 private fun EditorBar(title: String, onBack: () -> Unit, onSave: () -> Unit) {
     ScreenHeader(title, onBack = onBack) { TextAction("Save", onSave) }
@@ -650,7 +642,6 @@ private fun AppIcon(pkg: String) {
 
 private const val KILL_SWITCH_HELP_URL = "https://developer.android.com/develop/connectivity/vpn"
 
-/** A settings sub-page: back arrow header, scrolling content, and an optional pinned bottom area. */
 @Composable
 private fun SubPage(
     title: String?, onBack: () -> Unit,

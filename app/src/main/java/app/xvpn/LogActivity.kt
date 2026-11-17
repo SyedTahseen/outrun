@@ -7,7 +7,6 @@ import app.xvpn.ui.LogScreen
 import app.xvpn.ui.OutrunApp
 import app.xvpn.ui.setUpEdgeToEdge
 
-/** Proton's `LogActivity`: the log is a screen of its own, so it opens with the system activity transition. */
 class LogActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

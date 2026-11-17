@@ -18,7 +18,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 
-/** Quick Settings tile: tap to connect to the selected server or disconnect. */
 class OutrunTileService : TileService() {
     private var job: Job? = null
 
@@ -63,7 +62,6 @@ class OutrunTileService : TileService() {
         if (link == null || VpnService.prepare(this) != null) openApp() else OutrunVpnService.start(this, link)
     }
 
-    /** No server picked yet, or the system VPN permission is still missing: the app has to be opened first. */
     private fun openApp() {
         val intent = Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         if (Build.VERSION.SDK_INT >= 34) {

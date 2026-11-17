@@ -60,7 +60,6 @@ import kotlin.math.sin
 
 data class GeoPoint(val lon: Double, val lat: Double)
 
-/** Which Proton pin stage to draw: [PV] CountryHighlight SELECTED / CONNECTING / CONNECTED. */
 enum class MapPin { Selected, Connecting, Connected }
 
 private fun wrap(d: Double): Double { var x = d; while (x > 180) x -= 360; while (x < -180) x += 360; return x }
@@ -216,7 +215,6 @@ fun WorldMap(
     var elapsedS by remember { mutableFloatStateOf(0f) }
     LaunchedEffect(pin, to, animateOn) {
         if (!animateOn) return@LaunchedEffect
-        // [PV] the pin animation restarts whenever the highlight stage or the country changes.
         val t0 = withFrameNanos { it }
         elapsedS = 0f
         while (true) withFrameNanos { elapsedS = (it - t0) / 1_000_000_000f }
@@ -365,8 +363,6 @@ fun WorldMap(
             val north = -a * sin(latR) + z * cos(latR)
             if (depth <= 0.02) return@Canvas
             val c = Offset(size.width / 2f + cam.r * east.toFloat(), size.height * centerY - cam.r * north.toFloat())
-            // [PV] MapView.drawPins: white 12dp disc with a 6dp coloured core; connected/selected also get the 96dp -> 64dp pulsing
-            // glow bitmap behind it (map_pin_outer_*). Connecting has no glow.
             val animS = elapsedS
             val showAnim = animateOn
             val fullR = 48.dp.toPx(); val smallR = 32.dp.toPx(); val innerR = 12.dp.toPx()

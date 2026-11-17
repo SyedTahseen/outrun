@@ -4,7 +4,6 @@ import java.util.Locale
 
 private val UNITS = arrayOf("B", "KB", "MB", "GB", "TB")
 
-/** Human-readable byte count. [binary] picks 1024-based steps (subscription quotas) instead of 1000-based. */
 internal fun fmtSize(b: Long, binary: Boolean = false): String {
     val step = if (binary) 1024 else 1000
     var v = b.toDouble(); var i = 0

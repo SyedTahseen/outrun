@@ -42,24 +42,20 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.IntSize
 
-/** Durations (ms), easings and press feedback. Every animation in the app picks from here. */
 object Motion {
-    const val Fast = 120        // exits, fades out
-    const val Short = 200       // color and small state changes
-    const val Medium = 300      // layout, screen and sheet transitions
-    const val Long = 450        // hero moments (speed test, count-up)
-    const val Overlap = 90      // delay before an entering screen fades in, so it doesn't clash with the leaving one
-    const val Stagger = 70      // delay between pieces that arrive one after another
+    const val Fast = 120
+    const val Short = 200
+    const val Medium = 300
+    const val Long = 450
+    const val Overlap = 90
+    const val Stagger = 70
 
     val Standard = FastOutSlowInEasing
     val Enter = LinearOutSlowInEasing
     val Exit = FastOutLinearInEasing
 }
 
-/** How far a pressed element shrinks. Icons shrink most, large surfaces least. */
 object Press {
-    // Proton VPN gives pressed feedback with the standard Material ripple only; it never scales pressed elements.
-    // Kept as tokens (at 1f) so every call site stays valid; raise a value to bring the shrink effect back.
     const val Icon = 1f
     const val Control = 1f
     const val Card = 1f
@@ -67,14 +63,12 @@ object Press {
 
 @Composable
 fun AppIndication(content: @Composable () -> Unit) {
-    val indication = remember { ripple() }   // default colour = LocalContentColor (white on dark, near-black on light)
+    val indication = remember { ripple() }
     CompositionLocalProvider(LocalIndication provides indication, content = content)
 }
 
 @Composable
 fun rememberTick(strong: Boolean = false): () -> Unit {
-    // Proton VPN adds no custom haptics to taps, selections or switches (only the custom-DNS list reorders with a tick),
-    // so the tick is a no-op. Re-enable by restoring LocalHapticFeedback here.
     return remember(strong) { {} }
 }
 
@@ -105,11 +99,6 @@ fun Modifier.pressable(
         )
 }
 
-/**
- * Screen / page / tab changes. Proton VPN uses Navigation Compose's default for every top-level and settings
- * destination (BaseNav.NavigationTransition.DefaultFade): a plain 700 ms cross-fade, no sliding.
- * Signature kept so the call sites in MainActivity and MenuScreen are unchanged; [forward] and [distance] are ignored.
- */
 @Suppress("UNUSED_PARAMETER")
 fun axisTransition(forward: Boolean, distance: Float = 0f): ContentTransform = ContentTransform(
     fadeIn(tween(700)), fadeOut(tween(700)), 0f, SizeTransform(clip = false),
@@ -122,10 +111,6 @@ fun fadeTransition(): ContentTransform = ContentTransform(
     SizeTransform(clip = false),
 )
 
-/**
- * Home status changes. Proton (rememberVpnStateAnimationProgress): a 500 ms fade only for Connecting -> Connected,
- * every other change snaps, and the layout never animates its size.
- */
 fun statusTransition(slowFade: Boolean): ContentTransform = ContentTransform(
     if (slowFade) fadeIn(tween(500)) else EnterTransition.None,
     ExitTransition.None,

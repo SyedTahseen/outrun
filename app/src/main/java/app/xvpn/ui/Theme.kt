@@ -26,18 +26,15 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.graphics.toArgb
 
-/** Root of every activity: scales the layout to the device, then applies the theme. */
 @Composable
 fun OutrunApp(content: @Composable () -> Unit) {
     DesignScale { OutrunTheme(content) }
 }
 
-/** Material theme built from the app's own tokens, so any stock Material component that slips in looks like the rest of the app. */
 @Composable
 fun OutrunTheme(content: @Composable () -> Unit) {
-    val dark = AppTheme.isDark(isSystemInDarkTheme())   // Settings > Theme: Light / Dark / Device theme
+    val dark = AppTheme.isDark(isSystemInDarkTheme())
     Palette.dark = dark
-    // Re-apply the system bars when the user changes the theme while the app is open.
     val activity = LocalContext.current as? ComponentActivity
     val firstRun = remember { booleanArrayOf(true) }
     LaunchedEffect(dark) { if (firstRun[0]) firstRun[0] = false else activity?.applySystemBars(dark) }
@@ -85,21 +82,14 @@ fun OutrunTheme(content: @Composable () -> Unit) {
     }
 }
 
-/**
- * Proton VPN lays out in real dp and honours the system font scale; it does not rescale density to a reference width.
- * This used to force "shortest side = 360dp" and fontScale = 1, which made every size differ from Proton on any
- * device that is not 360dp wide. Kept as a pass-through so the call site (and the history) stays obvious.
- */
 @Composable
 internal fun DesignScale(content: @Composable () -> Unit) = content()
 
-/** The user's theme choice (Settings > Theme), mirroring Proton's ThemeType: Device theme / Light / Dark. */
 object AppTheme {
     const val SYSTEM = "system"
     const val LIGHT = "light"
     const val DARK = "dark"
 
-    /** Snapshot state, so changing it recomposes the whole app at once, without recreating the activity. */
     var mode by mutableStateOf(SYSTEM)
         private set
 
@@ -116,7 +106,6 @@ object AppTheme {
 private fun Context.systemDark() =
     (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES
 
-/** Transparent system bars drawn over the app background; shared by every activity. */
 internal fun ComponentActivity.setUpEdgeToEdge(navigationBarFromBg: Boolean = false) {
     AppTheme.load(this)
     val dark = AppTheme.isDark(systemDark())
@@ -133,11 +122,9 @@ internal fun ComponentActivity.applySystemBars(dark: Boolean, navigationBarFromB
     window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(C.Bg.toArgb()))
 }
 
-/** Version name from the manifest, or null if it can't be read. */
 internal fun Context.appVersionName(): String? =
     runCatching { packageManager.getPackageInfo(packageName, 0).versionName }.getOrNull()
 
-/** Tells the parent whether the page is scrolled (it tints the status strip), and resets that when the page leaves. */
 @Composable
 internal fun ReportScrolled(scrolled: Boolean, onScrolledChange: (Boolean) -> Unit) {
     LaunchedEffect(scrolled) { onScrolledChange(scrolled) }

@@ -5,7 +5,6 @@ import java.net.InetSocketAddress
 import java.net.Proxy
 import java.net.URL
 
-/** Opens [url], optionally through the local SOCKS proxy on [socksPort] (0 = direct). Callers must disconnect. */
 internal fun openConnection(url: String, socksPort: Int = 0, timeoutMs: Int = 8000): HttpURLConnection {
     val u = URL(url)
     val c = (if (socksPort > 0) u.openConnection(Proxy(Proxy.Type.SOCKS, InetSocketAddress("127.0.0.1", socksPort)))

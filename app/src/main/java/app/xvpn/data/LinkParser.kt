@@ -15,7 +15,6 @@ data class Profile(
 )
 
 object LinkParser {
-    /** Canonical protocol name for a share link, or null when the scheme isn't supported. */
     fun protocolOf(link: String): String? = when {
         link.startsWith("vless://") -> "vless"
         link.startsWith("trojan://") -> "trojan"

@@ -27,7 +27,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.withContext
 
-/** The app's own recent log output (apps can only read their own entries). */
 private suspend fun readLogs(): List<String> = withContext(Dispatchers.IO) {
     runCatching {
         val p = ProcessBuilder("logcat", "-d", "-t", "400", "-v", "time").redirectErrorStream(true).start()
@@ -37,7 +36,6 @@ private suspend fun readLogs(): List<String> = withContext(Dispatchers.IO) {
     }.getOrElse { listOf("Couldn't read logs: ${it.message}") }
 }
 
-/** [PV] LogActivity: its own screen (back arrow, "Log", share). Lines stream in and the list stays at the bottom unless the user scrolled up. */
 @Composable
 fun LogScreen(info: String, onBack: () -> Unit) {
     val ctx = LocalContext.current

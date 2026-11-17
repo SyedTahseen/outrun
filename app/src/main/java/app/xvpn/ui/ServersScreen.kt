@@ -182,7 +182,6 @@ fun ServersScreen(
                         }
                     }
                 } else {
-                    // [PV] CollapsibleToolbarScaffold: actions on the 64dp top row, 28sp title at the bottom of the 112dp bar.
                     ScreenHeaderContent("Servers", scrolled = scrolled) {
                         IconAction(ProtonIcons.Magnifier, "Search") { searching = true }
                         Box {
@@ -241,7 +240,7 @@ fun ServersScreen(
                     }
                 }
             }
-            Row(   // [PV] FiltersRow: vertical padding 8, content padding 16, 8dp gaps
+            Row(
                 Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = Space.Gutter, vertical = Space.Sm),
                 horizontalArrangement = Arrangement.spacedBy(Space.Sm),
             ) {
@@ -274,7 +273,6 @@ fun ServersScreen(
                     )
                 } else {
                     LazyColumn(Modifier.fillMaxSize().verticalScrollbar(listState), state = listState) {
-                        // [PV] ServerGroupHeader: body2Regular textWeak, top 16 / sides 16, text padding(vertical = 8); scrolls with the list.
                         item(key = "count") {
                             Row(Modifier.padding(start = Space.Gutter, end = Space.Gutter, top = Space.Lg), verticalAlignment = Alignment.CenterVertically) {
                                 Text("All servers (", style = Type.Small, color = C.Muted, modifier = Modifier.padding(vertical = Space.Sm))
@@ -286,7 +284,6 @@ fun ServersScreen(
                                 Text(")", style = Type.Small, color = C.Muted, modifier = Modifier.padding(vertical = Space.Sm))
                             }
                         }
-                        // [PV] CountriesViewModel: Header first, then fastestCountryItem(), then the sorted countries.
                         if (query.isBlank() && f == null) item(key = "fastest") {
                             FastestRow(testing, onConnectFastest)
                         }
@@ -327,7 +324,7 @@ fun ServersScreen(
                 confirmDel = null
             },
             onDismiss = { confirmDel = null },
-        ) { Text(d.text, style = Type.Small, color = C.Text) }   // [PV] ProtonAlert text: body2Regular, textNorm
+        ) { Text(d.text, style = Type.Small, color = C.Text) }
     }
     delSub?.let { url ->
         val n = sources.count { it.value == url }
@@ -341,7 +338,6 @@ fun ServersScreen(
     if (manual) ManualDialog(onDismiss = { manual = false }, onAdd = { onAddManual(it).also { ok -> if (ok) manual = false } })
 }
 
-/** Minimal subscription bar docked above the bottom bar, on the same surface colour as the bar (Card) so it reads as part of it, not of the server list. */
 @Composable
 private fun SubscriptionBar(info: SubInfo?, host: String, onCopy: () -> Unit) {
     val now = System.currentTimeMillis()
@@ -426,11 +422,8 @@ private fun ServerRow(
 ) {
     var menu by remember { mutableStateOf(false) }
 
-    // Proton ConnectIntentBlankRow: no row highlight; the active server gets a pulsing ActiveDot after its title.
     Column(modifier.fillMaxWidth().background(C.Bg)) {
         Row(
-            // [PV] ServerGroupItemRow: min 64dp, 16dp start edge, flag area + 12dp, text column padding(vertical = 12); the trailing
-            // action sits so its icon is 16dp from the edge.
             Modifier.fillMaxWidth().clickable(onClick = onConnect).heightIn(min = Sizes.ServerRow)
                 .padding(start = Space.Gutter, end = Space.Xs),
             verticalAlignment = Alignment.CenterVertically,
@@ -459,7 +452,6 @@ private fun ServerRow(
     }
 }
 
-/** [PV] "Fastest country" row (CountryId.fastest): same layout as a country row, Proton's green fastest flag, title only, hairline divider. */
 @Composable
 private fun FastestRow(testing: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
     Column(modifier.fillMaxWidth().background(C.Bg)) {
@@ -472,7 +464,6 @@ private fun FastestRow(testing: Boolean, onClick: () -> Unit, modifier: Modifier
             Spacer(Modifier.width(Space.Md))
             Column(Modifier.weight(1f).padding(vertical = Space.Md)) {
                 Text("Fastest server", style = Type.Body, color = C.Text, maxLines = 1)
-                // Proton shows no description on this row; only a short status while the latency test runs.
                 if (testing) Text("Testing servers…", style = Type.Caption, color = C.Muted, maxLines = 1)
             }
         }

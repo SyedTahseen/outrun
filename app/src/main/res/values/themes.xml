@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Window background matches the Compose background from the first frame: no flash before Compose draws. Light by default, dark in values-night. -->
     <style name="Theme.Outrun" parent="@android:style/Theme.Material.Light.NoActionBar">
         <item name="android:windowBackground">@color/outrun_bg</item>
         <item name="android:statusBarColor">@color/transparent</item>

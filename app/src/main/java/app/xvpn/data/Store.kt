@@ -37,7 +37,6 @@ object Choices {
         TestUrlOption("cloudflare", "Cloudflare", "https://cp.cloudflare.com/generate_204"),
         TestUrlOption("apple", "Apple", "https://captive.apple.com/"),
     )
-    /** NetShield: DNS-level blocking of ads, trackers and malware (AdGuard DNS). [adult] also blocks adult content (AdGuard family). */
     fun netShieldDns(adult: Boolean): List<String> =
         if (adult) listOf("94.140.14.15", "94.140.15.16") else listOf("94.140.14.14", "94.140.15.15")
 
@@ -64,7 +63,6 @@ object Choices {
         if (!ok) return null
         return if (prefix == max) addr else "$addr/$prefix"
     }
-    /** One DNS server address (IPv4 or IPv6, no prefix length), or null when [text] isn't one. */
     fun parseDnsAddress(text: String): String? = parseIp(text)?.takeIf { '/' !in it }
 
     fun parseDns(text: String): List<String> = text.split(',', ' ', ';', '\n').map { it.trim() }.filter { it.isNotEmpty() }
@@ -181,7 +179,6 @@ class Store(context: Context) {
     var ipv6Mode: String
         get() = prefs.getString("ipv6_mode", "tunnel") ?: "tunnel"
         set(v) = prefs.edit().putString("ipv6_mode", v).apply()
-    /** "system", "light" or "dark". */
     var themeMode: String
         get() = prefs.getString("theme_mode", "system") ?: "system"
         set(v) = prefs.edit().putString("theme_mode", v).apply()
@@ -189,7 +186,6 @@ class Store(context: Context) {
         get() = prefs.getBoolean("auto_update_subs", true)
         set(v) = prefs.edit().putBoolean("auto_update_subs", v).apply()
 
-    /** NetShield on: ad / tracker / malware blocking through filtering DNS servers. Overrides the DNS choice while connected. */
     var netShield: Boolean
         get() = prefs.getBoolean("netshield", false)
         set(v) = prefs.edit().putBoolean("netshield", v).apply()
@@ -197,7 +193,6 @@ class Store(context: Context) {
         get() = prefs.getBoolean("block_adult", false)
         set(v) = prefs.edit().putBoolean("block_adult", v).apply()
 
-    /** Keep private networks (192.168.x.x, 10.x.x.x ...) outside the tunnel so printers, Chromecast and NAS stay reachable. */
     var lanAccess: Boolean
         get() = prefs.getBoolean("lan_access", false)
         set(v) = prefs.edit().putBoolean("lan_access", v).apply()
@@ -206,33 +201,27 @@ class Store(context: Context) {
         get() = prefs.getInt("mtu", Choices.MTU_DEFAULT).coerceIn(1280, 1500)
         set(v) = prefs.edit().putInt("mtu", v.coerceIn(1280, 1500)).apply()
 
-    /** Most recently connected servers, newest first (max 10). */
     fun recentLinks(): List<String> = lines("recents")
 
     fun pushRecent(link: String) = putLines("recents", (listOf(link) + recentLinks().filter { it != link }).take(10))
 
-    /** Custom DNS switch. Until the user touches it, it follows the legacy DNS choice (anything other than the default Cloudflare = on). */
     var customDnsEnabled: Boolean
         get() = if (prefs.contains("cdns_on")) prefs.getBoolean("cdns_on", false) else dnsChoice != "cloudflare"
         set(v) = prefs.edit().putBoolean("cdns_on", v).apply()
 
-    /** The user's own DNS servers, in the order they are tried (IPv4 or IPv6). Migrates the legacy preset / custom choice. */
     var customDnsList: List<String>
         get() = if (prefs.contains("cdns_list")) lines("cdns_list") else
             if (dnsChoice == "custom") Choices.parseDns(dnsCustom)
             else Choices.dns.firstOrNull { it.id == dnsChoice && it.id != "cloudflare" }?.servers ?: emptyList()
         set(v) = putLines("cdns_list", v)
 
-    /** Custom DNS servers that will actually be used: switch on, list not empty, IPv6 addresses dropped while IPv6 is blocked. */
     fun customDnsEffective(): List<String> =
         if (customDnsEnabled) customDnsList.filter { ipv6Mode != "block" || ':' !in it } else emptyList()
 
-    /** DNS the VPN uses. Custom DNS wins; otherwise NetShield's filtering DNS when it is on; otherwise the default resolver. */
     fun dnsServers(): List<String> = customDnsEffective().ifEmpty {
         if (netShield) Choices.netShieldDns(blockAdult) else Choices.dns.first().servers
     }
 
-    /** Resolver sing-box itself uses for the proxy server's hostname: the custom / default DNS, never the NetShield filter, IPv4 first. */
     fun resolverDns(): String {
         val list = customDnsEffective().ifEmpty { Choices.dns.first().servers }
         return list.firstOrNull { ':' !in it } ?: list.first()

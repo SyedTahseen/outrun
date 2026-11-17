@@ -21,13 +21,11 @@ import app.xvpn.vpn.OutrunVpnService
 import app.xvpn.vpn.Status
 import app.xvpn.vpn.VpnState
 
-/** Home-screen widget: shows the VPN state and server, and has a power button to connect / disconnect. */
 class OutrunWidget : AppWidgetProvider() {
     override fun onUpdate(context: Context, manager: AppWidgetManager, appWidgetIds: IntArray) {
         appWidgetIds.forEach { manager.updateAppWidget(it, build(context, manager, it)) }
     }
 
-    /** Called by the launcher while the widget is being resized, so the layout can adapt to the new size. */
     override fun onAppWidgetOptionsChanged(
         context: Context, manager: AppWidgetManager, appWidgetId: Int, newOptions: Bundle,
     ) {
@@ -42,12 +40,10 @@ class OutrunWidget : AppWidgetProvider() {
     companion object {
         const val ACTION_TOGGLE = "app.xvpn.widget.TOGGLE"
 
-        // The widget art is always dark (own design), so it uses the dark values of the app palette regardless of the system theme.
-        private val GREEN = 0xFF2CFFCC.toInt()   // vpnGreen (dark)
-        private val AMBER = 0xFFFFB84D.toInt()   // notificationWarning (dark)
+        private val GREEN = 0xFF2CFFCC.toInt()
+        private val AMBER = 0xFFFFB84D.toInt()
         private val WHITE = Color.WHITE
 
-        /** Re-draws every placed widget from the current [VpnState]. Safe to call from any thread. */
         fun refresh(context: Context) {
             val app = context.applicationContext
             val manager = AppWidgetManager.getInstance(app)
@@ -57,7 +53,6 @@ class OutrunWidget : AppWidgetProvider() {
         }
 
         private fun build(ctx: Context, manager: AppWidgetManager, widgetId: Int): RemoteViews {
-            // Current size of this widget in dp (portrait min-height is the safe lower bound).
             val heightDp = manager.getAppWidgetOptions(widgetId)
                 .getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 0)
             val compact = heightDp in 1..64
@@ -83,7 +78,6 @@ class OutrunWidget : AppWidgetProvider() {
             val views = RemoteViews(ctx.packageName, R.layout.widget_outrun)
             views.setTextViewText(R.id.widget_title, title)
             views.setTextViewText(R.id.widget_sub, sub)
-            // Very short (1-row) widgets: hide the server line so nothing is clipped.
             views.setViewVisibility(R.id.widget_sub, if (compact) View.GONE else View.VISIBLE)
             views.setImageViewResource(
                 R.id.widget_art,
@@ -95,7 +89,6 @@ class OutrunWidget : AppWidgetProvider() {
             )
 
             views.setOnClickPendingIntent(R.id.widget_root, openApp(ctx, 0))
-            // Without a server or the system VPN permission the app has to be opened first.
             val needsApp = status == Status.Disconnected && (profile == null || VpnService.prepare(ctx) != null)
             views.setOnClickPendingIntent(
                 R.id.widget_power,

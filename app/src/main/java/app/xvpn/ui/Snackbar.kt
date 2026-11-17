@@ -16,14 +16,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.shape.RoundedCornerShape
 import kotlinx.coroutines.flow.MutableSharedFlow
 
-/** Proton ProtonSnackbarType: the fill colour carries the meaning. */
 enum class SnackType { Success, Warning, Error, Norm }
 
-/**
- * Replaces android.widget.Toast everywhere. Proton VPN never uses system toasts: it shows a [ProtonSnackbar]
- * (solid status fill, shapes.medium, 12dp margin, body2Regular text in textInverted).
- * Call [Snack.show] from anywhere; [AppSnackbarHost] (placed once in MainActivity) displays it.
- */
 object Snack {
     internal val events = MutableSharedFlow<Pair<String, SnackType>>(extraBufferCapacity = 8)
     fun show(message: String, type: SnackType = SnackType.Norm) { events.tryEmit(message to type) }
@@ -35,7 +29,7 @@ private data class AppSnackVisuals(
 ) : SnackbarVisuals {
     override val actionLabel: String? = null
     override val withDismissAction: Boolean = false
-    override val duration: SnackbarDuration = SnackbarDuration.Short   // [PV] no action -> Short
+    override val duration: SnackbarDuration = SnackbarDuration.Short
 }
 
 @Composable
@@ -53,16 +47,16 @@ fun AppSnackbarHost(modifier: Modifier = Modifier) {
 @Composable
 private fun AppSnackbar(data: SnackbarData) {
     val container: Color = when ((data.visuals as? AppSnackVisuals)?.type) {
-        SnackType.Success -> C.SuccessSolid   // [PC] notificationSuccess (dark)
-        SnackType.Warning -> C.Amber          // [PC] notificationWarning
-        SnackType.Error -> C.Red              // [PC] notificationError
-        else -> C.Text                        // [PC] notificationNorm = shade100
+        SnackType.Success -> C.SuccessSolid
+        SnackType.Warning -> C.Amber
+        SnackType.Error -> C.Red
+        else -> C.Text
     }
     Snackbar(
-        modifier = Modifier.padding(Space.Md),                 // [PV] ProtonSnackbar: padding(12.dp)
-        shape = RoundedCornerShape(Radius.Control),            // [PV] shapes.medium
+        modifier = Modifier.padding(Space.Md),
+        shape = RoundedCornerShape(Radius.Control),
         containerColor = container,
-        contentColor = C.Inverted,                             // [PV] textInverted = shade0 (Cinder)
-        content = { Text(data.visuals.message, style = Type.Small) },   // [PV] defaultSmallUnspecified = body2Regular
+        contentColor = C.Inverted,
+        content = { Text(data.visuals.message, style = Type.Small) },
     )
 }

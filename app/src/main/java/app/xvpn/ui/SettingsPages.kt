@@ -58,22 +58,14 @@ import app.xvpn.R
 import app.xvpn.data.Choices
 import kotlin.math.min
 
-// Pages of Settings that Proton builds as "feature" screens (SplitTunneling.kt, KillSwitchInfo.kt, ThemeSettings.kt,
-// FeatureSubSetting.kt, SettingsFeatureToggle.kt).
-
-/** Fraction (0..1) of the in-page title that has scrolled out of view: the top bar title fades in as it goes. [FeatureSubSettingScaffold] */
 private fun titleVisibilityFraction(state: LazyListState, titleItemIndex: Int): Float {
     val info = state.layoutInfo.visibleItemsInfo.take(titleItemIndex + 1).firstOrNull { it.index == titleItemIndex }
     return if (info != null && info.size > 0) {
         val size = info.size.toFloat()
-        1f - min(size, size + info.offset.toFloat()) / size   // offset goes negative as the item leaves the top
+        1f - min(size, size + info.offset.toFloat()) / size
     } else if (state.firstVisibleItemIndex == 0) 0f else 1f
 }
 
-/**
- * [PV] FeatureSubSettingScaffold: a top bar whose title is hidden until the in-page title (list item 1) has scrolled away,
- * and which turns into the Card colour once the list is scrolled.
- */
 @Composable
 fun FeaturePage(
     title: String,
@@ -99,7 +91,6 @@ fun FeaturePage(
     }
 }
 
-/** [PV] addFeatureSettingItems: image, title (list item 1), description. */
 fun LazyListScope.featureHeader(imageRes: Int, title: String, description: String) {
     item {
         Image(painterResource(imageRes), null, Modifier.padding(start = Space.Gutter, end = Space.Gutter, top = Space.Lg))
@@ -115,7 +106,6 @@ fun LazyListScope.featureHeader(imageRes: Int, title: String, description: Strin
     }
 }
 
-/** [PV] SettingsFeatureToggle: Card fill, 16dp shape, 20x16 padding, body text + switch; the whole row toggles. */
 @Composable
 fun FeatureToggle(label: String, checked: Boolean, modifier: Modifier = Modifier, onChange: (Boolean) -> Unit) {
     Row(
@@ -130,7 +120,6 @@ fun FeatureToggle(label: String, checked: Boolean, modifier: Modifier = Modifier
     }
 }
 
-/** Value text of a split tunneling row. [PV] formatSplitTunnelingItems */
 private fun formatItems(items: List<String>): String = when (items.size) {
     0 -> "None"
     1 -> items[0]
@@ -156,7 +145,6 @@ fun SplitTunnelingPage(
         }
         if (on) {
             item {
-                // [PV] SettingRow: title + 4dp + value, no icon. Opens the Mode dialog.
                 SettingRow("Mode", if (including) "Include" else "Exclude", Modifier.animateItem()) { modeDialog = true }
             }
             item { ListRow(ProtonIcons.Mobile, "$word apps", formatItems(appNames), onClick = onApps) }
@@ -178,7 +166,6 @@ fun SplitTunnelingPage(
     }
 }
 
-/** [PV] SettingRow: a settings row without an icon, with an optional value under the title. */
 @Composable
 fun SettingRow(title: String, value: String? = null, modifier: Modifier = Modifier, onClick: () -> Unit) {
     Column(modifier.fillMaxWidth().clip(RoundedCornerShape(Radius.Control)).clickable(onClick = onClick).padding(Space.Lg)) {
@@ -190,7 +177,6 @@ fun SettingRow(title: String, value: String? = null, modifier: Modifier = Modifi
     }
 }
 
-/** [PV] KillSwitchInfo. */
 @Composable
 fun KillSwitchPage(onBack: () -> Unit, onOpenVpnSettings: () -> Unit, onLearnMore: () -> Unit) {
     val bold = SpanStyle(fontWeight = FontWeight.Bold)
@@ -240,7 +226,6 @@ fun KillSwitchPage(onBack: () -> Unit, onOpenVpnSettings: () -> Unit, onLearnMor
     }
 }
 
-/** [PV] TextBulletRow. */
 @Composable
 private fun Bullet(text: String) {
     Row {
@@ -249,7 +234,6 @@ private fun Bullet(text: String) {
     }
 }
 
-/** [PV] ThemeSettings: three picture + radio tiles in a row: Light, Dark, Device theme. */
 @Composable
 fun ThemePage(selected: String, onSelect: (String) -> Unit, onBack: () -> Unit) {
     Column(Modifier.fillMaxSize()) {
@@ -279,10 +263,6 @@ private fun ThemeTile(label: String, imageRes: Int, selected: Boolean, modifier:
     }
 }
 
-
-// ------------------------------------------------------------------ Advanced settings rows
-
-/** [PV] SettingsItemScaffold: 16dp padding, title (body1) + 16dp + description (body2, weak). */
 @Composable
 private fun SettingsItemScaffold(
     modifier: Modifier, description: String?,
@@ -297,7 +277,6 @@ private fun SettingsItemScaffold(
     }
 }
 
-/** [PV] SettingsValueItem: title with the current value and a chevron at the end, description below; opens a sub-page. */
 @Composable
 fun SettingsValueItem(name: String, value: String, description: String?, onClick: () -> Unit) {
     SettingsItemScaffold(Modifier.clickable(onClick = onClick), description) {
@@ -309,7 +288,6 @@ fun SettingsValueItem(name: String, value: String, description: String?, onClick
     }
 }
 
-/** [PV] SettingsToggleItem: title with a switch at the end, description below; the whole row toggles. */
 @Composable
 fun SettingsToggleItem(name: String, checked: Boolean, description: String?, onToggle: (Boolean) -> Unit) {
     SettingsItemScaffold(Modifier.toggleable(value = checked, onValueChange = onToggle, role = Role.Switch), description) {
@@ -320,7 +298,6 @@ fun SettingsToggleItem(name: String, checked: Boolean, description: String?, onT
     }
 }
 
-/** [PV] LanSetting: feature page with the picture, title, description and the switch. */
 @Composable
 fun LanPage(on: Boolean, onOn: (Boolean) -> Unit, onBack: () -> Unit, onScrolledChange: (Boolean) -> Unit) {
     FeaturePage("LAN connections", onBack, onScrolledChange) {
@@ -339,10 +316,6 @@ fun LanPage(on: Boolean, onOn: (Boolean) -> Unit, onBack: () -> Unit, onScrolled
     }
 }
 
-/**
- * [PV] CustomDnsScreen: feature page with the switch; when on, "Servers (n)", the list (reorder, remove) and an "Add new DNS server"
- * button pinned at the bottom. Servers are tried in the order shown.
- */
 @Composable
 fun CustomDnsPage(
     on: Boolean, servers: List<String>, netShieldConflict: Boolean,
@@ -405,7 +378,6 @@ fun CustomDnsPage(
     }
 }
 
-/** [PV] AddNewDnsScreen: text field with an Add button beside it, assistive text or the error below. */
 @Composable
 fun AddDnsPage(existing: List<String>, onAdd: (String) -> Unit, onBack: () -> Unit) {
     var text by remember { mutableStateOf("") }

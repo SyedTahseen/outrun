@@ -62,12 +62,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 
-// ------------------------------------------------------------------ surfaces
-
-/**
- * The one card. Flat Card fill, Radius.Card; [bordered] adds the 1dp Border (only the selected-server card on Home uses it). With [onClick] it also ripples and shrinks when pressed.
- * Use padding = 0.dp when the content is a list of rows that bring their own padding.
- */
 @Composable
 fun AppCard(
     modifier: Modifier = Modifier,
@@ -90,14 +84,11 @@ fun AppCard(
     )
 }
 
-/** Proton TranslucentSurfaceBorder: 1dp vertical gradient, shade100 8% -> 2%, for surfaces floating over the map. */
 fun Modifier.translucentBorder(shape: androidx.compose.ui.graphics.Shape): Modifier =
-    border(1.dp, Brush.verticalGradient(listOf(C.Text.copy(alpha = 0.08f), C.Text.copy(alpha = 0.02f))), shape)   // [PV] shade100 @ 8% -> 2%
+    border(1.dp, Brush.verticalGradient(listOf(C.Text.copy(alpha = 0.08f), C.Text.copy(alpha = 0.02f))), shape)
 
-/** Hairline between rows (Proton VpnDivider: separatorNorm, Dp.Hairline). */
 @Composable
 fun HairlineDivider(modifier: Modifier = Modifier) {
-    // [PV] VpnDivider. Modifier.height(Dp.Hairline) resolves to 0px (only HorizontalDivider maps Hairline to 1px), so use it.
     HorizontalDivider(modifier, thickness = Dp.Hairline, color = C.Border)
 }
 
@@ -116,10 +107,6 @@ fun AppProgressBar(fraction: Float, color: Color, modifier: Modifier = Modifier)
     }
 }
 
-/**
- * Country flag as Proton draws it (ConnectIntentIcon `singleFlag`): a 30x20dp flag with 4dp corners, centred in a
- * 30x30dp area. A globe when the server has no known country.
- */
 @Composable
 fun FlagBadge(name: String?) {
     val res = name?.let { Flags.iso(it) }?.let { FLAG_RES[it] }
@@ -134,7 +121,6 @@ fun FlagBadge(name: String?) {
     }
 }
 
-/** [PV] ConnectIntentIcon for CountryId.fastest: Proton's flag_fastest in the 30x30 flag area. Light: green flag, white bolt. Dark (drawable-night): mint flag, dark bolt; chosen by the in-app theme. */
 @Composable
 fun FastestFlag() {
     Box(Modifier.size(Sizes.FlagArea), contentAlignment = Alignment.Center) {
@@ -142,22 +128,12 @@ fun FastestFlag() {
     }
 }
 
-// ------------------------------------------------------------------ headers
-
-/**
- * Background of a screen header. It is the page color, and turns into the Card color once the page below is scrolled,
- * which also tints the status bar strip (see MainActivity).
- */
 @Composable
 fun HeaderSurface(scrolled: Boolean = false, content: @Composable ColumnScope.() -> Unit) {
     val bg by animateColorAsState(if (scrolled) C.Header else C.Bg, tween(Motion.Medium), label = "headerSurface")
     Column(Modifier.fillMaxWidth().background(bg), content = content)
 }
 
-/**
- * The 64dp app-bar row (Material 3 TopAppBar, as Proton's SimpleTopAppBar). [backEdge]: the first item is a 48dp back
- * button, so the row starts 4dp from the edge instead of the 16dp gutter.
- */
 @Composable
 fun HeaderBar(backEdge: Boolean = false, content: @Composable RowScope.() -> Unit) {
     Row(
@@ -167,13 +143,6 @@ fun HeaderBar(backEdge: Boolean = false, content: @Composable RowScope.() -> Uni
     )
 }
 
-/**
- * Standard screen header, following Proton's two app bars.
- *  - Sub-page ([onBack] set): Material 3 TopAppBar. 64dp, back button, 16sp Medium title (SimpleTopAppBar / body1Medium).
- *  - Top-level screen: Material 3 MediumTopAppBar (CollapsibleToolbarScaffold). 112dp with a 28sp title at the bottom; once the
- *    page is [scrolled] it collapses to 64dp with a 16sp title. The background goes Bg -> Card at the same moment.
- * [actions] sit at the end of the first 64dp row.
- */
 @Composable
 fun ScreenHeader(
     title: String?,
@@ -185,7 +154,6 @@ fun ScreenHeader(
     HeaderSurface(scrolled) { ScreenHeaderContent(title, onBack, scrolled, titleTrailing, actions) }
 }
 
-/** The bar of [ScreenHeader] without its background, for screens that put more content (filters) under the same surface. */
 @Composable
 fun ScreenHeaderContent(
     title: String?,
@@ -238,28 +206,21 @@ fun ScreenHeaderContent(
     }
 }
 
-/** Accent heading above a group of rows or a card. [first] uses the tighter spacing at the top of a page. */
 @Composable
 fun SectionHeader(text: String, modifier: Modifier = Modifier, first: Boolean = false, horizontal: Dp = Space.Gutter) {
     Text(
         text, style = Type.Section, color = C.Accent,
-        modifier = modifier.padding(start = horizontal, end = horizontal, top = Space.Xxl, bottom = Space.Sm), // Proton SettingsSectionHeading: top 24, bottom 8 (first = same)
+        modifier = modifier.padding(start = horizontal, end = horizontal, top = Space.Xxl, bottom = Space.Sm),
     )
 }
 
-/** Small muted label above a form control (no horizontal padding; the parent provides the gutter). */
 @Composable
 fun FieldLabel(text: String, modifier: Modifier = Modifier) {
     Text(text, style = Type.SmallMedium, color = C.Muted, modifier = modifier.padding(top = Space.Xl, bottom = Space.Sm))
 }
 
-// ------------------------------------------------------------------ rows
-
-/** Settings-style row: icon, title, optional second line, optional "opens elsewhere" arrow. */
 @Composable
 fun ListRow(icon: ImageVector, title: String, subtitle: String? = null, external: Boolean = false, onClick: () -> Unit) {
-    // [PV] SettingRow / SettingRowWithIcon: 8dp clipped ripple, 16dp padding all round, icon centred in a 32dp box + 16dp gap,
-    // title body1Regular, value/subtitle defaultWeak (16sp) 6dp below, top-aligned when there is a subtitle.
     Row(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(Radius.Control)).clickable(onClick = onClick).padding(Space.Lg),
         verticalAlignment = if (subtitle != null) Alignment.Top else Alignment.CenterVertically,
@@ -275,7 +236,6 @@ fun ListRow(icon: ImageVector, title: String, subtitle: String? = null, external
     }
 }
 
-/** Radio row: a choice with a title and an explanation. */
 @Composable
 fun ChoiceRow(label: String, note: String, selected: Boolean, onClick: () -> Unit) {
     Row(
@@ -292,7 +252,6 @@ fun ChoiceRow(label: String, note: String, selected: Boolean, onClick: () -> Uni
     }
 }
 
-/** Card of label / value rows separated by hairlines. */
 @Composable
 fun DetailCard(items: List<Pair<String, String>>, modifier: Modifier = Modifier) {
     AppCard(modifier, padding = 0.dp) {
@@ -307,7 +266,6 @@ fun DetailCard(items: List<Pair<String, String>>, modifier: Modifier = Modifier)
     }
 }
 
-/** Card with a switch; the whole card toggles. */
 @Composable
 fun SwitchCard(label: String, checked: Boolean, modifier: Modifier = Modifier, onChange: (Boolean) -> Unit) {
     AppCard(modifier.padding(horizontal = Space.Gutter), padding = 0.dp, onClick = { onChange(!checked) }) {
@@ -321,9 +279,6 @@ fun SwitchCard(label: String, checked: Boolean, modifier: Modifier = Modifier, o
     }
 }
 
-// ------------------------------------------------------------------ page furniture
-
-/** Tinted rounded tile with an icon, at the top of a settings page. */
 @Composable
 fun HeroIcon(icon: ImageVector, size: Dp = Sizes.Tile, centered: Boolean = false, tint: Color = C.Accent) {
     Box(Modifier.fillMaxWidth().padding(horizontal = Space.Gutter), contentAlignment = if (centered) Alignment.Center else Alignment.CenterStart) {
@@ -343,12 +298,6 @@ fun PageHeading(title: String, text: String) {
     }
 }
 
-// ------------------------------------------------------------------ dialogs and menus
-
-/**
- * The one dialog. Title, free content, and right-aligned text actions. [confirmLabel] = null hides the confirm action,
- * [dismissLabel] = null hides the dismiss action.
- */
 @Composable
 fun AppDialog(
     title: String,
@@ -360,7 +309,6 @@ fun AppDialog(
     content: @Composable ColumnScope.() -> Unit = {},
 ) {
     Dialog(onDismissRequest = onDismiss) {
-        // Laid out at full size from the first frame (so the window is centered immediately); only alpha/scale animate.
         val enter = remember { Animatable(0f) }
         LaunchedEffect(Unit) { enter.animateTo(1f, tween(Motion.Short, easing = Motion.Enter)) }
         val shape = RoundedCornerShape(Radius.Sheet)
@@ -369,19 +317,18 @@ fun AppDialog(
                 .graphicsLayer { alpha = enter.value; scaleX = 0.92f + 0.08f * enter.value; scaleY = 0.92f + 0.08f * enter.value }
                 .clip(shape).background(C.Card).padding(Space.Xxl),
         ) {
-            Text(title, style = Type.Heading, color = C.Text)   // [PV] ProtonAlert title: headlineNorm
+            Text(title, style = Type.Heading, color = C.Text)
             Spacer(Modifier.height(Space.Lg))
             content()
             Spacer(Modifier.height(Space.Xxl))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                if (dismissLabel != null) TextAction(dismissLabel, onDismiss)   // [PV] ProtonDialogButton: textAccent for both actions
+                if (dismissLabel != null) TextAction(dismissLabel, onDismiss)
                 if (confirmLabel != null) TextAction(confirmLabel, onConfirm, color = confirmColor)
             }
         }
     }
 }
 
-/** Popup menu. Floating surface: the only place besides dialogs where a shadow is used. */
 @Composable
 fun AppDropdownMenu(expanded: Boolean, onDismiss: () -> Unit, modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
     DropdownMenu(
@@ -406,7 +353,6 @@ fun AppMenuItem(
     )
 }
 
-/** A selectable entry of a menu (sort order): accent text and a check mark when chosen. */
 @Composable
 fun AppMenuChoice(label: String, selected: Boolean, onClick: () -> Unit) {
     DropdownMenuItem(
@@ -416,7 +362,6 @@ fun AppMenuChoice(label: String, selected: Boolean, onClick: () -> Unit) {
     )
 }
 
-/** First entry of a sub-menu: back arrow and the sub-menu title. */
 @Composable
 fun AppMenuHeader(title: String, onClick: () -> Unit) {
     DropdownMenuItem(
@@ -426,7 +371,6 @@ fun AppMenuHeader(title: String, onClick: () -> Unit) {
     )
 }
 
-/** Proton ActiveDot: a vpnGreen dot with an expanding, fading ping ring; marks the connected/selected row. */
 @Composable
 fun ActiveDot(modifier: Modifier = Modifier) {
     val t = androidx.compose.animation.core.rememberInfiniteTransition("activeDot")

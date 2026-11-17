@@ -1,12 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Light values; values-night/colors.xml has the dark ones. Mirrors app.xvpn.ui.C (Colors.kt) for the few places that can't use Compose: window background, home-screen widget. -->
 <resources>
     <color name="outrun_bg">#FFFFFFFF</color>
     <color name="outrun_card">#FFF5F4F2</color>
     <color name="outrun_widget_bg">#FF0A090F</color>
     <color name="outrun_text">#FF0C0C14</color>
     <color name="outrun_muted">#FF706D6B</color>
-    <!-- The widget art is always dark, whatever the system theme. -->
     <color name="widget_text">#FFFFFFFF</color>
     <color name="widget_muted">#FFA7A4B5</color>
     <color name="widget_card">#FF292733</color>

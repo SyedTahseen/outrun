@@ -49,7 +49,6 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    // kotlinOptions was removed in Kotlin 2.2; same setting via compilerOptions.
     dependenciesInfo { includeInApk = false; includeInBundle = false }
     buildFeatures { compose = true }
 }
