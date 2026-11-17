@@ -132,3 +132,24 @@ Derived, not from Proton (no light equivalent exists in either repo): `Outline`,
 - **Text-field labels**: Outrun's fields use placeholders only; error border is done (`isError`).
 - **Own design with no Proton counterpart**: speed gauge, HeroIcon tinted tiles, globe/map art, launcher icon, widget art, Speed tab.
 - `ScanActivity` still uses a system `Toast` for "No QR code found in image" (separate camera activity).
+
+## Pass 10: Home / Servers / Settings rows / bottom bar, checked against `android-app-master` (still uncompiled)
+Verified unchanged: ProtonTypography, ProtonShapes, ProtonDimens, all 55 `ic_proton_*` path data (byte-identical), system sans-serif (Proton ships no font).
+| Area | Before | Now | Source |
+|---|---|---|---|
+| Status overlay | 50% of screen height | fixed 200dp | `Home.kt` Spacer height(200.dp) |
+| Status block position | 40dp spacer, no content padding | directly under status bar, 8dp padding (connected row), max width 480dp | `VpnStatusTop`, `VpnStatusBottom` |
+| Bottom area | gradient over 40% of screen | 100dp gradient then solid Bg, first item 68dp below top | `Home.kt` RecentsList drawBehind, `ListBgGradientOffsetBasic` |
+| Card caption | 16sp, 4dp start inset | 14sp, 24dp vertical, no inset | `VpnConnectionCard` ContainerLabelRow |
+| Flag | 36x24 badge | 30x20 flag, 4dp corners, in 30x30 area | `ConnectIntentIcon` Dimensions |
+| Card info icon | chevron_right | chevron_up, iconWeak, top aligned | `OpenPanelButton` |
+| Sublabel | no gap | 2dp top padding, row top-aligned | `ConnectIntentLabels` |
+| Strings | "Connecting to...", "  ·  " | "Connecting to…", " · " | `strings.xml` |
+| Connecting text | all textNorm, 900 ms | textWeak + place in textNorm, 50 ms/char, keeps . space - | `AnimateText` |
+| Status transition | slide + scale + fade | 500 ms fade for Connecting -> Connected, snap otherwise | `rememberVpnStateAnimationProgress` |
+| Servers header | 28sp title in 64dp row | collapsing bar: actions on top row, 28sp title at bottom of 112dp | `CollapsibleToolbarScaffold` |
+| Filter chips | 16sp Medium, 20dp pad, unselected text always white | 14sp, 16dp pad, unselected textNorm (was invisible in light theme), row padding 8 | `FiltersRow` |
+| Count header | 16sp, pinned, 20dp gap | 14sp weak, top 16 + 8, scrolls with list | `ServerGroupHeader` |
+| Server row | 36dp flag + 16dp gap, vertical dots | 30dp flag area + 12dp gap, text column vertical 12, icon 16dp from edge, horizontal dots | `ServerGroupItem`, `ServerGroupItemRow` |
+| Settings row | 24dp icon + 16dp gap, 14sp subtitle, 4dp gap, min 64dp | icon in 32dp box + 16dp, 16sp subtitle, 6dp gap, 56dp natural height, 8dp rounded ripple, trailing icon end 8dp | `SettingRow`, `SettingRowWithIcon` |
+| Bottom bar | hand-built dock | stock Material 3 `NavigationBar` / `NavigationBarItem` configured as `BottomBarView` | `BottomBarView.kt` |

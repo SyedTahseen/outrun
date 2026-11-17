@@ -58,6 +58,9 @@ object Sizes {
     val IconLg = 32.dp
     val IconHero = 40.dp    // status icons on the home screen
     val Tile = 64.dp        // tinted icon tile on settings pages
+    val FlagArea = 30.dp    // [PV] ConnectIntentIcon flagAreaSize 30x30
+    val FlagWidth = 30.dp   // [PV] singleFlagSize 30x20, 4dp corners
+    val FlagHeight = 20.dp
 }
 
 /** Shadow depth. The UI is flat; only surfaces that float above the page get a shadow. */

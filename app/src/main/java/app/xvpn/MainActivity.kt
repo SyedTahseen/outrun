@@ -1,5 +1,10 @@
 package app.xvpn
 
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBar
 import android.Manifest
 import android.app.Activity
 import android.content.ClipData
@@ -436,47 +441,26 @@ private fun App() {
             enter = slideInVertically(tween(Motion.Medium, easing = Motion.Standard)) { it } + fadeIn(tween(Motion.Medium)),
             exit = slideOutVertically(tween(Motion.Medium, easing = Motion.Standard)) { it } + fadeOut(tween(Motion.Fast)),
         ) {
-            Row(
-                Modifier.fillMaxWidth().background(C.Card).navigationBarsPadding().height(Sizes.Dock),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Tab.entries.forEach { t -> DockItem(t, selected = t == tab) { tab = t } }
+            // [PV] BottomBarView: stock Material 3 NavigationBar (80dp + system inset), backgroundSecondary, no tonal elevation,
+            // textAccent @ 32% indicator over the bar, textAccent / textWeak content, captionStrong labels.
+            NavigationBar(containerColor = C.Card, tonalElevation = 0.dp) {
+                Tab.entries.forEach { t ->
+                    val selected = t == tab
+                    NavigationBarItem(
+                        selected = selected,
+                        onClick = { tab = t },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = C.Accent, unselectedIconColor = C.Muted,
+                            selectedTextColor = C.Accent, unselectedTextColor = C.Muted,
+                            indicatorColor = C.NavPill,
+                        ),
+                        icon = { Icon(t.icon(selected), contentDescription = null) },
+                        label = { Text(t.label, style = Type.Label, maxLines = 2, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center) },
+                    )
+                }
             }
         }
         // Proton shows ProtonSnackbar above the bottom bar, never a system toast.
         AppSnackbarHost(Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = dockInset).widthIn(max = Sizes.MaxContent))
-    }
-}
-
-@Composable
-private fun RowScope.DockItem(t: Tab, selected: Boolean, onClick: () -> Unit) {
-    val source = remember { MutableInteractionSource() }
-    val tick = rememberTick()
-    val tint by animateColorAsState(if (selected) C.Accent else C.Muted, tween(Motion.Medium), label = "dockTint")
-    val pillAlpha by animateFloatAsState(if (selected) 1f else 0f, tween(Motion.Medium), label = "pillAlpha")
-    val pillScale by animateFloatAsState(
-        if (selected) 1f else 0.5f, spring(dampingRatio = 0.75f, stiffness = Spring.StiffnessMediumLow), label = "pillScale",
-    )
-    val pill = RoundedCornerShape(Radius.Pill)
-    Column(
-        Modifier.weight(1f).clickable(interactionSource = source, indication = null) {
-            if (!selected) tick()
-            onClick()
-        },
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Box(
-            Modifier.width(Sizes.DockPillWidth).height(Sizes.DockPillHeight).clip(pill).indication(source, LocalIndication.current),
-            contentAlignment = Alignment.Center,
-        ) {
-            Box(
-                Modifier.matchParentSize().graphicsLayer { scaleX = pillScale; alpha = pillAlpha }.background(C.NavPill, pill),
-            )
-            Icon(
-                t.icon(selected), t.label, tint = tint,
-                modifier = Modifier.size(Sizes.Icon),
-            )
-        }
-        Text(t.label, style = Type.Label, color = tint)
     }
 }

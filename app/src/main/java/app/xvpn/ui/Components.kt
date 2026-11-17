@@ -113,16 +113,21 @@ fun AppProgressBar(fraction: Float, color: Color, modifier: Modifier = Modifier)
     }
 }
 
-/** Country flag in a 36x24 badge; a globe when the server has no known country. */
+/**
+ * Country flag as Proton draws it (ConnectIntentIcon `singleFlag`): a 30x20dp flag with 4dp corners, centred in a
+ * 30x30dp area. A globe when the server has no known country.
+ */
 @Composable
 fun FlagBadge(name: String?) {
     val res = name?.let { Flags.iso(it) }?.let { FLAG_RES[it] }
-    Box(
-        Modifier.size(width = 36.dp, height = 24.dp).clip(RoundedCornerShape(Radius.Badge)).background(C.Border),
-        contentAlignment = Alignment.Center,
-    ) {
-        if (res != null) Image(painterResource(res), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-        else Icon(ProtonIcons.Earth, null, tint = C.Muted, modifier = Modifier.size(Sizes.IconSm))
+    Box(Modifier.size(Sizes.FlagArea), contentAlignment = Alignment.Center) {
+        Box(
+            Modifier.size(width = Sizes.FlagWidth, height = Sizes.FlagHeight).clip(RoundedCornerShape(Radius.Badge)).background(C.Border),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (res != null) Image(painterResource(res), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+            else Icon(ProtonIcons.Earth, null, tint = C.Muted, modifier = Modifier.size(Sizes.IconSm))
+        }
     }
 }
 
@@ -166,7 +171,19 @@ fun ScreenHeader(
     titleTrailing: (@Composable () -> Unit)? = null,
     actions: @Composable RowScope.() -> Unit = {},
 ) {
-    HeaderSurface(scrolled) {
+    HeaderSurface(scrolled) { ScreenHeaderContent(title, onBack, scrolled, titleTrailing, actions) }
+}
+
+/** The bar of [ScreenHeader] without its background, for screens that put more content (filters) under the same surface. */
+@Composable
+fun ScreenHeaderContent(
+    title: String?,
+    onBack: (() -> Unit)? = null,
+    scrolled: Boolean = false,
+    titleTrailing: (@Composable () -> Unit)? = null,
+    actions: @Composable RowScope.() -> Unit = {},
+) {
+    run {
         if (onBack != null) {
             HeaderBar(backEdge = true) {
                 IconAction(ProtonIcons.ArrowLeft, "Back", onClick = onBack)
@@ -230,20 +247,20 @@ fun FieldLabel(text: String, modifier: Modifier = Modifier) {
 /** Settings-style row: icon, title, optional second line, optional "opens elsewhere" arrow. */
 @Composable
 fun ListRow(icon: ImageVector, title: String, subtitle: String? = null, external: Boolean = false, onClick: () -> Unit) {
+    // [PV] SettingRow / SettingRowWithIcon: 8dp clipped ripple, 16dp padding all round, icon centred in a 32dp box + 16dp gap,
+    // title body1Regular, value/subtitle defaultWeak (16sp) 6dp below, top-aligned when there is a subtitle.
     Row(
-        Modifier.fillMaxWidth().heightIn(min = Sizes.Row).clickable(onClick = onClick).padding(horizontal = Space.Gutter, vertical = Space.Lg),
-        verticalAlignment = Alignment.CenterVertically,
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(Radius.Control)).clickable(onClick = onClick).padding(Space.Lg),
+        verticalAlignment = if (subtitle != null) Alignment.Top else Alignment.CenterVertically,
     ) {
-        Icon(icon, null, tint = C.Text, modifier = Modifier.size(Sizes.Icon))
-        Spacer(Modifier.width(Space.Lg))
-        Column(Modifier.weight(1f)) {
+        Box(Modifier.padding(end = Space.Lg).width(Sizes.IconLg), contentAlignment = Alignment.Center) {
+            Icon(icon, null, tint = C.Text, modifier = Modifier.size(Sizes.Icon))
+        }
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.Center) {
             Text(title, style = Type.Body, color = C.Text)
-            if (subtitle != null) Text(subtitle, style = Type.Small, color = C.Muted, maxLines = 2, modifier = Modifier.padding(top = Space.Xs))
+            if (subtitle != null) Text(subtitle, style = Type.Body, color = C.Muted, maxLines = 2, modifier = Modifier.padding(top = 6.dp))
         }
-        if (external) {
-            Spacer(Modifier.width(Space.Md))
-            Icon(ProtonIcons.ArrowOutSquare, null, tint = C.Muted, modifier = Modifier.size(Sizes.Icon))
-        }
+        if (external) Icon(ProtonIcons.ArrowOutSquare, null, tint = C.Muted, modifier = Modifier.padding(end = Space.Sm).size(Sizes.Icon))
     }
 }
 

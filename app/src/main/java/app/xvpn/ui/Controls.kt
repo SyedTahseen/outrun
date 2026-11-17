@@ -172,10 +172,12 @@ fun SelectChip(
     onLongClick: (() -> Unit)? = null, onClick: () -> Unit,
 ) {
     SelectableBox(selected, onClick, modifier, enabled, onLongClick) {
+        // [PV] FiltersRow: body2Regular (14sp), 16dp horizontal padding, white on brandNorm when selected, textNorm on interactionWeakNorm otherwise.
+        val base = if (selected) C.OnPrimary else C.Text
         Text(
-            label, style = Type.ButtonSmall, maxLines = 1,
-            color = if (enabled) C.OnPrimary else C.OnPrimary.copy(alpha = 0.35f),
-            modifier = Modifier.padding(horizontal = Space.Xl),
+            label, style = Type.Small, maxLines = 1,
+            color = if (enabled) base else base.copy(alpha = 0.5f),
+            modifier = Modifier.padding(horizontal = Space.Lg),
         )
     }
 }

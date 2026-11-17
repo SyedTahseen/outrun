@@ -3,12 +3,15 @@
 package app.xvpn.ui
 
 import androidx.compose.animation.ContentTransform
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -119,16 +122,16 @@ fun fadeTransition(): ContentTransform = ContentTransform(
     SizeTransform(clip = false),
 )
 
-fun statusTransition(): ContentTransform {
-    val enter = fadeIn(tween(Motion.Short, delayMillis = Motion.Overlap, easing = Motion.Enter)) +
-        slideInVertically(tween(Motion.Medium, delayMillis = Motion.Overlap / 2, easing = Motion.Standard)) { it / 10 } +
-        scaleIn(tween(Motion.Medium, delayMillis = Motion.Overlap / 2, easing = Motion.Standard), initialScale = 0.96f)
-    val exit = fadeOut(tween(Motion.Overlap))
-    return ContentTransform(
-        enter, exit, 0f,
-        SizeTransform(clip = false) { _, _ -> tween<IntSize>(Motion.Medium, easing = Motion.Standard) },
-    )
-}
+/**
+ * Home status changes. Proton (rememberVpnStateAnimationProgress): a 500 ms fade only for Connecting -> Connected,
+ * every other change snaps, and the layout never animates its size.
+ */
+fun statusTransition(slowFade: Boolean): ContentTransform = ContentTransform(
+    if (slowFade) fadeIn(tween(500)) else EnterTransition.None,
+    ExitTransition.None,
+    0f,
+    SizeTransform(clip = false) { _, _ -> snap() },
+)
 
 fun numberTransition(up: Boolean): ContentTransform {
     val dir = if (up) 1 else -1
