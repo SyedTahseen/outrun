@@ -118,6 +118,9 @@ import androidx.compose.ui.window.Dialog
 import app.xvpn.data.Choices
 import app.xvpn.data.Store
 import app.xvpn.widget.OutrunWidget
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.foundation.layout.PaddingValues
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -136,7 +139,10 @@ fun MenuScreen(
     AnimatedContent(
         targetState = pageState.value,
         modifier = Modifier.fillMaxSize(),
-        transitionSpec = { axisTransition(forward = pageDepth(targetState) >= pageDepth(initialState)) },
+        transitionSpec = {
+            if (targetState == "logs" || initialState == "logs") activityTransition(opening = targetState == "logs")
+            else axisTransition(forward = pageDepth(targetState) >= pageDepth(initialState))
+        },
         label = "settingsPage",
     ) { shown -> MenuPage(store, debugInfo, onScrolledChange, onFullScreenChange, pageState, scroll, shown) }
 }
@@ -498,13 +504,13 @@ private fun Context.copyText(label: String, text: String) {
 }
 
 /** The app's own recent log output (apps can only read their own entries). */
-private suspend fun readLogs(): String = withContext(Dispatchers.IO) {
+private suspend fun readLogs(): List<String> = withContext(Dispatchers.IO) {
     runCatching {
         val p = ProcessBuilder("logcat", "-d", "-t", "400", "-v", "time").redirectErrorStream(true).start()
         val text = p.inputStream.bufferedReader().use { it.readText() }
         p.destroy()
-        text.trim().ifEmpty { "No log entries yet." }
-    }.getOrElse { "Couldn't read logs: ${it.message}" }
+        text.trim().ifEmpty { "No log entries yet." }.lines()
+    }.getOrElse { listOf("Couldn't read logs: ${it.message}") }
 }
 
 @Composable
@@ -512,26 +518,49 @@ private fun LogsPage(
     info: String, onScrolledChange: (Boolean) -> Unit, onFullScreenChange: (Boolean) -> Unit, onBack: () -> Unit,
 ) {
     val ctx = LocalContext.current
-    val logs by produceState<String?>(null) { kotlinx.coroutines.delay(Motion.Medium.toLong()); value = readLogs() }
+    var lines by remember { mutableStateOf<List<String>?>(null) }
+    // [PV] LogActivity: lines stream in while the page is open. Refresh every 2 s.
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay(Motion.Medium.toLong())
+        while (true) { lines = readLogs(); kotlinx.coroutines.delay(2000) }
+    }
     BackHandler(true) { onBack() }
     // Full-screen page: hide the bottom bar; header and status strip keep the app background.
     ReportScrolled(false, onScrolledChange)
     DisposableEffect(Unit) { onFullScreenChange(true); onDispose { onFullScreenChange(false) } }
+
+    // [PV] LogActivity: stay at the bottom while new lines arrive, unless the user scrolled up.
+    val listState = rememberLazyListState()
+    var pinned by remember { mutableStateOf(true) }
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.isScrollInProgress }.filter { !it }.collect { pinned = !listState.canScrollForward }
+    }
+    LaunchedEffect(lines) {
+        val l = lines ?: return@LaunchedEffect
+        if (pinned && l.isNotEmpty()) listState.scrollToItem(l.lastIndex)
+    }
+
     Column(Modifier.fillMaxSize()) {
         ScreenHeader("Log", onBack = onBack) {
             IconAction(ProtonIcons.ArrowUpFromSquare, "Share logs") {
-                logs?.let {
+                lines?.let {
                     val send = Intent(Intent.ACTION_SEND).setType("text/plain")
-                        .putExtra(Intent.EXTRA_SUBJECT, "Outrun VPN logs").putExtra(Intent.EXTRA_TEXT, info + "\n\n" + it)
+                        .putExtra(Intent.EXTRA_SUBJECT, "Outrun VPN logs").putExtra(Intent.EXTRA_TEXT, info + "\n\n" + it.joinToString("\n"))
                     ctx.launch(Intent.createChooser(send, "Share logs"), "Couldn't share logs")
                 }
             }
         }
-        Text(
-            logs ?: "Loading…", style = Type.Small, color = if (logs == null) C.Muted else C.Text,
-            modifier = Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())
-                .padding(start = Space.Gutter, end = Space.Gutter, bottom = Space.Lg),
-        )
+        val shown = lines
+        if (shown == null) {
+            Text("Loading…", style = Type.Small, color = C.Muted, modifier = Modifier.padding(horizontal = Space.Gutter))
+        } else {
+            LazyColumn(
+                Modifier.weight(1f).fillMaxWidth(), state = listState,
+                contentPadding = PaddingValues(start = Space.Gutter, end = Space.Gutter, bottom = Space.Lg),
+            ) {
+                items(shown.size) { i -> Text(shown[i], style = Type.LogLine, color = C.Text) }
+            }
+        }
     }
 }
 

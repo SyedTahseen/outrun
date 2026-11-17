@@ -67,6 +67,7 @@ data class SpeedUi(
  * It lives in a singleton so a running test and its results survive switching tabs.
  */
 object SpeedTest {
+    const val SERVER_NAME = "Cloudflare"   // shown as the test server in the UI
     private const val BASE = "https://speed.cloudflare.com"
     private const val WARMUP_MS = 1_000L
     private const val DOWN_BYTES = 10_000_000   // many shorter requests, like Cloudflare's own test, instead of one very long one

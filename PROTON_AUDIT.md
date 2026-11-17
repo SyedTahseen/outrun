@@ -159,3 +159,9 @@ Verified unchanged: ProtonTypography, ProtonShapes, ProtonDimens, all 55 `ic_pro
 |---|---|---|---|
 | Dividers (server list, statistics, usage, menus) | `Box.height(Dp.Hairline)` = 0px, so every divider was invisible | `HorizontalDivider(thickness = Dp.Hairline, color = C.Border)` (1px) | `VpnDivider.kt` |
 | Map location marker | white disc + vector halo + stroked pulse ring | white 12dp disc, 6dp coloured core, `map_pin_outer_{disconnected,protected}` glow bitmaps (copied from Proton res, all densities + night) pulsing 96dp <-> 64dp over 3s, show-in delays 0.2s / 0.7s, no glow while connecting, respects the system animator-duration scale | `MapView.kt` drawPins |
+
+## Pass 12: speed test screen consistency
+Start view now reports scroll state (header collapses, status bar tints, like Settings/Servers); hard-coded sizes moved to `Sizes` (SpeedRing, SpeedChart, LogMin/Max); gauge/log toggle 48dp with 24dp icons; "More" uses TextAction metrics; stat labels Body (16sp); details row "Test server" reads `SpeedTest.SERVER_NAME`.
+
+## Pass 13: log page (vs `LogActivity` / `log_item.xml`)
+Lines: 9sp monospace `textNorm` (`Type.LogLine`) in a LazyColumn instead of one 14sp proportional block; live refresh every 2 s; stays at the bottom unless the user scrolled up. Transition: Proton's log is a separate Activity (platform transition, no custom animation), so opening/closing it now uses `activityTransition` (300 ms slide + fade) instead of the 700 ms settings cross-fade. Not matched: Proton shows its own `ProtonLogger` event log, Outrun shows its logcat; Proton's lines have no side padding, Outrun keeps the 16dp gutter.

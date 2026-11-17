@@ -61,6 +61,12 @@ object Sizes {
     val FlagArea = 30.dp    // [PV] ConnectIntentIcon flagAreaSize 30x30
     val FlagWidth = 30.dp   // [PV] singleFlagSize 30x20, 4dp corners
     val FlagHeight = 20.dp
+
+    // Speed test
+    val SpeedRing = 170.dp  // [own] start ring
+    val SpeedChart = 96.dp  // [own] result chart
+    val LogMin = 170.dp     // [own] log card
+    val LogMax = 260.dp
 }
 
 /** Shadow depth. The UI is flat; only surfaces that float above the page get a shadow. */
@@ -94,6 +100,7 @@ object Type {
     val ButtonSmall = style(16, FontWeight.Medium, 24, 0.03f)  // chips, compact buttons, text actions
     val Overline = style(10, FontWeight.Normal, 16, 0.03f)     // [PC] overlineRegular
     val OverlineMedium = style(10, FontWeight.Medium, 16, 0.03f) // [PC] overlineMedium
+    val LogLine = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 9.sp, lineHeight = 12.sp, letterSpacing = 0.sp) // [PV] log_item.xml: 9sp monospace
     val Mono = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 12.sp, lineHeight = 18.sp, letterSpacing = 0.sp)
 }
 

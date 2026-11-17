@@ -115,6 +115,23 @@ fun axisTransition(forward: Boolean, distance: Float = 0f): ContentTransform = C
     fadeIn(tween(700)), fadeOut(tween(700)), 0f, SizeTransform(clip = false),
 )
 
+/**
+ * Opening / closing the log page. Proton's log is its own Activity, so it uses the platform activity transition (a short slide
+ * from the end edge with a fade), not the 700 ms cross-fade of the in-app settings pages.
+ */
+fun activityTransition(opening: Boolean): ContentTransform {
+    val spec = tween<androidx.compose.ui.unit.IntOffset>(Motion.Medium, easing = Motion.Standard)
+    return if (opening) ContentTransform(
+        slideInHorizontally(spec) { it / 4 } + fadeIn(tween(Motion.Medium, easing = Motion.Enter)),
+        slideOutHorizontally(spec) { -it / 8 } + fadeOut(tween(Motion.Medium)),
+        1f, SizeTransform(clip = false),
+    ) else ContentTransform(
+        slideInHorizontally(spec) { -it / 8 } + fadeIn(tween(Motion.Medium, easing = Motion.Enter)),
+        slideOutHorizontally(spec) { it / 4 } + fadeOut(tween(Motion.Medium)),
+        0f, SizeTransform(clip = false),
+    )
+}
+
 fun fadeTransition(): ContentTransform = ContentTransform(
     fadeIn(tween(Motion.Short, delayMillis = Motion.Overlap / 2, easing = Motion.Enter)),
     fadeOut(tween(Motion.Fast)),

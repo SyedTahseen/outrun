@@ -70,6 +70,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -129,7 +130,7 @@ private val Dim get() = C.Muted         // label of a tile that isn't being meas
 private enum class SpeedView { Start, Running, Done }
 
 @Composable
-fun SpeedScreen(serverName: String?, onPickServer: () -> Unit = {}, onFullScreenChange: (Boolean) -> Unit = {}) {
+fun SpeedScreen(serverName: String?, onPickServer: () -> Unit = {}, onFullScreenChange: (Boolean) -> Unit = {}, onScrolledChange: (Boolean) -> Unit = {}) {
     val ui by SpeedTest.state.collectAsState()
     val cfg by SpeedTest.config.collectAsState()
     val status by VpnState.status.collectAsState()
@@ -179,6 +180,7 @@ fun SpeedScreen(serverName: String?, onPickServer: () -> Unit = {}, onFullScreen
                 ui = ui, cfg = cfg, connecting = connecting, vpnReady = vpnReady, serverName = serverName,
                 onCfg = { SpeedTest.config.value = it }, onPickServer = onPickServer,
                 onStart = { SpeedTest.start(if (viaVpn) socks else 0) },
+                onScrolledChange = onScrolledChange,
             )
             SpeedView.Running -> RunningView(ui, mode, { mode = it }, connection)
             SpeedView.Done -> DoneView(ui, mode, { mode = it }, connection, onShare = ::share)
@@ -188,7 +190,7 @@ fun SpeedScreen(serverName: String?, onPickServer: () -> Unit = {}, onFullScreen
 
 /** Fades a piece of a screen in and lifts it up; [index] staggers the pieces so they arrive one after another. */
 @Composable
-private fun Modifier.staggerIn(index: Int, rise: Dp = 18.dp): Modifier {
+private fun Modifier.staggerIn(index: Int, rise: Dp = Space.Xl): Modifier {
     val p = remember { Animatable(0f) }
     LaunchedEffect(Unit) { p.animateTo(1f, tween(Motion.Long, delayMillis = 220 + index * Motion.Stagger, easing = Motion.Standard)) }
     return this.graphicsLayer {
@@ -227,13 +229,16 @@ private fun colorAt(stops: Array<Pair<Float, Color>>, f: Float): Color {
 @Composable
 private fun StartView(
     ui: SpeedUi, cfg: SpeedConfig, connecting: Boolean, vpnReady: Boolean, serverName: String?,
-    onCfg: (SpeedConfig) -> Unit, onPickServer: () -> Unit, onStart: () -> Unit,
+    onCfg: (SpeedConfig) -> Unit, onPickServer: () -> Unit, onStart: () -> Unit, onScrolledChange: (Boolean) -> Unit,
 ) {
+    val scroll = rememberScrollState()
+    val scrolled by remember { derivedStateOf { scroll.value > 0 } }
+    ReportScrolled(scrolled, onScrolledChange)
     var more by remember { mutableStateOf(false) }
     val chevron by animateFloatAsState(if (more) 180f else 0f, tween(Motion.Medium, easing = Motion.Standard), label = "moreChevron")
     Column(Modifier.fillMaxSize()) {
-        ScreenHeader("Speed test")
-        Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = Space.Gutter)) {
+        ScreenHeader("Speed test", scrolled = scrolled)
+        Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(scroll).padding(horizontal = Space.Gutter)) {
             Spacer(Modifier.height(Space.Xxxl)) // headroom so the ring's haze isn't cut off by the scroll area
             Box(Modifier.align(Alignment.CenterHorizontally)) { StartRing(enabled = !connecting, onClick = onStart) }
             val note = when {
@@ -264,9 +269,10 @@ private fun StartView(
             ModePicker(cfg.mode) { onCfg(cfg.copy(mode = it)) }
 
             Row(
-                Modifier.align(Alignment.CenterHorizontally).padding(top = Space.Sm)
-                    .pressable(RoundedCornerShape(Radius.Control), Press.Control) { more = !more }
-                    .padding(horizontal = Space.Lg, vertical = Space.Sm),
+                Modifier.align(Alignment.CenterHorizontally)
+                    .heightIn(min = Sizes.Control)
+                    .pressable(RoundedCornerShape(Radius.Badge), Press.Control) { more = !more } // as TextAction (ProtonTextButton)
+                    .padding(horizontal = Space.Md),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text("More", style = Type.ButtonSmall, color = C.Accent)
@@ -396,7 +402,7 @@ private fun StartRing(enabled: Boolean, onClick: () -> Unit) {
             drawCircle(brush = brush, radius = r, alpha = on, style = Stroke(w))
         }
         Box(
-            Modifier.size(170.dp).pressable(CircleShape, 0.94f, enabled = enabled, ripple = false) { tick(); onClick() },
+            Modifier.size(Sizes.SpeedRing).pressable(CircleShape, 0.94f, enabled = enabled, ripple = false) { tick(); onClick() },
             contentAlignment = Alignment.Center,
         ) {
             Text("START", style = Type.Subtitle, color = if (enabled) C.OnPrimary else Dim)
@@ -578,7 +584,7 @@ private fun DoneView(ui: SpeedUi, mode: Int, onMode: (Int) -> Unit, connection: 
                             BigStat("Jitter", Dim, ms(ui.jitterMs), "ms", Modifier.weight(1f))
                         }
                         Spacer(Modifier.height(Space.Lg))
-                        SpeedChart(ui.downSeries, ui.upSeries, reveal.value, Modifier.fillMaxWidth().height(96.dp))
+                        SpeedChart(ui.downSeries, ui.upSeries, reveal.value, Modifier.fillMaxWidth().height(Sizes.SpeedChart))
                     }
                 } else {
                     LogCard(ui.log)
@@ -604,16 +610,16 @@ private fun DoneView(ui: SpeedUi, mode: Int, onMode: (Int) -> Unit, connection: 
 @Composable
 private fun ModeToggle(mode: Int, onMode: (Int) -> Unit) {
     val tick = rememberTick()
-    Row(Modifier.clip(RoundedCornerShape(Radius.Control)).background(C.Card).padding(2.dp)) {
+    Row(Modifier.height(Sizes.Control).clip(RoundedCornerShape(Radius.Control)).background(C.Card).padding(Space.Xs / 2)) {
         listOf(ProtonIcons.Bolt, ProtonIcons.WindowTerminal).forEachIndexed { i, icon ->
             val on = i == mode
             val bg by animateColorAsState(if (on) C.Primary else Color.Transparent, tween(Motion.Short), label = "toggleBg")
             val tint by animateColorAsState(if (on) C.OnPrimary else C.Muted, tween(Motion.Short), label = "toggleTint")
             Box(
-                Modifier.size(width = Sizes.Control, height = Sizes.IconLg).clip(RoundedCornerShape(Radius.Small)).background(bg)
+                Modifier.width(Sizes.Control).fillMaxHeight().clip(RoundedCornerShape(Radius.Small)).background(bg)
                     .clickable { if (!on) tick(); onMode(i) },
                 contentAlignment = Alignment.Center,
-            ) { Icon(icon, if (i == 0) "Gauge" else "Log", tint = tint, modifier = Modifier.size(20.dp)) }
+            ) { Icon(icon, if (i == 0) "Gauge" else "Log", tint = tint, modifier = Modifier.size(Sizes.Icon)) }
         }
     }
 }
@@ -641,7 +647,7 @@ private fun StatGrid(ui: SpeedUi, highlightDown: Boolean, highlightUp: Boolean, 
 private fun StatTile(label: String, labelColor: Color, value: String, unit: String, modifier: Modifier = Modifier) {
     val labelShown by animateColorAsState(labelColor, tween(Motion.Medium), label = "tileLabel")
     AppCard(modifier, padding = Space.Md) {
-        Text(label, style = Type.Small, color = labelShown)
+        Text(label, style = Type.Body, color = labelShown)
         Row(verticalAlignment = Alignment.Bottom) {
             Text(value, style = Type.Title, color = C.Text, maxLines = 1)
             Spacer(Modifier.width(Space.Xs))
@@ -654,7 +660,7 @@ private fun StatTile(label: String, labelColor: Color, value: String, unit: Stri
 @Composable
 private fun BigStat(label: String, labelColor: Color, value: String, unit: String, modifier: Modifier = Modifier) {
     Column(modifier) {
-        Text(label, style = Type.Small, color = labelColor)
+        Text(label, style = Type.Body, color = labelColor)
         Spacer(Modifier.height(Space.Xs))
         Row(verticalAlignment = Alignment.Bottom) {
             Text(value, style = Type.Title, color = C.Text, maxLines = 1)
@@ -666,7 +672,7 @@ private fun BigStat(label: String, labelColor: Color, value: String, unit: Strin
 
 @Composable
 private fun LogCard(log: List<String>) {
-    AppCard(Modifier.fillMaxWidth().heightIn(min = 170.dp, max = 260.dp), padding = Space.Md) {
+    AppCard(Modifier.fillMaxWidth().heightIn(min = Sizes.LogMin, max = Sizes.LogMax), padding = Space.Md) {
         Column(Modifier.verticalScroll(rememberScrollState())) {
             Text(
                 if (log.isEmpty()) "No test run yet." else log.joinToString("\n"),
@@ -719,7 +725,7 @@ private fun SpeedChart(down: List<Float>, up: List<Float>, progress: Float, modi
 private fun InfoRows(connection: String, cfg: SpeedConfig) {
     DetailCard(
         listOf(
-            "Server" to "Cloudflare",
+            "Test server" to SpeedTest.SERVER_NAME,
             "Connection" to connection,
             "Transmit Mode" to cfg.mode.name,
             "Test duration" to "${cfg.seconds}s",
