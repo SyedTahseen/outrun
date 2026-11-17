@@ -122,7 +122,7 @@ fun FlagBadge(name: String?) {
         contentAlignment = Alignment.Center,
     ) {
         if (res != null) Image(painterResource(res), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-        else Icon(Icons.Filled.Public, null, tint = C.Muted, modifier = Modifier.size(Sizes.IconSm))
+        else Icon(ProtonIcons.Earth, null, tint = C.Muted, modifier = Modifier.size(Sizes.IconSm))
     }
 }
 
@@ -169,7 +169,7 @@ fun ScreenHeader(
     HeaderSurface(scrolled) {
         if (onBack != null) {
             HeaderBar(backEdge = true) {
-                IconAction(Icons.AutoMirrored.Filled.ArrowBack, "Back", onClick = onBack)
+                IconAction(ProtonIcons.ArrowLeft, "Back", onClick = onBack)
                 Spacer(Modifier.width(Space.Sm))
                 Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
                     if (title != null) Text(
@@ -242,7 +242,7 @@ fun ListRow(icon: ImageVector, title: String, subtitle: String? = null, external
         }
         if (external) {
             Spacer(Modifier.width(Space.Md))
-            Icon(Icons.AutoMirrored.Outlined.OpenInNew, null, tint = C.Muted, modifier = Modifier.size(Sizes.Icon))
+            Icon(ProtonIcons.ArrowOutSquare, null, tint = C.Muted, modifier = Modifier.size(Sizes.Icon))
         }
     }
 }
@@ -383,7 +383,7 @@ fun AppMenuItem(
 fun AppMenuChoice(label: String, selected: Boolean, onClick: () -> Unit) {
     DropdownMenuItem(
         text = { Text(label, style = Type.Body, color = if (selected) C.Accent else C.Text) },
-        trailingIcon = { if (selected) Icon(Icons.Filled.Check, null, tint = C.Accent, modifier = Modifier.size(Sizes.Icon)) },
+        trailingIcon = { if (selected) Icon(ProtonIcons.Checkmark, null, tint = C.Accent, modifier = Modifier.size(Sizes.Icon)) },
         onClick = onClick,
     )
 }
@@ -393,7 +393,7 @@ fun AppMenuChoice(label: String, selected: Boolean, onClick: () -> Unit) {
 fun AppMenuHeader(title: String, onClick: () -> Unit) {
     DropdownMenuItem(
         text = { Text(title, style = Type.Body.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold), color = C.Text) },
-        leadingIcon = { Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = C.Text, modifier = Modifier.size(Sizes.Icon)) },
+        leadingIcon = { Icon(ProtonIcons.ArrowLeft, null, tint = C.Text, modifier = Modifier.size(Sizes.Icon)) },
         onClick = onClick,
     )
 }

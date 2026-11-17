@@ -257,7 +257,7 @@ private fun StartView(
             AppCard(Modifier.fillMaxWidth().height(Sizes.Button), padding = 0.dp, onClick = onPickServer) {
                 Row(Modifier.fillMaxSize().padding(horizontal = Space.Lg), verticalAlignment = Alignment.CenterVertically) {
                     Text(serverName ?: "No server selected", style = Type.BodyMedium, color = if (serverName != null) C.Text else C.Muted, maxLines = 1, modifier = Modifier.weight(1f))
-                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, "Choose server", tint = C.Muted, modifier = Modifier.size(Sizes.Icon))
+                    Icon(ProtonIcons.ChevronRight, "Choose server", tint = C.Muted, modifier = Modifier.size(Sizes.Icon))
                 }
             }
 
@@ -271,7 +271,7 @@ private fun StartView(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text("More", style = Type.ButtonSmall, color = C.Accent)
-                Icon(Icons.Filled.KeyboardArrowDown, null, tint = C.Accent, modifier = Modifier.size(Sizes.Icon).graphicsLayer { rotationZ = chevron })
+                Icon(ProtonIcons.ChevronDown, null, tint = C.Accent, modifier = Modifier.size(Sizes.Icon).graphicsLayer { rotationZ = chevron })
             }
             AnimatedVisibility(
                 visible = more,
@@ -306,10 +306,10 @@ private fun ModePicker(selected: TransmitMode, onSelect: (TransmitMode) -> Unit)
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Space.Sm)) {
             ModeItems.forEach { (m, _) ->
                 val icon = when (m) {
-                    TransmitMode.Download -> Icons.Outlined.ArrowDownward
-                    TransmitMode.Upload -> Icons.Outlined.ArrowUpward
-                    TransmitMode.Bidirectional -> Icons.Outlined.SwapVert
-                    TransmitMode.Alternate -> Icons.Outlined.SyncAlt
+                    TransmitMode.Download -> ProtonIcons.ArrowDown
+                    TransmitMode.Upload -> ProtonIcons.ArrowUp
+                    TransmitMode.Bidirectional -> ProtonIcons.ArrowDownArrowUp
+                    TransmitMode.Alternate -> ProtonIcons.ArrowsLeftRight
                 }
                 SelectableBox(m == selected, { onSelect(m) }, Modifier.weight(1f)) {
                     Icon(
@@ -563,7 +563,7 @@ private fun DoneView(ui: SpeedUi, mode: Int, onMode: (Int) -> Unit, connection: 
     val upShown = rememberCountUp(ui.upMbps)
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
-            ScreenHeader("Speed test", onBack = { SpeedTest.reset() }) { IconAction(Icons.Outlined.IosShare, "Share result", onClick = onShare) }
+            ScreenHeader("Speed test", onBack = { SpeedTest.reset() }) { IconAction(ProtonIcons.ArrowUpFromSquare, "Share result", onClick = onShare) }
             Row(Modifier.fillMaxWidth().padding(horizontal = Space.Gutter), horizontalArrangement = Arrangement.End) { ModeToggle(mode, onMode) }
             Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = Space.Gutter)) {
                 Spacer(Modifier.height(Space.Md))
@@ -606,7 +606,7 @@ private fun DoneView(ui: SpeedUi, mode: Int, onMode: (Int) -> Unit, connection: 
 private fun ModeToggle(mode: Int, onMode: (Int) -> Unit) {
     val tick = rememberTick()
     Row(Modifier.clip(RoundedCornerShape(Radius.Control)).background(C.Card).padding(2.dp)) {
-        listOf(Icons.Outlined.Speed, Icons.Outlined.Terminal).forEachIndexed { i, icon ->
+        listOf(ProtonIcons.Bolt, ProtonIcons.WindowTerminal).forEachIndexed { i, icon ->
             val on = i == mode
             val bg by animateColorAsState(if (on) C.Primary else Color.Transparent, tween(Motion.Short), label = "toggleBg")
             val tint by animateColorAsState(if (on) C.OnPrimary else C.Muted, tween(Motion.Short), label = "toggleTint")

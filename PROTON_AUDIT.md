@@ -52,3 +52,21 @@ live in the external `me.proton.core:compose` library, which is NOT in that repo
 7. Widget / launcher gradients (`res/drawable/widget_*.xml`, OutrunWidget.kt) still use the old red/amber.
 8. Light theme (Outrun is dark-only).
 9. proton-core theme source, to confirm the "inferred" values flagged above.
+
+## Pass 3: checked against proton-core source (`presentation-compose`), still uncompiled
+Verified in `Colors.kt`/`Typography.kt`/`Shape.kt`/`Dimension.kt`/`ProtonButton.kt`/`ProtonOutlinedTextField.kt` of proton-core:
+| Area | Before | Now | Source |
+|---|---|---|---|
+| Card radius | 16dp | 12dp | `ProtonShapes.large` = `ExtraLargeCornerRadius` 12dp (small 4, medium 8) |
+| Border / divider | 3A3944 | 3B3747 | dark `separatorNorm` = shade20 |
+| Control (secondary button, chip) | 3B3746 | 3B3747 | dark `interactionWeakNorm` = shade20 |
+| Land active | 4A4657 | 4A4658 | shade40 |
+| Letter spacing | 0 everywhere | body1/caption 0.03em, body2 0.02em, hero 0.45sp | `ProtonTypography` defaults |
+| Line heights | body 22 | body 24, body2 20, caption 16 | `ProtonTypography` defaults |
+| Text field focus border + cursor | Accent 8A6EFF | Primary 6D4AFF | `focusedBorderColor = brandNorm` |
+| Text button | 8dp shape, 12dp pad | 4dp shape (`shapes.small`), 8dp pad | `ProtonTextButton` |
+| Outline (accent) button | transparent, Primary text | Bg fill, Accent text, Primary border | `protonOutlinedButtonColors` |
+| Icons | Material | Proton `ic_proton_*` set (46 icons, `ProtonIcons.kt`) | proton-core `presentation` res |
+New token: `C.Disabled` (5B576B, textDisabled).
+
+Not changed (proton-core and the VPN app disagree or core is silent): dialog shape (core `ProtonAlertDialog` = 8dp on Bg, VPN's own alert = M3 28dp), bottom-sheet shape (core 8dp top corners), disabled button colours (core uses pale `brandLighten40`), Title 22 / Subtitle 18 sizes (no core equivalent), Material icons without a Proton twin (`ContentPaste`, `WifiOff`).

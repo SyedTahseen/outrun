@@ -214,7 +214,7 @@ private fun MenuPage(
         }
         "mode" -> {
             SubPage(null, { page = "split" }) {
-                HeroIcon(Icons.Outlined.Tune)
+                HeroIcon(ProtonIcons.Sliders)
                 PageHeading("Mode", "Choose how split tunneling treats the apps and IP addresses you select. Applies the next time you connect.")
                 Spacer(Modifier.height(Space.Sm))
                 ChoiceList {
@@ -230,7 +230,7 @@ private fun MenuPage(
         }
         "dns" -> {
             SubPage(null, { page = "main" }) {
-                HeroIcon(Icons.Outlined.Dns)
+                HeroIcon(ProtonIcons.Servers)
                 PageHeading("DNS", "Choose the DNS servers used while connected. Applies the next time you connect.")
                 Spacer(Modifier.height(Space.Sm))
                 ChoiceList {
@@ -267,7 +267,7 @@ private fun MenuPage(
         }
         "ipv6" -> {
             SubPage(null, { page = "main" }) {
-                HeroIcon(Icons.Outlined.Language)
+                HeroIcon(ProtonIcons.Language)
                 PageHeading("IPv6", "Choose how IPv6 traffic is handled while connected. Applies the next time you connect.")
                 Spacer(Modifier.height(Space.Sm))
                 ChoiceList {
@@ -291,7 +291,7 @@ private fun MenuPage(
         }
         "test" -> {
             SubPage(null, { page = "main" }) {
-                HeroIcon(Icons.Outlined.Speed)
+                HeroIcon(ProtonIcons.Bolt)
                 PageHeading("Latency test", "Each server is tested with a real request to this address, sent through the server. The time covers connecting to the server, the secure connection and the response.")
                 Spacer(Modifier.height(Space.Sm))
                 ChoiceList {
@@ -302,7 +302,7 @@ private fun MenuPage(
         }
         "connect" -> {
             SubPage(null, { page = "main" }) {
-                HeroIcon(Icons.Outlined.PowerSettingsNew)
+                HeroIcon(ProtonIcons.PowerOff)
                 PageHeading("Connect on launch", "Connect to the selected server automatically when the app opens.")
                 SwitchCard("Connect on launch", autoConnect) { autoConnect = it; store.autoConnect = it }
             }
@@ -310,7 +310,7 @@ private fun MenuPage(
         }
         "autoupdate" -> {
             SubPage(null, { page = "main" }) {
-                HeroIcon(Icons.Outlined.Sync)
+                HeroIcon(ProtonIcons.ArrowsRotate)
                 PageHeading("Auto-update subscriptions", "Refresh your subscriptions when the app opens, following each subscription's update interval.")
                 SwitchCard("Auto-update subscriptions", autoUpdate) { autoUpdate = it; store.autoUpdateSubs = it }
             }
@@ -325,18 +325,18 @@ private fun MenuPage(
                         "Settings", {
                             runCatching { ctx.startActivity(Intent(Settings.ACTION_VPN_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
                         },
-                        Modifier.fillMaxWidth(), ButtonStyle.Primary, trailingIcon = Icons.AutoMirrored.Outlined.OpenInNew,
+                        Modifier.fillMaxWidth(), ButtonStyle.Primary, trailingIcon = ProtonIcons.ArrowOutSquare,
                     )
                     Spacer(Modifier.height(Space.Md))
                     AppButton(
                         "What is kill switch?", {
                             runCatching { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(KILL_SWITCH_HELP_URL)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
                         },
-                        Modifier.fillMaxWidth(), ButtonStyle.OutlineAccent, trailingIcon = Icons.AutoMirrored.Outlined.OpenInNew,
+                        Modifier.fillMaxWidth(), ButtonStyle.OutlineAccent, trailingIcon = ProtonIcons.ArrowOutSquare,
                     )
                 },
             ) {
-                HeroIcon(Icons.Outlined.Shield, size = 96.dp, centered = true, tint = C.Green)
+                HeroIcon(ProtonIcons.Shield, size = 96.dp, centered = true, tint = C.Green)
                 Spacer(Modifier.height(Space.Xxl))
                 Text("How to enable kill switch", style = Type.Headline, color = C.Text, modifier = Modifier.padding(horizontal = Space.Gutter))
                 Spacer(Modifier.height(Space.Lg))
@@ -352,7 +352,7 @@ private fun MenuPage(
                     )
                     Spacer(Modifier.height(Space.Xl))
                     Row(verticalAlignment = Alignment.Top) {
-                        Icon(Icons.Outlined.Info, null, tint = C.Muted, modifier = Modifier.size(Sizes.Icon))
+                        Icon(ProtonIcons.InfoCircle, null, tint = C.Muted, modifier = Modifier.size(Sizes.Icon))
                         Spacer(Modifier.width(Space.Md))
                         Column {
                             Text("When kill switch is on, you won't be able to connect to:", style = Type.Small, color = C.Muted)
@@ -399,21 +399,21 @@ private fun MenuPage(
         Column(Modifier.weight(1f).fillMaxWidth().verticalScrollbar(scroll).verticalScroll(scroll)) {
             SectionHeader("Features", first = true)
             ListRow(
-                Icons.Outlined.AltRoute, "Split tunneling",
+                ProtonIcons.ArrowsSwapRight, "Split tunneling",
                 if (!splitOn) "Off" else "On",
             ) { page = "split" }
-            ListRow(Icons.Outlined.Shield, "Kill switch") { page = "kill" }
-            ListRow(Icons.Outlined.BarChart, "Usage & history", "Data use, connection log and app usage") { page = "usage" }
+            ListRow(ProtonIcons.Shield, "Kill switch") { page = "kill" }
+            ListRow(ProtonIcons.ChartLine, "Usage & history", "Data use, connection log and app usage") { page = "usage" }
 
             SectionHeader("Connection")
-            ListRow(Icons.Outlined.Dns, "DNS", dnsLabel) { page = "dns" }
-            ListRow(Icons.Outlined.Language, "IPv6", if (ipv6 == "block") "Blocked" else "Tunneled") { page = "ipv6" }
-            ListRow(Icons.Outlined.Speed, "Latency test", testLabel) { page = "test" }
-            ListRow(Icons.Outlined.PowerSettingsNew, "Connect on launch", if (autoConnect) "On" else "Off") { page = "connect" }
-            ListRow(Icons.Outlined.Sync, "Auto-update subscriptions", if (autoUpdate) "On" else "Off") { page = "autoupdate" }
+            ListRow(ProtonIcons.Servers, "DNS", dnsLabel) { page = "dns" }
+            ListRow(ProtonIcons.Language, "IPv6", if (ipv6 == "block") "Blocked" else "Tunneled") { page = "ipv6" }
+            ListRow(ProtonIcons.Bolt, "Latency test", testLabel) { page = "test" }
+            ListRow(ProtonIcons.PowerOff, "Connect on launch", if (autoConnect) "On" else "Off") { page = "connect" }
+            ListRow(ProtonIcons.ArrowsRotate, "Auto-update subscriptions", if (autoUpdate) "On" else "Off") { page = "autoupdate" }
 
             SectionHeader("General")
-            ListRow(Icons.Outlined.Notifications, "Notifications", if (notifOn) "On" else "Off") {
+            ListRow(ProtonIcons.Bell, "Notifications", if (notifOn) "On" else "Off") {
                 val asked = ctx.uiPrefs().getBoolean(KEY_NOTIF_ASKED, false)
                 if (!notifOn && Build.VERSION.SDK_INT >= 33 && !asked) {
                     ctx.uiPrefs().edit().putBoolean(KEY_NOTIF_ASKED, true).apply()
@@ -421,14 +421,14 @@ private fun MenuPage(
                 } else ctx.openNotificationSettings()
             }
             ListRow(
-                Icons.Outlined.PhoneAndroid, "Widget",
+                ProtonIcons.Mobile, "Widget",
                 if (widgetCount > 0) "Added to home screen" else "Add to home screen",
             ) { ctx.requestPinWidget(); widgetCount = ctx.widgetCount() }
 
             SectionHeader("Support")
-            ListRow(Icons.Outlined.Support, "Support contact", external = true) { ctx.emailSupport() }
-            ListRow(Icons.Outlined.BugReport, "Report an issue", external = true) { ctx.reportIssue(debugInfo()) }
-            ListRow(Icons.Outlined.Code, "Debug logs") { page = "logs" }
+            ListRow(ProtonIcons.LifeRing, "Support contact", external = true) { ctx.emailSupport() }
+            ListRow(ProtonIcons.Bug, "Report an issue", external = true) { ctx.reportIssue(debugInfo()) }
+            ListRow(ProtonIcons.Code, "Debug logs") { page = "logs" }
 
             Spacer(Modifier.height(Space.Xxl))
             Text(
@@ -520,7 +520,7 @@ private fun LogsPage(
     DisposableEffect(Unit) { onFullScreenChange(true); onDispose { onFullScreenChange(false) } }
     Column(Modifier.fillMaxSize()) {
         ScreenHeader("Log", onBack = onBack) {
-            IconAction(Icons.Outlined.IosShare, "Share logs") {
+            IconAction(ProtonIcons.ArrowUpFromSquare, "Share logs") {
                 logs?.let {
                     val send = Intent(Intent.ACTION_SEND).setType("text/plain")
                         .putExtra(Intent.EXTRA_SUBJECT, "Outrun VPN logs").putExtra(Intent.EXTRA_TEXT, info + "\n\n" + it)
@@ -552,15 +552,15 @@ private fun SplitPage(
     }
     val word = if (including) "Included" else "Excluded"
     SubPage(null, onBack) {
-        HeroIcon(Icons.Outlined.AltRoute)
+        HeroIcon(ProtonIcons.ArrowsSwapRight)
         PageHeading("Split tunneling", "Customize your connection by deciding which apps and IP addresses are protected by the VPN.")
         SwitchCard("Split tunneling", on, onChange = onOn)
         if (on) {
             Spacer(Modifier.height(Space.Sm))
-            ListRow(Icons.Outlined.Tune, "Mode", if (including) "Include" else "Exclude") { onMode() }
-            ListRow(Icons.Outlined.PhoneAndroid, "$word apps", appsText) { onApps() }
+            ListRow(ProtonIcons.Sliders, "Mode", if (including) "Include" else "Exclude") { onMode() }
+            ListRow(ProtonIcons.Mobile, "$word apps", appsText) { onApps() }
             ListRow(
-                Icons.Outlined.Terminal, "$word IP addresses",
+                ProtonIcons.WindowTerminal, "$word IP addresses",
                 if (ipCount == 0) "None" else "$ipCount address${if (ipCount == 1) "" else "es"}",
             ) { onIps() }
             Spacer(Modifier.height(Space.Sm))
@@ -648,7 +648,7 @@ private fun PickRow(app: AppInfo, add: Boolean, modifier: Modifier = Modifier, o
         Spacer(Modifier.width(Space.Lg))
         Text(app.label, style = Type.Body, color = C.Text, maxLines = 1, modifier = Modifier.weight(1f))
         IconAction(
-            if (add) Icons.Outlined.AddCircleOutline else Icons.Outlined.RemoveCircleOutline,
+            if (add) ProtonIcons.PlusCircle else ProtonIcons.MinusCircle,
             if (add) "Add" else "Remove", tint = if (add) C.Text else C.Muted, onClick = onClick,
         )
     }
@@ -676,7 +676,7 @@ private fun IpPage(title: String, initial: List<String>, onSave: (List<String>) 
                 value = text, onValueChange = { text = it; error = false }, placeholder = "192.0.2.0",
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Done),
                 keyboardActions = KeyboardActions(onDone = { add() }),
-                trailing = { IconAction(Icons.Outlined.AddCircleOutline, "Add") { add() } },
+                trailing = { IconAction(ProtonIcons.PlusCircle, "Add") { add() } },
             )
             Spacer(Modifier.height(Space.Sm))
             Text(
@@ -693,7 +693,7 @@ private fun IpPage(title: String, initial: List<String>, onSave: (List<String>) 
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(ip, style = Type.Body, color = C.Text, maxLines = 1, modifier = Modifier.weight(1f))
-                    IconAction(Icons.Outlined.RemoveCircleOutline, "Remove", tint = C.Muted) { ips = ips - ip }
+                    IconAction(ProtonIcons.MinusCircle, "Remove", tint = C.Muted) { ips = ips - ip }
                 }
             }
         }

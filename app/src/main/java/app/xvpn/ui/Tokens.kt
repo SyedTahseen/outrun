@@ -4,6 +4,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 
 /** Spacing scale (4dp grid). Use these for every padding, gap and spacer. */
@@ -22,14 +23,14 @@ object Space {
 }
 
 /**
- * Corner radii, mirroring ProtonTheme.shapes: small 4, medium 8, large 16; dialogs/sheets use the Material 3
+ * Corner radii, mirroring ProtonShapes in proton-core (small 4, medium 8, large 12); dialogs/sheets use the Material 3
  * AlertDialog / ModalBottomSheet default (28dp); the nav indicator is the Material 3 full pill.
  */
 object Radius {
     val Badge = 4.dp    // flags, small tags (shapes.small)
     val Small = 8.dp
     val Control = 8.dp  // buttons, chips, inputs, menus (shapes.medium)
-    val Card = 16.dp    // cards, tiles (shapes.large)
+    val Card = 12.dp    // cards, tiles (ProtonShapes.large = ExtraLargeCornerRadius = 12dp)
     val Sheet = 28.dp   // dialogs, sheets (Material 3 default, as used by ProtonAlert)
     val Pill = 16.dp    // selected-tab indicator: fully round
 }
@@ -64,22 +65,25 @@ object Elevation {
 /** The type scale. Colors are applied at the call site. */
 object Type {
     private val Font = FontFamily.Default
-    private fun style(size: Int, weight: FontWeight, line: Int) = TextStyle(
-        fontFamily = Font, fontSize = size.sp, fontWeight = weight, lineHeight = line.sp, letterSpacing = 0.sp,
+    // proton-core ProtonTypography: every style carries letter spacing, and body/caption line heights are 24/20/16.
+    private fun style(size: Int, weight: FontWeight, line: Int, spacingEm: Float = 0f) = TextStyle(
+        fontFamily = Font, fontSize = size.sp, fontWeight = weight, lineHeight = line.sp, letterSpacing = spacingEm.em,
     )
 
-    val Display = style(30, FontWeight.Bold, 36)        // connection state
-    val Headline = style(28, FontWeight.Bold, 34)       // screen titles (Proton "hero": 28sp expanded title)
-    val Title = style(22, FontWeight.SemiBold, 28)      // sub-page titles, key figures
-    val Subtitle = style(18, FontWeight.SemiBold, 24)   // card titles, dialog titles
-    val Body = style(16, FontWeight.Normal, 22)         // default text
-    val BodyMedium = style(16, FontWeight.Medium, 22)   // values, emphasised rows
-    val Small = style(14, FontWeight.Normal, 20)        // descriptions, captions of rows
-    val SmallMedium = style(14, FontWeight.Medium, 20)
-    val Section = style(14, FontWeight.Medium, 20)      // accent section headings (body2Medium)
-    val Caption = style(12, FontWeight.Normal, 16)      // hints, units, footnotes
-    val Label = style(12, FontWeight.Medium, 16)        // tab labels, chart labels
-    val Button = style(16, FontWeight.Medium, 24)       // large buttons
-    val ButtonSmall = style(16, FontWeight.Medium, 22)  // chips, compact buttons, text actions
+    val Display = style(30, FontWeight.Bold, 36)        // connection state (Outrun's own)
+    val Headline = TextStyle(                           // [PC] hero: 28sp W700, 34sp line, 0.45sp tracking
+        fontFamily = Font, fontSize = 28.sp, fontWeight = FontWeight.Bold, lineHeight = 34.sp, letterSpacing = 0.45.sp,
+    )
+    val Title = style(22, FontWeight.SemiBold, 28)      // sub-page titles, key figures (no proton-core equivalent)
+    val Subtitle = style(18, FontWeight.SemiBold, 24)   // card titles, dialog titles (no proton-core equivalent)
+    val Body = style(16, FontWeight.Normal, 24, 0.03f)         // [PC] body1Regular
+    val BodyMedium = style(16, FontWeight.Medium, 24, 0.03f)   // [PC] body1Medium
+    val Small = style(14, FontWeight.Normal, 20, 0.02f)        // [PC] body2Regular
+    val SmallMedium = style(14, FontWeight.Medium, 20, 0.02f)  // [PC] body2Medium
+    val Section = style(14, FontWeight.Medium, 20, 0.02f)      // accent section headings (body2Medium)
+    val Caption = style(12, FontWeight.Normal, 16, 0.03f)      // [PC] captionRegular
+    val Label = style(12, FontWeight.Medium, 16, 0.03f)        // [PC] captionMedium
+    val Button = style(16, FontWeight.Medium, 24, 0.03f)       // large buttons (body1Medium)
+    val ButtonSmall = style(16, FontWeight.Medium, 24, 0.03f)  // chips, compact buttons, text actions
     val Mono = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 12.sp, lineHeight = 18.sp, letterSpacing = 0.sp)
 }

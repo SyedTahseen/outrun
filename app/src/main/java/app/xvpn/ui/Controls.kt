@@ -79,12 +79,12 @@ fun AppButton(
     val tick = rememberTick(strong = style == ButtonStyle.Primary)
     val shape = RoundedCornerShape(Radius.Control)
     val container by animateColorAsState(
-        when (style) { ButtonStyle.Primary -> C.Primary; ButtonStyle.Secondary -> C.Control; ButtonStyle.Outline, ButtonStyle.OutlineAccent -> Color.Transparent },
+        when (style) { ButtonStyle.Primary -> C.Primary; ButtonStyle.Secondary -> C.Control; ButtonStyle.Outline -> Color.Transparent; ButtonStyle.OutlineAccent -> C.Bg },
         tween(Motion.Medium), label = "buttonContainer",
     )
     val large = size == ButtonSize.Large
     val outlined = style == ButtonStyle.Outline || style == ButtonStyle.OutlineAccent
-    val content = when (style) { ButtonStyle.Outline -> C.Text; ButtonStyle.OutlineAccent -> C.Primary; else -> C.OnPrimary }
+    val content = when (style) { ButtonStyle.Outline -> C.Text; ButtonStyle.OutlineAccent -> C.Accent; else -> C.OnPrimary }
     Box(
         modifier.alpha(if (enabled) 1f else 0.4f)
             .height(if (large) Sizes.Button else Sizes.Control)
@@ -106,8 +106,8 @@ fun AppButton(
 fun TextAction(label: String, onClick: () -> Unit, modifier: Modifier = Modifier, color: Color = C.Accent, enabled: Boolean = true) {
     Box(
         modifier.heightIn(min = Sizes.Control)
-            .pressable(RoundedCornerShape(Radius.Control), Press.Control, enabled, onClick = onClick)
-            .padding(horizontal = Space.Md),
+            .pressable(RoundedCornerShape(Radius.Badge), Press.Control, enabled, onClick = onClick)  // [PC] ProtonTextButton: shapes.small (4dp)
+            .padding(horizontal = Space.Sm),                                                           // [PC] TextButtonContentPadding (8dp)
         contentAlignment = Alignment.Center,
     ) { Text(label, style = Type.ButtonSmall, color = if (enabled) color else C.Muted, maxLines = 1) }
 }
@@ -207,7 +207,7 @@ fun AppTextField(
     trailing: (@Composable () -> Unit)? = null,
 ) {
     var focused by remember { mutableStateOf(false) }
-    val border by animateColorAsState(if (focused) C.Accent else Color.Transparent, tween(Motion.Short), label = "fieldBorder")
+    val border by animateColorAsState(if (focused) C.Primary else Color.Transparent, tween(Motion.Short), label = "fieldBorder")
     val shape = RoundedCornerShape(Radius.Control)
     Row(
         modifier.fillMaxWidth()
@@ -218,7 +218,7 @@ fun AppTextField(
     ) {
         BasicTextField(
             value = value, onValueChange = onValueChange, singleLine = singleLine,
-            textStyle = Type.Body.copy(color = C.Text), cursorBrush = SolidColor(C.Accent),
+            textStyle = Type.Body.copy(color = C.Text), cursorBrush = SolidColor(C.Primary),
             keyboardOptions = keyboardOptions, keyboardActions = keyboardActions,
             modifier = Modifier.weight(1f).onFocusChanged { focused = it.isFocused },
             decorationBox = { inner ->

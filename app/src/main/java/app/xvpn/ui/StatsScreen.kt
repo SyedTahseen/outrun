@@ -97,7 +97,7 @@ fun StatsScreen(profile: Profile?, real: IpInfo?, proxy: IpInfo?, onBack: () -> 
                         Text("My IP", style = Type.Small, color = C.Muted)
                         Text(real?.ip ?: "…", style = Type.BodyMedium, color = C.Text, maxLines = 1)
                     }
-                    Icon(Icons.AutoMirrored.Filled.ArrowForward, null, tint = C.Muted, modifier = Modifier.size(Sizes.Icon))
+                    Icon(ProtonIcons.ArrowRight, null, tint = C.Muted, modifier = Modifier.size(Sizes.Icon))
                     Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
                         Text("VPN IP", style = Type.Small, color = C.Muted)
                         Text(proxy?.ip ?: "…", style = Type.BodyMedium, color = C.Green, maxLines = 1)
@@ -110,14 +110,14 @@ fun StatsScreen(profile: Profile?, real: IpInfo?, proxy: IpInfo?, onBack: () -> 
                 Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("Download", style = Type.Body, color = C.Green); Spacer(Modifier.width(Space.Xs))
-                        Icon(Icons.Filled.ArrowDownward, null, tint = C.Green, modifier = Modifier.size(Sizes.IconSm))
+                        Icon(ProtonIcons.ArrowDown, null, tint = C.Green, modifier = Modifier.size(Sizes.IconSm))
                     }
                     Text(fmtKb(down), style = Type.Title, color = C.Text)
                 }
                 Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("Upload", style = Type.Body, color = C.Red); Spacer(Modifier.width(Space.Xs))
-                        Icon(Icons.Filled.ArrowUpward, null, tint = C.Red, modifier = Modifier.size(Sizes.IconSm))
+                        Icon(ProtonIcons.ArrowUp, null, tint = C.Red, modifier = Modifier.size(Sizes.IconSm))
                     }
                     Text(fmtKb(up), style = Type.Title, color = C.Text)
                 }

@@ -17,8 +17,8 @@ object C {
     val Card = Color(0xFF292733)        // [PV] backgroundSecondary (tvCardBackground): cards, bottom bar, menus, dialogs
     val Header = Card                   // header and status bar once the page is scrolled (same as Card)
     val CardOverlay = Color(0xDB292733) // [PV] backgroundSecondary @ 0.86 over the map (VpnStatusView)
-    val Control = Color(0xFF3B3746)     // unselected chips, secondary buttons, pills
-    val Border = Color(0xFF3A3944)      // 1dp hairlines: card borders, dividers, chart grid
+    val Control = Color(0xFF3B3747)     // [PC] interactionWeakNorm = shade20 (BlackCurrant);  unselected chips, secondary buttons, pills
+    val Border = Color(0xFF3B3747)      // [PC] separatorNorm = shade20;  1dp hairlines: card borders, dividers, chart grid
     val Divider = Color(0x0AFFFFFF)     // hairlines between rows (4 % white: subtle on both Bg and Card)
     val Outline = Color(0xFF4F4D5C)     // border of outlined buttons
     val Track = Color(0xFF2A2933)       // faint guide lines on dark (gauge track)
@@ -36,8 +36,9 @@ object C {
     val Text = Color(0xFFFFFFFF)            // textNorm (white on dark)
     val TextDim = Color(0xFFC4C3CB)     // gauge numbers
     val Muted = Color(0xFFA7A4B5)       // [PV] textWeak / shade80 (tvInMaintenance): secondary text and icons
-    val Shade50 = Color(0xFF6D697D)     // [PV] shade50 (tvButtonBg): hints, placeholder, unchecked switch track, unselected radio
+    val Shade50 = Color(0xFF6D697D)     // [PC] shade60 (Dolphin) = textHint/iconHint; [PV] tvButtonBg. (name kept for call sites): hints, placeholder, unchecked switch track, unselected radio
     val OnPrimary = Color(0xFFFFFFFF)
+    val Disabled = Color(0xFF5B576B)    // [PC] shade50 (Smoky) = textDisabled / iconDisabled
 
     // Status
     val Green = Color(0xFF2CFFCC)       // [PV] vpnGreen (dark): connected, ok, download
@@ -47,6 +48,6 @@ object C {
 
     // World map
     val Land = Card
-    val LandActive = Color(0xFF4A4657)
+    val LandActive = Color(0xFF4A4658) // [PC] shade40 (GunPowder) / interactionWeakPressed
     val LandLine = Color(0xFF5A5866)
 }

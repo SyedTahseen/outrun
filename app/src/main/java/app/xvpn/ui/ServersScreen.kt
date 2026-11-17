@@ -178,24 +178,24 @@ fun ServersScreen(
                                     }
                                 },
                             )
-                            IconAction(Icons.Filled.Close, "Close search") { searching = false; query = "" }
+                            IconAction(ProtonIcons.Cross, "Close search") { searching = false; query = "" }
                         } else {
                             Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
                                 Text("Servers", style = Type.Headline, color = C.Text)
                             }
-                            IconAction(Icons.Filled.Search, "Search") { searching = true }
+                            IconAction(ProtonIcons.Magnifier, "Search") { searching = true }
                             Box {
-                                IconAction(Icons.Filled.Add, "Add") { addMenu = true }
+                                IconAction(ProtonIcons.Plus, "Add") { addMenu = true }
                                 AppDropdownMenu(addMenu, { addMenu = false }) {
-                                    AppMenuItem(Icons.Outlined.QrCodeScanner, "Scan QR code") { addMenu = false; onScanQr() }
+                                    AppMenuItem(ProtonIcons.QrCode, "Scan QR code") { addMenu = false; onScanQr() }
                                     AppMenuItem(Icons.Outlined.ContentPaste, "Paste from clipboard") { addMenu = false; onPasteClipboard() }
-                                    AppMenuItem(Icons.Outlined.InsertDriveFile, "Import from file") { addMenu = false; onImportFile() }
-                                    AppMenuItem(Icons.Outlined.Edit, "Add manually") { addMenu = false; manual = true }
-                                    AppMenuItem(Icons.Outlined.Link, "Add subscription link") { addMenu = false; subDialog = true }
+                                    AppMenuItem(ProtonIcons.File, "Import from file") { addMenu = false; onImportFile() }
+                                    AppMenuItem(ProtonIcons.Pen, "Add manually") { addMenu = false; manual = true }
+                                    AppMenuItem(ProtonIcons.Link, "Add subscription link") { addMenu = false; subDialog = true }
                                 }
                             }
                             Box {
-                                IconAction(Icons.Filled.MoreVert, "More") { menuPage = "main"; moreMenu = true }
+                                IconAction(ProtonIcons.ThreeDotsVertical, "More") { menuPage = "main"; moreMenu = true }
                                 AppDropdownMenu(moreMenu, { moreMenu = false }, Modifier.widthIn(min = 220.dp)) {
                                     when (menuPage) {
                                         "sort" -> {
@@ -211,11 +211,11 @@ fun ServersScreen(
                                                 duplicateLinks(profiles, favorites + listOfNotNull(selectedLink))
                                             }
                                             val dead = remember(profiles, pings) { profiles.filter { pings[it.link] == -1 }.map { it.link } }
-                                            AppMenuItem(Icons.Outlined.ErrorOutline, "Invalid", destructive = true, enabled = invalid.isNotEmpty(), trailing = { CountText(invalid.size) }) {
+                                            AppMenuItem(ProtonIcons.ExclamationCircle, "Invalid", destructive = true, enabled = invalid.isNotEmpty(), trailing = { CountText(invalid.size) }) {
                                                 moreMenu = false
                                                 confirmDel = DelAction("Delete ${invalid.size} invalid server(s)?", "These links can't be turned into a working configuration.", invalid)
                                             }
-                                            AppMenuItem(Icons.Outlined.ContentCopy, "Duplicates", destructive = true, enabled = dupes.isNotEmpty(), trailing = { CountText(dupes.size) }) {
+                                            AppMenuItem(ProtonIcons.SquaresInSquare, "Duplicates", destructive = true, enabled = dupes.isNotEmpty(), trailing = { CountText(dupes.size) }) {
                                                 moreMenu = false
                                                 confirmDel = DelAction("Delete ${dupes.size} duplicate(s)?", "One copy of each server is kept. Favorites and the selected server are kept first.", dupes)
                                             }
@@ -223,16 +223,16 @@ fun ServersScreen(
                                                 moreMenu = false
                                                 confirmDel = DelAction("Delete ${dead.size} unreachable server(s)?", "These failed the last latency test.", dead)
                                             }
-                                            AppMenuItem(Icons.Outlined.DeleteOutline, "All servers", destructive = true) {
+                                            AppMenuItem(ProtonIcons.Trash, "All servers", destructive = true) {
                                                 moreMenu = false
                                                 confirmDel = DelAction("Delete all servers?", "All ${profiles.size} server(s) will be removed.", null)
                                             }
                                         }
                                         else -> {
-                                            AppMenuItem(Icons.Outlined.Speed, if (testing) "Testing…" else "Test latency") { moreMenu = false; if (!testing) onTestLatency() }
-                                            AppMenuItem(Icons.AutoMirrored.Outlined.Sort, "Sort", trailing = { Chevron() }) { menuPage = "sort" }
-                                            AppMenuItem(Icons.Outlined.Refresh, "Update subs") { moreMenu = false; onRefreshSubscriptions() }
-                                            AppMenuItem(Icons.Outlined.DeleteOutline, "Delete", trailing = { Chevron() }) { menuPage = "delete" }
+                                            AppMenuItem(ProtonIcons.Bolt, if (testing) "Testing…" else "Test latency") { moreMenu = false; if (!testing) onTestLatency() }
+                                            AppMenuItem(ProtonIcons.LinesLongToSmall, "Sort", trailing = { Chevron() }) { menuPage = "sort" }
+                                            AppMenuItem(ProtonIcons.ArrowsRotate, "Update subs") { moreMenu = false; onRefreshSubscriptions() }
+                                            AppMenuItem(ProtonIcons.Trash, "Delete", trailing = { Chevron() }) { menuPage = "delete" }
                                         }
                                     }
                                 }
@@ -392,8 +392,8 @@ private fun SubscriptionBar(info: SubInfo?, host: String, onRefresh: () -> Unit,
                         style = Type.Caption, color = C.Muted, maxLines = 1, overflow = TextOverflow.Ellipsis,
                     )
                 }
-                IconAction(Icons.Outlined.ContentCopy, "Copy subscription link", tint = C.Muted, onClick = onCopy)
-                IconAction(Icons.Outlined.Refresh, "Update subscription", tint = C.Muted, onClick = onRefresh)
+                IconAction(ProtonIcons.SquaresInSquare, "Copy subscription link", tint = C.Muted, onClick = onCopy)
+                IconAction(ProtonIcons.ArrowsRotate, "Update subscription", tint = C.Muted, onClick = onRefresh)
             }
         }
     }
@@ -421,7 +421,7 @@ private fun duplicateLinks(profiles: List<Profile>, keep: Set<String>): List<Str
 }
 
 @Composable
-private fun Chevron() { Icon(Icons.Filled.ChevronRight, null, tint = C.Muted, modifier = Modifier.size(Sizes.Icon)) }
+private fun Chevron() { Icon(ProtonIcons.ChevronRight, null, tint = C.Muted, modifier = Modifier.size(Sizes.Icon)) }
 
 @Composable
 private fun CountText(n: Int) { Text("$n", style = Type.Small, color = C.Muted) }
@@ -454,10 +454,10 @@ private fun ServerRow(
             PingLabel(ping, testing)
             FavStar(fav, onFavorite)
             Box {
-                IconAction(Icons.Filled.MoreVert, "Options") { menu = true }
+                IconAction(ProtonIcons.ThreeDotsVertical, "Options") { menu = true }
                 AppDropdownMenu(menu, { menu = false }) {
-                    AppMenuItem(Icons.Outlined.ContentCopy, "Copy") { menu = false; onCopy() }
-                    AppMenuItem(Icons.Outlined.DeleteOutline, "Delete") { menu = false; onDelete() }
+                    AppMenuItem(ProtonIcons.SquaresInSquare, "Copy") { menu = false; onCopy() }
+                    AppMenuItem(ProtonIcons.Trash, "Delete") { menu = false; onDelete() }
                 }
             }
         }
@@ -491,7 +491,7 @@ private fun PingLabel(ping: Int?, testing: Boolean) {
 private fun FavStar(fav: Boolean, onClick: () -> Unit) {
     val tick = rememberTick()
     IconAction(
-        if (fav) Icons.Filled.Star else Icons.Outlined.StarBorder, "Favorite",
+        if (fav) ProtonIcons.StarFilled else ProtonIcons.Star, "Favorite",
         tint = if (fav) C.Amber else C.Muted,
     ) { tick(); onClick() }
 }

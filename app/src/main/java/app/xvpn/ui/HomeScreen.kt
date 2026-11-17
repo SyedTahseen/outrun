@@ -184,7 +184,7 @@ fun HomeScreen(
                         visible = on,
                         enter = fadeIn(tween(Motion.Short)) + expandHorizontally(tween(Motion.Medium, easing = Motion.Standard)),
                         exit = fadeOut(tween(Motion.Fast)) + shrinkHorizontally(tween(Motion.Short, easing = Motion.Standard)),
-                    ) { Icon(Icons.Filled.ChevronRight, "Statistics", tint = C.Muted, modifier = Modifier.size(Sizes.Icon)) }
+                    ) { Icon(ProtonIcons.ChevronRight, "Statistics", tint = C.Muted, modifier = Modifier.size(Sizes.Icon)) }
                 }
                 Spacer(Modifier.height(Space.Lg))
                 AnimatedContent(
@@ -235,7 +235,7 @@ private fun StatusChip(content: @Composable () -> Unit) {
 @Composable
 private fun UnprotectedHeader(real: IpInfo?, error: String?) {
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-        Icon(Icons.Filled.LockOpen, null, tint = C.Red, modifier = Modifier.padding(Space.Sm).size(Sizes.IconLg))
+        Icon(ProtonIcons.LockOpen, null, tint = C.Red, modifier = Modifier.padding(Space.Sm).size(Sizes.IconLg))
         Text("You are unprotected", style = Type.BodyMedium, color = C.Text, textAlign = TextAlign.Center, modifier = Modifier.padding(Space.Sm))
         StatusChip {
             Text(real?.let { r -> r.city.ifBlank { r.country } } ?: "Locating…", style = Type.Body, color = C.Text)
@@ -280,7 +280,7 @@ private fun ScrambleText(text: String, color: Color, style: TextStyle) {
 private fun ProtectedHeader(time: String, up: Long, down: Long) {
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Filled.Lock, null, tint = C.Green, modifier = Modifier.size(Sizes.IconLg))
+            Icon(ProtonIcons.Lock, null, tint = C.Green, modifier = Modifier.size(Sizes.IconLg))
             Spacer(Modifier.width(Space.Sm))   // Proton: 8dp between lock icon and "Connected"
             Text("Protected", style = Type.Display, color = C.Green)
         }
@@ -291,9 +291,9 @@ private fun ProtectedHeader(time: String, up: Long, down: Long) {
                     Text("Connected for", style = Type.Small, color = C.Muted)
                     Text(time, style = Type.Subtitle, color = C.Text)
                 }
-                Speed(Icons.Filled.ArrowDownward, C.Green, fmtKb(down))
+                Speed(ProtonIcons.ArrowDown, C.Green, fmtKb(down))
                 Spacer(Modifier.width(Space.Lg))
-                Speed(Icons.Filled.ArrowUpward, C.Red, fmtKb(up))
+                Speed(ProtonIcons.ArrowUp, C.Red, fmtKb(up))
             }
         }
     }
