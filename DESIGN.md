@@ -20,7 +20,6 @@ All UI lives in `app/src/main/java/app/xvpn/ui`. Screens contain **no** color li
 - **Add a screen**: `ScreenHeader` → content using the components above. If you need a new color/size/style, add a token first.
 
 ## Spark theme
-A fourth theme (`AppTheme.SPARK`, Settings → Theme → Spark): always dark, flat, monochrome, matching the reference. Page `#18191B` with **no gradients or glows**, charcoal cards, white pill buttons with dark text, opaque grey controls (`#38393C`), 24dp cards / 16dp controls / 32dp sheets.
+A fourth theme (`AppTheme.SPARK`, Settings → Theme → Spark): always dark, flat, monochrome, matching the reference. Page `#18191B`, **no gradients, no bar chrome** (dock and scrolled headers are the page colour, no borders or glass), charcoal cards `#2A2B2D` with a faint top-lit rim, white pill buttons with dark text, opaque grey controls (`#38393C`), 24dp cards / 16dp controls / 32dp sheets, near-invisible dividers.
 - `Palette.spark` switches every token in `Colors.kt`/`Tokens.kt`; other themes are unchanged.
-- **Smoked glass** (`Glass.kt`): `Modifier.glass(shape)` draws a 24dp blur of what is behind the card (the Home map; Android 12+), then a charcoal tint (`#333438`, 62% at the top → 80% at the bottom, which resolves to `#2A2B2D` over the flat page) and a 1dp rim that is brightest at the top. It is a dark tint, not a white one. Below Android 12 it falls back to a near-opaque card with the same rim.
-- Used by `AppCard`, the dock, Home's status chip and settings cards. Dialogs use an opaque card with the same rim (own window).
+- **Cards are flat by default.** Smoked glass is opt-in (`AppCard(glass = true)`, `Modifier.glass`) and used only on Home's hero cards and status chip, like the reference where glass appears only over colourful content. Glass = 20dp blur of what is behind (the Home map; Android 12+) + charcoal tint (`#333438`, 50%→82%) + 1dp rim. Below Android 12 it falls back to a near-opaque card.

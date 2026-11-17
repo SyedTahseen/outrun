@@ -135,7 +135,7 @@ fun Modifier.glass(shape: Shape, strong: Boolean = false, fullBorder: Boolean = 
 }
 
 /** Fades the bottom of a node to transparent (used so the map melts into the glass cards). */
-fun Modifier.bottomFade(from: Float = 0.52f, to: Float = 0.74f): Modifier = this
+fun Modifier.bottomFade(from: Float = 0.66f, to: Float = 0.96f): Modifier = this
     .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
     .drawWithContent {
         drawContent()
@@ -145,10 +145,10 @@ fun Modifier.bottomFade(from: Float = 0.52f, to: Float = 0.74f): Modifier = this
         )
     }
 
-/** Card-like surface: glass in Spark, flat `Card` fill elsewhere. */
-@Composable
+/** Flat card: charcoal fill with a faint rim in Spark, plain `Card` fill elsewhere. */
 fun Modifier.cardSurface(shape: Shape): Modifier =
-    if (Palette.spark) glass(shape) else background(C.Card)
+    if (Palette.spark) background(C.Card).border(1.dp, Brush.verticalGradient(listOf(C.CardEdgeTop, C.CardEdgeBottom)), shape)
+    else background(C.Card)
 
 /** Dialog surface (dialogs live in their own window, so no live blur): opaque card + glass edge. */
 fun Modifier.dialogSurface(shape: Shape): Modifier =

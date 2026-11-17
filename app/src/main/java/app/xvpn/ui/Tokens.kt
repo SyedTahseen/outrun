@@ -34,7 +34,7 @@ object Radius {
 }
 
 object Glass {
-    val Blur = 24.dp
+    val Blur = 20.dp
 }
 
 object Sizes {

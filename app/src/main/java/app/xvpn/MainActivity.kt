@@ -75,8 +75,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -90,7 +88,6 @@ import app.xvpn.data.Store
 import app.xvpn.ui.AmbientBackdrop
 import app.xvpn.ui.C
 import app.xvpn.ui.Palette
-import app.xvpn.ui.glass
 import app.xvpn.ui.OutrunApp
 import app.xvpn.ui.HomeScreen
 import app.xvpn.ui.MenuScreen
@@ -470,8 +467,7 @@ private fun App() {
             exit = slideOutVertically(tween(Motion.Medium, easing = Motion.Standard)) { it } + fadeOut(tween(Motion.Fast)),
         ) {
             NavigationBar(
-                modifier = if (Palette.spark) Modifier.glass(RectangleShape, strong = true, fullBorder = false) else Modifier,
-                containerColor = if (Palette.spark) Color.Transparent else C.Card,
+                containerColor = if (Palette.spark) C.Bg else C.Card,
                 tonalElevation = 0.dp,
             ) {
                 Tab.entries.forEach { t ->

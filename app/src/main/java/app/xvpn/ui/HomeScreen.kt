@@ -176,7 +176,7 @@ fun HomeScreen(
             ) { caption ->
                 Text(caption, style = Type.Small, color = C.Text, modifier = Modifier.padding(vertical = Space.Xxl).fillMaxWidth())
             }
-            AppCard(Modifier.fillMaxWidth(), bordered = true) {
+            AppCard(Modifier.fillMaxWidth(), bordered = true, glass = true) {
                 Row(
                     Modifier.fillMaxWidth().heightIn(min = 42.dp).then(if (on) Modifier.pressable(RoundedCornerShape(Radius.Small), Press.Card, onClick = onOpenStats) else Modifier),
                     verticalAlignment = Alignment.Top,
@@ -357,7 +357,7 @@ private fun ProtectedHeader(time: String, up: Long, down: Long) {
             Spacer(Modifier.width(Space.Sm))
             Text("Protected", style = Type.Heading, color = C.Green)
         }
-        AppCard(Modifier.fillMaxWidth().padding(top = Space.Sm), containerColor = C.CardOverlay, translucentBorder = true) {
+        AppCard(Modifier.fillMaxWidth().padding(top = Space.Sm), containerColor = C.CardOverlay, translucentBorder = true, glass = true) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text("Connected for", style = Type.Small, color = C.Muted)

@@ -23,24 +23,24 @@ private fun pick(dark: Long, light: Long, spark: Long = dark) =
 object C {
     val Bg get() = pick(0xFF1C1B24, 0xFFFFFFFF, 0xFF18191B)
     val Card get() = pick(0xFF292733, 0xFFF5F4F2, 0xFF2A2B2D)
-    val Header get() = Card
+    val Header get() = if (Palette.spark) Bg else Card
     val CardOverlay get() = if (Palette.spark) Bg.copy(alpha = 0.62f) else Card.copy(alpha = 0.86f)
     val Control get() = pick(0xFF3B3747, 0xFFEAE7E4, 0xFF38393C)
     val Border get() = pick(0xFF3B3747, 0xFFEAE7E4, 0x24FFFFFF)
-    val Divider get() = pick(0x0AFFFFFF, 0x0A000000, 0x14FFFFFF)
+    val Divider get() = pick(0x0AFFFFFF, 0x0A000000, 0x0FFFFFFF)
     val Outline get() = pick(0xFF4F4D5C, 0xFFD1CFCD, 0x3DFFFFFF)
     val Track get() = pick(0xFF2A2933, 0xFFEAE7E4, 0xFF2A2B2D)
     val Scrim get() = Color(0x66000000)
 
     /** Page-level surface that lets the Spark ambient backdrop show through. */
-    val Surface get() = if (Palette.spark) Bg.copy(alpha = 0f) else Bg
+    val Surface get() = Bg
 
     val Primary get() = if (Palette.spark) Color(0xFFFFFFFF) else Color(0xFF6D4AFF)
     val Accent get() = pick(0xFF8A6EFF, 0xFF6D4AFF, 0xFFF2F3F5)
     val AccentMid get() = pick(0xFF3B3175, 0xFFE4DDFF, 0xFF303134)
     val AccentDeep get() = pick(0xFF1B2250, 0xFFCFC5FF, 0xFF303134)
     val NavPill get() =
-        if (Palette.spark) Color.White.copy(alpha = 0.14f).compositeOver(Card)
+        if (Palette.spark) Card
         else Accent.copy(alpha = 0.32f).compositeOver(Card)
     val Blue = Color(0xFF2F7BF0)
 
@@ -69,8 +69,11 @@ object C {
     // ---- Spark smoked glass (sampled from the reference) ----
     // Charcoal tint over the blurred backdrop: see-through at the top, nearly solid at the bottom.
     // Over the flat #18191B page this resolves to the reference card colour (#2A2B2D).
-    val GlassFillTop = Color(0x9E333438)
-    val GlassFillBottom = Color(0xCC333438)
+    val GlassFillTop = Color(0x80333438)
+    val GlassFillBottom = Color(0xD1333438)
+    /** Flat card rim (stacked cards in the reference): faint, lighter on top. */
+    val CardEdgeTop = Color(0x24FFFFFF)
+    val CardEdgeBottom = Color(0x0AFFFFFF)
     /** Thin light rim: brightest on the top edge, fading down. */
     val GlassEdgeTop = Color(0x38FFFFFF)
     val GlassEdgeBottom = Color(0x14FFFFFF)

@@ -71,6 +71,7 @@ fun AppCard(
     onClick: (() -> Unit)? = null,
     bordered: Boolean = false,
     translucentBorder: Boolean = false,
+    glass: Boolean = false,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val shape = RoundedCornerShape(Radius.Card)
@@ -78,7 +79,11 @@ fun AppCard(
     Column(
         modifier
             .then(if (onClick != null) Modifier.pressable(shape, Press.Card, onClick = onClick) else Modifier.clip(shape))
-            .then(if (spark) Modifier.glass(shape, strong = containerColor == C.CardOverlay) else Modifier.background(containerColor))
+            .then(
+                if (spark && glass) Modifier.glass(shape, strong = containerColor == C.CardOverlay)
+                else if (spark) Modifier.cardSurface(shape)
+                else Modifier.background(containerColor),
+            )
             .then(if (bordered && !spark) Modifier.border(1.dp, C.Border, shape) else Modifier)
             .then(if (translucentBorder && !spark) Modifier.translucentBorder(shape) else Modifier)
             .padding(padding),
@@ -91,7 +96,7 @@ fun Modifier.translucentBorder(shape: androidx.compose.ui.graphics.Shape): Modif
 
 @Composable
 fun HairlineDivider(modifier: Modifier = Modifier) {
-    HorizontalDivider(modifier, thickness = Dp.Hairline, color = C.Border)
+    HorizontalDivider(modifier, thickness = Dp.Hairline, color = if (Palette.spark) C.Divider else C.Border)
 }
 
 @Composable

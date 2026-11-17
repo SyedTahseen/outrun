@@ -354,7 +354,7 @@ private fun SubscriptionBar(info: SubInfo?, host: String, onCopy: () -> Unit) {
     }
     val expColor = when { expired -> C.Red; days <= 7 -> C.Amber; else -> C.Muted }
     val hasUsage = info != null && (info.total > 0 || info.used > 0)
-    Column(Modifier.fillMaxWidth().background(C.Card)) {
+    Column(Modifier.fillMaxWidth().background(C.Header)) {
         Row(
             Modifier.fillMaxWidth().padding(start = Space.Gutter, end = Space.Xs, top = Space.Sm, bottom = Space.Sm),
             verticalAlignment = Alignment.CenterVertically,
