@@ -6,4 +6,5 @@
     <color name="outrun_text">#FFFFFFFF</color>
     <color name="outrun_muted">#FFA7A4B5</color>
     <color name="transparent">#00000000</color>
+    <color name="icon_norm">#FFFFFFFF</color>
 </resources>

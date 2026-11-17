@@ -11,4 +11,5 @@
     <color name="widget_muted">#FFA7A4B5</color>
     <color name="widget_card">#FF292733</color>
     <color name="transparent">#00000000</color>
+    <color name="icon_norm">#FF0C0C14</color>
 </resources>
