@@ -32,8 +32,6 @@ data class SpeedConfig(
     val mode: TransmitMode = TransmitMode.Alternate,
     val seconds: Int = 15,
     val streams: Int = 4,
-    /** Run the test through the VPN when it is connected; otherwise direct. */
-    val useVpn: Boolean = true,
 )
 
 val SpeedPhase.running get() = this == SpeedPhase.Ping || this == SpeedPhase.Download || this == SpeedPhase.Upload

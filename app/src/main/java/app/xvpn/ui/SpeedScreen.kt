@@ -100,6 +100,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.xvpn.data.NetInfo
 import app.xvpn.data.SpeedConfig
 import app.xvpn.data.SpeedPhase
 import app.xvpn.data.SpeedTest
@@ -126,16 +127,22 @@ private val Dim get() = C.Muted         // label of a tile that isn't being meas
 private enum class SpeedView { Start, Running, Done }
 
 @Composable
-fun SpeedScreen(serverName: String?, onPickServer: () -> Unit = {}, onFullScreenChange: (Boolean) -> Unit = {}, onScrolledChange: (Boolean) -> Unit = {}) {
+fun SpeedScreen(serverName: String?, onFullScreenChange: (Boolean) -> Unit = {}, onScrolledChange: (Boolean) -> Unit = {}) {
     val ui by SpeedTest.state.collectAsState()
     val cfg by SpeedTest.config.collectAsState()
     val status by VpnState.status.collectAsState()
     val socks by VpnState.socksPort.collectAsState()
     val ctx = LocalContext.current
     val vpnReady = status == Status.Connected && socks > 0
-    val viaVpn = vpnReady && cfg.useVpn
+    val viaVpn = vpnReady   // connected = the test goes through the VPN, otherwise direct
+    val realIp by NetInfo.real.collectAsState()
+    val proxyIp by NetInfo.proxy.collectAsState()
     val connecting = status == Status.Connecting
     val connection = if (viaVpn) "VPN" + (serverName?.let { " · $it" } ?: "") else "Direct (VPN off)"
+    // Where the traffic comes out: the VPN server's location while on VPN, the phone's own location when direct.
+    val location = (if (viaVpn) proxyIp else realIp)
+        ?.let { ip -> listOf(ip.city, ip.country).filter { it.isNotBlank() }.joinToString(", ") }
+        ?.ifBlank { null } ?: "Locating…"
     var mode by remember { mutableIntStateOf(0) } // 0 = gauge / chart, 1 = log
 
     val view = when {
@@ -173,8 +180,8 @@ fun SpeedScreen(serverName: String?, onPickServer: () -> Unit = {}, onFullScreen
     ) { v ->
         when (v) {
             SpeedView.Start -> StartView(
-                ui = ui, cfg = cfg, connecting = connecting, vpnReady = vpnReady, serverName = serverName,
-                onCfg = { SpeedTest.config.value = it }, onPickServer = onPickServer,
+                ui = ui, cfg = cfg, connecting = connecting, connection = connection, location = location,
+                onCfg = { SpeedTest.config.value = it },
                 onStart = { SpeedTest.start(if (viaVpn) socks else 0) },
                 onScrolledChange = onScrolledChange,
             )
@@ -224,8 +231,8 @@ private fun colorAt(stops: Array<Pair<Float, Color>>, f: Float): Color {
 
 @Composable
 private fun StartView(
-    ui: SpeedUi, cfg: SpeedConfig, connecting: Boolean, vpnReady: Boolean, serverName: String?,
-    onCfg: (SpeedConfig) -> Unit, onPickServer: () -> Unit, onStart: () -> Unit, onScrolledChange: (Boolean) -> Unit,
+    ui: SpeedUi, cfg: SpeedConfig, connecting: Boolean, connection: String, location: String,
+    onCfg: (SpeedConfig) -> Unit, onStart: () -> Unit, onScrolledChange: (Boolean) -> Unit,
 ) {
     val scroll = rememberScrollState()
     val scrolled by remember { derivedStateOf { scroll.value > 0 } }
@@ -244,20 +251,8 @@ private fun StartView(
                 Text(note.first, style = Type.Small, color = note.second, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(bottom = Space.Sm))
             }
 
-            FieldLabel("Type")
-            Segmented(
-                options = listOf("VPN", "Direct"),
-                selected = if (vpnReady && cfg.useVpn) 0 else 1,
-                enabled = listOf(vpnReady, true),
-            ) { onCfg(cfg.copy(useVpn = it == 0)) }
-
-            FieldLabel("Select server")
-            AppCard(Modifier.fillMaxWidth().height(Sizes.Button), padding = 0.dp, onClick = onPickServer) {
-                Row(Modifier.fillMaxSize().padding(horizontal = Space.Lg), verticalAlignment = Alignment.CenterVertically) {
-                    Text(serverName ?: "No server selected", style = Type.BodyMedium, color = if (serverName != null) C.Text else C.Muted, maxLines = 1, modifier = Modifier.weight(1f))
-                    Icon(ProtonIcons.ChevronRight, "Choose server", tint = C.Muted, modifier = Modifier.size(Sizes.Icon))
-                }
-            }
+            DetailCard(listOf("Connection" to connection, "Location" to location))
+            Spacer(Modifier.height(Space.Md))
 
             FieldLabel("Transmit Mode")
             ModePicker(cfg.mode) { onCfg(cfg.copy(mode = it)) }
