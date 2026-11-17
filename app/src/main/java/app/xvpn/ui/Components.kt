@@ -37,6 +37,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -95,7 +96,8 @@ fun Modifier.translucentBorder(shape: androidx.compose.ui.graphics.Shape): Modif
 /** Hairline between rows (Proton VpnDivider: separatorNorm, Dp.Hairline). */
 @Composable
 fun HairlineDivider(modifier: Modifier = Modifier) {
-    Box(modifier.fillMaxWidth().height(Dp.Hairline).background(C.Border))
+    // [PV] VpnDivider. Modifier.height(Dp.Hairline) resolves to 0px (only HorizontalDivider maps Hairline to 1px), so use it.
+    HorizontalDivider(modifier, thickness = Dp.Hairline, color = C.Border)
 }
 
 @Composable

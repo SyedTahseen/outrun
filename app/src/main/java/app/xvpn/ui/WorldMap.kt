@@ -1,5 +1,13 @@
 package app.xvpn.ui
 
+import android.provider.Settings
+import androidx.compose.runtime.withFrameNanos
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.res.imageResource
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
+import app.xvpn.R
+import kotlin.math.roundToInt
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -51,6 +59,9 @@ import kotlin.math.max
 import kotlin.math.sin
 
 data class GeoPoint(val lon: Double, val lat: Double)
+
+/** Which Proton pin stage to draw: [PV] CountryHighlight SELECTED / CONNECTING / CONNECTED. */
+enum class MapPin { Selected, Connecting, Connected }
 
 private fun wrap(d: Double): Double { var x = d; while (x > 180) x -= 360; while (x < -180) x += 360; return x }
 
@@ -151,9 +162,8 @@ fun WorldMap(
     target: GeoPoint,
     countryCode: String?,
     dotColor: Color,
-    pulseMs: Int,
     modifier: Modifier = Modifier,
-    halo: Boolean = true,
+    pin: MapPin = MapPin.Selected,
     centerY: Float = 0.5f,
 ) {
     var from by remember { mutableStateOf(target) }
@@ -197,9 +207,20 @@ fun WorldMap(
     }
 
     val dot by animateColorAsState(dotColor, tween(600), label = "dot")
-    val pulse by rememberInfiniteTransition(label = "pulse").animateFloat(
-        0f, 1f, infiniteRepeatable(tween(pulseMs, easing = LinearEasing), RepeatMode.Restart), label = "p",
-    )
+
+    val outerDisconnected = ImageBitmap.imageResource(R.drawable.map_pin_outer_disconnected)
+    val outerProtected = ImageBitmap.imageResource(R.drawable.map_pin_outer_protected)
+    val animateOn = remember {
+        runCatching { Settings.Global.getFloat(ctx.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) != 0f }.getOrDefault(true)
+    }
+    var elapsedS by remember { mutableFloatStateOf(0f) }
+    LaunchedEffect(pin, to, animateOn) {
+        if (!animateOn) return@LaunchedEffect
+        // [PV] the pin animation restarts whenever the highlight stage or the country changes.
+        val t0 = withFrameNanos { it }
+        elapsedS = 0f
+        while (true) withFrameNanos { elapsedS = (it - t0) / 1_000_000_000f }
+    }
 
     fun camera(w: Float): Cam {
         val t = prog.value.toDouble()
@@ -344,19 +365,47 @@ fun WorldMap(
             val north = -a * sin(latR) + z * cos(latR)
             if (depth <= 0.02) return@Canvas
             val c = Offset(size.width / 2f + cam.r * east.toFloat(), size.height * centerY - cam.r * north.toFloat())
-            val k = 1f - 0.3f * cam.space
-            if (halo) {
-                val glow = 46.dp.toPx() * k
-                drawCircle(
-                    Brush.radialGradient(listOf(dot.copy(alpha = 0f), dot.copy(alpha = 0.12f), dot.copy(alpha = 0.55f)), c, glow),
-                    glow, c,
-                )
+            // [PV] MapView.drawPins: white 12dp disc with a 6dp coloured core; connected/selected also get the 96dp -> 64dp pulsing
+            // glow bitmap behind it (map_pin_outer_*). Connecting has no glow.
+            val animS = elapsedS
+            val showAnim = animateOn
+            val fullR = 48.dp.toPx(); val smallR = 32.dp.toPx(); val innerR = 12.dp.toPx()
+            fun decel(x: Float): Float { val t = x.coerceIn(0f, 1f); return 1f - (1f - t) * (1f - t) * (1f - t) }
 
-                val ringR = (10.dp.toPx() + 36.dp.toPx() * pulse) * k
-                drawCircle(dot.copy(alpha = 0.6f * (1f - pulse)), ringR, c, style = Stroke(2.dp.toPx()))
+            val outerBmp = when (pin) { MapPin.Selected -> outerDisconnected; MapPin.Connected -> outerProtected; MapPin.Connecting -> null }
+            if (outerBmp != null) {
+                val outerR: Float? = if (!showAnim) fullR else {
+                    val delay = if (pin == MapPin.Connected) 0f else 0.7f
+                    if (animS < delay) null else {
+                        val st = animS - delay
+                        if (st < 1f) fullR * decel(st)
+                        else {
+                            val ps = (st - 1f) % 3f
+                            val half = 1.5f
+                            val f = if (ps > half) decel((ps - half) / half) else 1f - decel(ps / half)
+                            smallR + (fullR - smallR) * f
+                        }
+                    }
+                }
+                if (outerR != null && outerR > 0f) {
+                    drawImage(
+                        outerBmp,
+                        srcSize = IntSize(outerBmp.width, outerBmp.height),
+                        dstOffset = IntOffset((c.x - outerR).roundToInt(), (c.y - outerR).roundToInt()),
+                        dstSize = IntSize((outerR * 2).roundToInt(), (outerR * 2).roundToInt()),
+                    )
+                }
             }
-            drawCircle(Color.White, 13.dp.toPx() * k, c)
-            drawCircle(dot.copy(alpha = if (halo) 0.65f + 0.35f * (1f - pulse) else 1f), 8.dp.toPx() * k, c)
+            val r0: Float? = if (!showAnim || pin == MapPin.Connected) innerR else {
+                if (animS < 0.2f) null else {
+                    val st = animS - 0.2f
+                    if (st < 0.4f) innerR * decel(st / 0.4f) else innerR
+                }
+            }
+            if (r0 != null && r0 > 0f) {
+                drawCircle(Color.White, r0, c)
+                drawCircle(dot, r0 / 2f, c)
+            }
         }
     }
 }

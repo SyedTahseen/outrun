@@ -128,8 +128,9 @@ fun HomeScreen(
 
     Box(Modifier.fillMaxSize()) {
         WorldMap(
-            target = cam, countryCode = camCode, dotColor = tone, pulseMs = if (connecting) 700 else 1600,
-            modifier = Modifier.fillMaxSize(), centerY = 0.46f, halo = !connecting,
+            target = cam, countryCode = camCode, dotColor = tone,
+            modifier = Modifier.fillMaxSize(), centerY = 0.46f,
+            pin = when { on -> MapPin.Connected; connecting -> MapPin.Connecting; else -> MapPin.Selected },
         )
 
         // [PV] Home.kt: a fixed 200dp status overlay at the top of the screen.

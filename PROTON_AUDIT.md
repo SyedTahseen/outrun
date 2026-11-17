@@ -153,3 +153,9 @@ Verified unchanged: ProtonTypography, ProtonShapes, ProtonDimens, all 55 `ic_pro
 | Server row | 36dp flag + 16dp gap, vertical dots | 30dp flag area + 12dp gap, text column vertical 12, icon 16dp from edge, horizontal dots | `ServerGroupItem`, `ServerGroupItemRow` |
 | Settings row | 24dp icon + 16dp gap, 14sp subtitle, 4dp gap, min 64dp | icon in 32dp box + 16dp, 16sp subtitle, 6dp gap, 56dp natural height, 8dp rounded ripple, trailing icon end 8dp | `SettingRow`, `SettingRowWithIcon` |
 | Bottom bar | hand-built dock | stock Material 3 `NavigationBar` / `NavigationBarItem` configured as `BottomBarView` | `BottomBarView.kt` |
+
+## Pass 11: dividers and map pin (still uncompiled)
+| Area | Before | Now | Source |
+|---|---|---|---|
+| Dividers (server list, statistics, usage, menus) | `Box.height(Dp.Hairline)` = 0px, so every divider was invisible | `HorizontalDivider(thickness = Dp.Hairline, color = C.Border)` (1px) | `VpnDivider.kt` |
+| Map location marker | white disc + vector halo + stroked pulse ring | white 12dp disc, 6dp coloured core, `map_pin_outer_{disconnected,protected}` glow bitmaps (copied from Proton res, all densities + night) pulsing 96dp <-> 64dp over 3s, show-in delays 0.2s / 0.7s, no glow while connecting, respects the system animator-duration scale | `MapView.kt` drawPins |
