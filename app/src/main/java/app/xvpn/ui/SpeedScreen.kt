@@ -344,7 +344,7 @@ private val RingStops: Array<Pair<Float, Color>> = run {
     Array(cols.size + 1) { i -> (i / cols.size.toFloat()) to cols[i % cols.size] }
 }
 
-private const val RING_BOX = 250       // dp: the size of the button area; the smoke bitmap uses 1 pixel per dp and is scaled up smoothly
+private const val RING_BOX = 250       // dp: the size of the button area
 private const val RING_R = 86.5f       // dp, middle of the ring stroke
 private const val RING_W = 7.5f        // dp, stroke width
 
@@ -371,8 +371,8 @@ private fun StartRing(enabled: Boolean, onClick: () -> Unit) {
     val blurOk = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
     Box(Modifier.size(RING_BOX.dp), contentAlignment = Alignment.Center) {
         if (blurOk) {
-            RingGlowLayer(Modifier.blur(20.dp, BlurredEdgeTreatment.Unbounded), RING_W, 0.55f * on)
-            RingGlowLayer(Modifier.blur(9.dp, BlurredEdgeTreatment.Unbounded), RING_W, 0.85f * on)
+            RingGlowLayer(Modifier.blur(18.dp, BlurredEdgeTreatment.Unbounded), RING_W, 0.45f * on)
+            RingGlowLayer(Modifier.blur(7.dp, BlurredEdgeTreatment.Unbounded), RING_W, 0.7f * on)
         } else {
             // Android 11 and older: no blur available, so stack faint, slightly wider copies of the ring. Still pure vector drawing.
             Canvas(Modifier.fillMaxSize()) {
@@ -393,8 +393,7 @@ private fun StartRing(enabled: Boolean, onClick: () -> Unit) {
             // Dark face: keeps the glow outside the ring, like the design.
             drawCircle(color = C.Bg, radius = r - w / 2f)
             val brush = Brush.sweepGradient(*RingStops, center = center)
-            // A faint wider pass softens the ring's edges like in the design.
-            drawCircle(brush = brush, radius = r, alpha = 0.25f * on, style = Stroke(w + 3.dp.toPx()))
+            // One crisp, fully opaque pass: the ring edge stays sharp and only the glow around it is soft.
             drawCircle(brush = brush, radius = r, alpha = on, style = Stroke(w))
         }
         Box(
