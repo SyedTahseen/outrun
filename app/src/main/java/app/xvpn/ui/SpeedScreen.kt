@@ -11,7 +11,6 @@ import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -31,7 +30,6 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -108,7 +106,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.xvpn.data.SpeedConfig
 import app.xvpn.data.SpeedPhase
-import app.xvpn.data.SpeedResult
 import app.xvpn.data.SpeedTest
 import app.xvpn.data.SpeedUi
 import app.xvpn.data.TransmitMode
@@ -116,9 +113,6 @@ import app.xvpn.data.running
 import app.xvpn.vpn.Status
 import app.xvpn.vpn.VpnState
 import kotlinx.coroutines.delay
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.exp
@@ -147,7 +141,6 @@ fun SpeedScreen(serverName: String?, onPickServer: () -> Unit = {}, onFullScreen
     val connecting = status == Status.Connecting
     val connection = if (viaVpn) "VPN" + (serverName?.let { " · $it" } ?: "") else "Direct (VPN off)"
     var mode by remember { mutableIntStateOf(0) } // 0 = gauge / chart, 1 = log
-    LaunchedEffect(Unit) { SpeedTest.attach(ctx) }
 
     val view = when {
         ui.phase.running -> SpeedView.Running
@@ -452,15 +445,11 @@ private fun RunningView(ui: SpeedUi, mode: Int, onMode: (Int) -> Unit, connectio
                 Spacer(Modifier.height(Space.Sm))
                 Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).staggerIn(3)) {
                     InfoRows(connection, cfg)
-                    Spacer(Modifier.height(SheetClearance))
                 }
             }
         }
-        HistorySheet(Modifier.align(Alignment.BottomCenter).staggerIn(4, rise = 90.dp))
     }
 }
-
-private val SheetClearance = 76.dp
 
 // The needle sits at DIAL_START degrees at 0 Mbps and sweeps DIAL_SWEEP degrees to the full scale (clockwise from 3 o'clock),
 // so the first label (1/10 of the scale) lands exactly on the left horizontal and the last one on the right, as in the design.
@@ -605,52 +594,9 @@ private fun DoneView(ui: SpeedUi, mode: Int, onMode: (Int) -> Unit, connection: 
                     "Test Again", { SpeedTest.start(if (ui.viaVpn) VpnState.socksPort.value else 0) },
                     Modifier.fillMaxWidth().staggerIn(2),
                 )
-                Spacer(Modifier.height(SheetClearance + Space.Sm))
+                Spacer(Modifier.height(Space.Sm))
             }
         }
-        HistorySheet(Modifier.align(Alignment.BottomCenter).staggerIn(3, rise = 90.dp))
-    }
-}
-
-/** The "Client history" sheet that peeks in from the bottom; tap it to open the list of earlier tests. */
-@Composable
-private fun HistorySheet(modifier: Modifier = Modifier) {
-    val items by SpeedTest.history.collectAsState()
-    var open by remember { mutableStateOf(false) }
-    val shape = RoundedCornerShape(topStart = Radius.Sheet, topEnd = Radius.Sheet)
-    Column(
-        modifier.fillMaxWidth().clip(shape).background(C.Card).border(1.dp, C.Border, shape)
-            .animateContentSize(tween(Motion.Medium, easing = Motion.Standard)),
-    ) {
-        Column(Modifier.fillMaxWidth().clickable { open = !open }.padding(top = Space.Sm, bottom = Space.Lg)) {
-            Box(Modifier.align(Alignment.CenterHorizontally).size(width = 36.dp, height = Space.Xs).clip(CircleShape).background(C.Border))
-            Spacer(Modifier.height(Space.Md))
-            Text("Client history", style = Type.Subtitle, color = C.Text, modifier = Modifier.padding(horizontal = Space.Gutter))
-        }
-        if (open) {
-            val fmt = remember { SimpleDateFormat("d MMM · HH:mm", Locale.getDefault()) }
-            Column(Modifier.fillMaxWidth().heightIn(max = 300.dp).verticalScroll(rememberScrollState()).padding(start = Space.Gutter, end = Space.Gutter, bottom = Space.Lg)) {
-                if (items.isEmpty()) {
-                    Text("No tests yet.", style = Type.Small, color = C.Muted, modifier = Modifier.padding(vertical = Space.Sm))
-                } else {
-                    items.forEach { HistoryRow(it, fmt.format(Date(it.at))) }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun HistoryRow(r: SpeedResult, whenText: String) {
-    Row(Modifier.fillMaxWidth().padding(vertical = Space.Sm), verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.weight(1f)) {
-            Text(whenText, style = Type.BodyMedium, color = C.Text)
-            Text(if (r.viaVpn) "VPN" else "Direct", style = Type.Small, color = C.Muted)
-        }
-        Text(
-            "${mbps(r.downMbps)} \u2193  ${mbps(r.upMbps)} \u2191  ${ms(r.pingMs)} ms",
-            style = Type.SmallMedium, color = C.Text, textAlign = TextAlign.End,
-        )
     }
 }
 

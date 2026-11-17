@@ -182,17 +182,6 @@ fun ServersScreen(
                         } else {
                             Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
                                 Text("Servers", style = Type.Headline, color = C.Text)
-                                Spacer(Modifier.width(Space.Md))
-                                Box(
-                                    Modifier.clip(RoundedCornerShape(Radius.Small)).background(C.Control)
-                                        .padding(horizontal = Space.Md, vertical = Space.Xs),
-                                ) {
-                                    AnimatedContent(
-                                        targetState = profiles.size,
-                                        transitionSpec = { numberTransition(up = targetState > initialState) },
-                                        label = "serverCount",
-                                    ) { n -> Text("$n", style = Type.SmallMedium, color = C.Text) }
-                                }
                             }
                             IconAction(Icons.Filled.Search, "Search") { searching = true }
                             Box {
@@ -269,7 +258,17 @@ fun ServersScreen(
                     ) { onFilterChange("sub:$url") }
                 }
             }
-            Spacer(Modifier.height(Space.Lg))
+            Spacer(Modifier.height(Space.Xl))
+            Row(Modifier.padding(horizontal = Space.Gutter), verticalAlignment = Alignment.CenterVertically) {
+                Text("All servers (", style = Type.Body, color = C.Muted)
+                AnimatedContent(
+                    targetState = profiles.size,
+                    transitionSpec = { numberTransition(up = targetState > initialState) },
+                    label = "serverCount",
+                ) { n -> Text("$n", style = Type.Body, color = C.Muted) }
+                Text(")", style = Type.Body, color = C.Muted)
+            }
+            Spacer(Modifier.height(Space.Sm))
         }
 
         AnimatedVisibility(

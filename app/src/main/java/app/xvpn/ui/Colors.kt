@@ -11,9 +11,9 @@ import androidx.compose.ui.graphics.Color
 object C {
     // Surfaces
     val Bg = Color(0xFF1C1B23)          // screen background
-    val Card = Color(0xFF282731)        // cards, bars, menus, dialogs, sheets
-    val Header = Color(0xFF292734)      // header and status bar once the page is scrolled
-    val CardOverlay = Color(0xEB282731) // Card over the map (92 %)
+    val Card = Color(0xFF292734)        // cards, bottom bar, menus, dialogs, sheets
+    val Header = Card                   // header and status bar once the page is scrolled (same as Card)
+    val CardOverlay = Color(0xEB292734) // Card over the map (92 %)
     val Control = Color(0xFF3B3746)     // unselected chips, secondary buttons, pills
     val Border = Color(0xFF3A3944)      // 1dp hairlines: card borders, dividers, chart grid
     val Divider = Color(0x0AFFFFFF)     // hairlines between rows (4 % white: subtle on both Bg and Card)
@@ -23,7 +23,7 @@ object C {
 
     // Brand
     val Primary = Color(0xFF6D4AFF)     // filled controls
-    val Accent = Color(0xFF8B6CF6)      // accent text, icons, strokes
+    val Accent = Primary                // accent text, icons, strokes (same purple as Primary)
     val AccentMid = Color(0xFF3B3175)   // tinted tile (top of gradient), inactive chart bars
     val AccentDeep = Color(0xFF1B2250)  // tinted tile (bottom of gradient)
     val NavPill = Color(0xFF4A3F8A)     // selected tab indicator
@@ -42,7 +42,7 @@ object C {
     val Neutral = Color(0xFFA6A3B2)     // in-progress
 
     // World map
-    val Land = Color(0xFF292734)
+    val Land = Card
     val LandActive = Color(0xFF4A4657)
     val LandLine = Color(0xFF5A5866)
 }

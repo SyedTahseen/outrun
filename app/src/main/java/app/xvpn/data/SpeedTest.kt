@@ -1,6 +1,5 @@
 package app.xvpn.data
 
-import android.content.Context
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -15,8 +14,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import org.json.JSONArray
-import org.json.JSONObject
 import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -64,16 +61,6 @@ data class SpeedUi(
     val phaseStartedAt: Long = 0L,
 )
 
-/** One finished test, kept for the "Client history" sheet. */
-data class SpeedResult(
-    val at: Long,
-    val downMbps: Double,
-    val upMbps: Double,
-    val pingMs: Int,
-    val jitterMs: Int,
-    val viaVpn: Boolean,
-)
-
 /**
  * Speed test against Cloudflare's public speed endpoints. Traffic goes through the local SOCKS proxy of the
  * running VPN core (the same way the IP lookup does), so the numbers are what the VPN server delivers.
@@ -90,37 +77,6 @@ object SpeedTest {
 
     /** Settings picked on the start screen; kept here so they survive switching tabs. */
     val config = MutableStateFlow(SpeedConfig())
-
-    /** Finished tests, newest first. Call [attach] once so they are loaded and saved. */
-    val history = MutableStateFlow<List<SpeedResult>>(emptyList())
-    private const val PREFS = "xvpn_speed"
-    private const val MAX_HISTORY = 30
-    private var appCtx: Context? = null
-
-    fun attach(ctx: Context) {
-        if (appCtx != null) return
-        appCtx = ctx.applicationContext
-        history.value = runCatching {
-            val arr = JSONArray(appCtx!!.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString("history", "[]") ?: "[]")
-            (0 until arr.length()).map {
-                val o = arr.getJSONObject(it)
-                SpeedResult(o.optLong("t"), o.optDouble("d"), o.optDouble("u"), o.optInt("p", -1), o.optInt("j", -1), o.optBoolean("v"))
-            }
-        }.getOrDefault(emptyList())
-    }
-
-    private fun saveResult(r: SpeedResult) {
-        val list = (listOf(r) + history.value).take(MAX_HISTORY)
-        history.value = list
-        val ctx = appCtx ?: return
-        runCatching {
-            val arr = JSONArray()
-            list.forEach {
-                arr.put(JSONObject().put("t", it.at).put("d", it.downMbps).put("u", it.upMbps).put("p", it.pingMs).put("j", it.jitterMs).put("v", it.viaVpn))
-            }
-            ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString("history", arr.toString()).apply()
-        }
-    }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var job: Job? = null
@@ -189,7 +145,6 @@ object SpeedTest {
                 }
                 state.update { it.copy(phase = SpeedPhase.Done, live = 0.0, liveUp = 0.0) }
                 log("Finished")
-                saveResult(SpeedResult(System.currentTimeMillis(), down, up, ping, jitter, socksPort > 0))
             } catch (e: CancellationException) {
                 state.update { SpeedUi(log = it.log) }
                 log("Stopped")
