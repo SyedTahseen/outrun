@@ -407,7 +407,6 @@ private fun App() {
                             selectedLink = selectedLink,
                             onConnect = { p -> connect(p.link); tab = Tab.Home },
                             onConnectFastest = ::connectFastest,
-                            onConnectRandom = ::connectRandom,
                             onDelete = { p -> store.remove(p.link); reload() },
                             onPasteClipboard = ::importClipboard,
                             onScanQr = { qrLauncher.launch(Unit) },

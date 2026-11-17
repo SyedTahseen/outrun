@@ -116,7 +116,6 @@ fun ServersScreen(
     onRefreshSubscription: (String) -> Unit = {},
     onCopySubscription: (String) -> Unit = {},
     onConnectFastest: () -> Unit = {},
-    onConnectRandom: () -> Unit = {},
 ) {
     var searching by remember { mutableStateOf(false) }
     var query by remember { mutableStateOf("") }
@@ -276,15 +275,10 @@ fun ServersScreen(
                     )
                 } else {
                     LazyColumn(Modifier.fillMaxSize().verticalScrollbar(listState), state = listState) {
-                        // Quick connect: fastest server by latency (runs a test first when there are no results) or a random one.
-                        if (query.isBlank() && f == null) item(key = "quick") {
-                            Row(
-                                Modifier.fillMaxWidth().padding(horizontal = Space.Gutter, vertical = Space.Sm),
-                                horizontalArrangement = Arrangement.spacedBy(Space.Sm),
-                            ) {
-                                AppButton(if (testing) "Testing…" else "Fastest", onConnectFastest, Modifier.weight(1f), ButtonStyle.OutlineCard, ButtonSize.Compact, enabled = !testing)
-                                AppButton("Random", onConnectRandom, Modifier.weight(1f), ButtonStyle.OutlineCard, ButtonSize.Compact)
-                            }
+                        // [PV] CountriesViewModel adds fastestCountryItem() as the first row of the list: same row layout as a server,
+                        // a "Fastest" entry with a description instead of a flag.
+                        if (query.isBlank() && f == null) item(key = "fastest") {
+                            FastestRow(testing, onConnectFastest)
                         }
                         // [PV] ServerGroupHeader: body2Regular textWeak, top 16 / sides 16, text padding(vertical = 8); scrolls with the list.
                         item(key = "count") {
@@ -472,6 +466,32 @@ private fun ServerRow(
                     AppMenuItem(ProtonIcons.SquaresInSquare, "Copy") { menu = false; onCopy() }
                     AppMenuItem(ProtonIcons.Trash, "Delete") { menu = false; onDelete() }
                 }
+            }
+        }
+        HairlineDivider()
+    }
+}
+
+/** [PV] "Fastest country" row: leading icon in the 30dp flag area, title, weak description, hairline divider. */
+@Composable
+private fun FastestRow(testing: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Column(modifier.fillMaxWidth().background(C.Bg)) {
+        Row(
+            Modifier.fillMaxWidth().clickable(enabled = !testing, onClick = onClick).heightIn(min = Sizes.ServerRow)
+                .padding(start = Space.Gutter, end = Space.Gutter),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(Modifier.size(Sizes.FlagArea), contentAlignment = Alignment.Center) {
+                Icon(ProtonIcons.Bolt, null, tint = C.Accent, modifier = Modifier.size(Sizes.Icon))
+            }
+            Spacer(Modifier.width(Space.Md))
+            Column(Modifier.weight(1f).padding(vertical = Space.Md)) {
+                Text("Fastest server", style = Type.Body, color = C.Text, maxLines = 1)
+                Text(
+                    if (testing) "Testing servers…" else "The best server based on latency",
+                    style = Type.Small, color = C.Muted, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(top = Space.Xs),
+                )
             }
         }
         HairlineDivider()

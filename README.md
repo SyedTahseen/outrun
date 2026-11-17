@@ -72,7 +72,7 @@ been granted yet, the power button opens the app instead.
 - **Auto-connect on boot** (Settings -> Auto-connect): needs the VPN permission to have been granted once.
 - **Quick Settings tile**: add "Outrun VPN" from the notification shade's edit menu. Opens the app when no server is selected or the VPN permission is missing.
 - **Recents**: the last 3 servers appear on Home while disconnected for one-tap reconnect.
-- **Fastest / Random** (Servers tab, top of the list): Fastest reuses a latency test from the last 10 minutes or runs one first. While connecting is slow, Home offers "Try another server" (random).
+- **Fastest** (first row of the Servers list, like Proton's "Fastest country" row): reuses a latency test from the last 10 minutes or runs one first. While connecting is slow, Home offers "Try another server" (random).
 - **Local network (LAN)** (Settings): keeps 10/8, 172.16/12, 192.168/16, link-local and multicast outside the tunnel (works on every Android version, not only 13+). Off by default.
 - **MTU** (Settings): 1500 (default) down to 1280.
 
