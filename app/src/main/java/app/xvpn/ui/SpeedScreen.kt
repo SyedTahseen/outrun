@@ -5,7 +5,6 @@ import android.graphics.Bitmap
 import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.SizeTransform
@@ -21,12 +20,10 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -69,7 +66,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -234,13 +230,11 @@ private fun StartView(
     val scroll = rememberScrollState()
     val scrolled by remember { derivedStateOf { scroll.value > 0 } }
     ReportScrolled(scrolled, onScrolledChange)
-    var more by remember { mutableStateOf(false) }
-    val chevron by animateFloatAsState(if (more) 180f else 0f, tween(Motion.Medium, easing = Motion.Standard), label = "moreChevron")
     Column(Modifier.fillMaxSize()) {
         ScreenHeader("Speed test", scrolled = scrolled)
         Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(scroll).padding(horizontal = Space.Gutter)) {
-            Spacer(Modifier.height(Space.Xxxl))
-            Box(Modifier.align(Alignment.CenterHorizontally)) { if (START_CLASSIC) StartRingClassic(enabled = !connecting, onClick = onStart) else StartOrb(enabled = !connecting, onClick = onStart) }
+            Spacer(Modifier.height(Space.Xxxl)) // headroom so the ring's haze isn't cut off by the scroll area
+            Box(Modifier.align(Alignment.CenterHorizontally)) { StartRing(enabled = !connecting, onClick = onStart) }
             val note = when {
                 ui.phase == SpeedPhase.Failed -> ("Couldn't finish the test" + (ui.error.takeIf { it.isNotBlank() }?.let { " ($it)" } ?: "") + ". Check your connection and try again.") to C.Red
                 connecting -> "Wait for the VPN to finish connecting." to C.Muted
@@ -268,30 +262,6 @@ private fun StartView(
             FieldLabel("Transmit Mode")
             ModePicker(cfg.mode) { onCfg(cfg.copy(mode = it)) }
 
-            Row(
-                Modifier.align(Alignment.CenterHorizontally)
-                    .heightIn(min = Sizes.Control)
-                    .pressable(RoundedCornerShape(Radius.Badge), Press.Control) { more = !more } // as TextAction (ProtonTextButton)
-                    .padding(horizontal = Space.Md),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text("More", style = Type.ButtonSmall, color = C.Accent)
-                Icon(ProtonIcons.ChevronDown, null, tint = C.Accent, modifier = Modifier.size(Sizes.Icon).graphicsLayer { rotationZ = chevron })
-            }
-            AnimatedVisibility(
-                visible = more,
-                enter = expandVertically(tween(Motion.Medium, easing = Motion.Standard)) + fadeIn(tween(Motion.Medium)),
-                exit = shrinkVertically(tween(Motion.Medium, easing = Motion.Standard)) + fadeOut(tween(Motion.Short)),
-            ) {
-                Column {
-                    FieldLabel("Test duration")
-                    val secs = listOf(5, 7, 10)
-                    Segmented(secs.map { "${it}s" }, secs.indexOf(cfg.seconds).coerceAtLeast(0)) { onCfg(cfg.copy(seconds = secs[it])) }
-                    FieldLabel("Streams")
-                    val streams = listOf(1, 2, 4, 8)
-                    Segmented(streams.map { "$it" }, streams.indexOf(cfg.streams).coerceAtLeast(0)) { onCfg(cfg.copy(streams = streams[it])) }
-                }
-            }
             Spacer(Modifier.height(Space.Xxl))
         }
     }
@@ -365,12 +335,12 @@ private fun RingGlowLayer(modifier: Modifier, strokeDp: Float, alpha: Float) {
 }
 
 /**
- * The previous START button (kept; switch with START_CLASSIC). The glow is the ring itself, really blurred (RenderEffect, Android 12+): the colors of the ring
+ * The START button from the design. The glow is the ring itself, really blurred (RenderEffect, Android 12+): the colors of the ring
  * bleed into each other and into the dark, like light through smoke. A wide, faint blur sits under a tighter, brighter one.
  * Blur is not available before Android 12, so older phones get stacked vector rings instead.
  */
 @Composable
-private fun StartRingClassic(enabled: Boolean, onClick: () -> Unit) {
+private fun StartRing(enabled: Boolean, onClick: () -> Unit) {
     val on by animateFloatAsState(if (enabled) 1f else 0.35f, tween(Motion.Medium), label = "ringOn")
     val tick = rememberTick(strong = true)
     val blurOk = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
@@ -406,63 +376,6 @@ private fun StartRingClassic(enabled: Boolean, onClick: () -> Unit) {
             contentAlignment = Alignment.Center,
         ) {
             Text("START", style = Type.Subtitle, color = if (enabled) C.Text else Dim)   // C.Text: the ring face is C.Bg, so white text vanished on the light theme
-        }
-    }
-}
-
-/** false: the pulse orb below. true: the previous rainbow ring ([StartRingClassic]). */
-private const val START_CLASSIC = false
-
-/**
- * The Start button, pulse-orb style: a filled brand-purple orb (lit from the top left) with a soft radial halo and two thin rings
- * that slowly ripple outwards while it waits. One hue, no blur effect, so it looks the same on every Android version and on both themes.
- * While the VPN is still connecting the glow and ripples fade out and the orb dims.
- */
-@Composable
-private fun StartOrb(enabled: Boolean, onClick: () -> Unit) {
-    val on by animateFloatAsState(if (enabled) 1f else 0.35f, tween(Motion.Medium), label = "orbOn")
-    val tick = rememberTick(strong = true)
-    val pulse by rememberInfiniteTransition(label = "orbPulse").animateFloat(
-        initialValue = 0f, targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(3200, easing = LinearEasing), RepeatMode.Restart), label = "orbPulseT",
-    )
-    val glow = C.Accent
-    Box(Modifier.size(RING_BOX.dp), contentAlignment = Alignment.Center) {
-        Canvas(Modifier.fillMaxSize()) {
-            val orbR = Sizes.SpeedRing.toPx() / 2f
-            val reach = 40.dp.toPx()
-            // Halo: radial fade from the orb edge outwards.
-            drawCircle(
-                brush = Brush.radialGradient(
-                    0f to glow.copy(alpha = 0.50f * on), (orbR / (orbR + reach)) to glow.copy(alpha = 0.42f * on), 1f to Color.Transparent,
-                    center = center, radius = orbR + reach,
-                ),
-                radius = orbR + reach,
-            )
-            // Two ripples, half a cycle apart: they grow from the orb edge and fade.
-            for (k in 0..1) {
-                val t = (pulse + k * 0.5f) % 1f
-                drawCircle(
-                    color = glow.copy(alpha = (1f - t) * 0.45f * on),
-                    radius = orbR + t * 34.dp.toPx(), style = Stroke(1.5.dp.toPx()),
-                )
-            }
-            // Orb: lit from the top left.
-            drawCircle(
-                brush = Brush.radialGradient(
-                    0f to Color(0xFF9B83FF), 0.55f to C.Primary, 1f to Color(0xFF4A2BD0),
-                    center = Offset(center.x - orbR * 0.35f, center.y - orbR * 0.4f), radius = orbR * 1.5f,
-                ),
-                radius = orbR, alpha = on,
-            )
-            // Thin inner highlight ring.
-            drawCircle(color = Color.White.copy(alpha = 0.22f * on), radius = orbR - 4.dp.toPx(), style = Stroke(1.dp.toPx()))
-        }
-        Box(
-            Modifier.size(Sizes.SpeedRing).pressable(CircleShape, 0.94f, enabled = enabled, ripple = false) { tick(); onClick() },
-            contentAlignment = Alignment.Center,
-        ) {
-            Text("START", style = Type.Subtitle, color = Color.White.copy(alpha = if (enabled) 1f else 0.7f))
         }
     }
 }
