@@ -440,7 +440,6 @@ private fun App() {
                             },
                         )
                         Screen.Speed -> SpeedScreen(
-                            serverName = profiles.firstOrNull { it.link == selectedLink }?.name,
                             onFullScreenChange = { menuFullScreen = it },
                             onScrolledChange = { serversScrolled = it },
                         )

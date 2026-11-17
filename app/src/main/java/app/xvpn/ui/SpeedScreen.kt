@@ -127,7 +127,7 @@ private val Dim get() = C.Muted         // label of a tile that isn't being meas
 private enum class SpeedView { Start, Running, Done }
 
 @Composable
-fun SpeedScreen(serverName: String?, onFullScreenChange: (Boolean) -> Unit = {}, onScrolledChange: (Boolean) -> Unit = {}) {
+fun SpeedScreen(onFullScreenChange: (Boolean) -> Unit = {}, onScrolledChange: (Boolean) -> Unit = {}) {
     val ui by SpeedTest.state.collectAsState()
     val cfg by SpeedTest.config.collectAsState()
     val status by VpnState.status.collectAsState()
@@ -138,7 +138,7 @@ fun SpeedScreen(serverName: String?, onFullScreenChange: (Boolean) -> Unit = {},
     val realIp by NetInfo.real.collectAsState()
     val proxyIp by NetInfo.proxy.collectAsState()
     val connecting = status == Status.Connecting
-    val connection = if (viaVpn) "VPN" + (serverName?.let { " · $it" } ?: "") else "Direct (VPN off)"
+    val connection = if (viaVpn) "VPN" else "Direct"
     // Where the traffic comes out: the VPN server's location while on VPN, the phone's own location when direct.
     val location = (if (viaVpn) proxyIp else realIp)
         ?.let { ip -> listOf(ip.city, ip.country).filter { it.isNotBlank() }.joinToString(", ") }
@@ -242,6 +242,7 @@ private fun StartView(
         Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(scroll).padding(horizontal = Space.Gutter)) {
             Spacer(Modifier.height(Space.Xxxl)) // headroom so the ring's haze isn't cut off by the scroll area
             Box(Modifier.align(Alignment.CenterHorizontally)) { StartRing(enabled = !connecting, onClick = onStart) }
+            Spacer(Modifier.height(Space.Xxxl)) // same headroom as above the ring, so it sits in the middle between the title and the info card
             val note = when {
                 ui.phase == SpeedPhase.Failed -> ("Couldn't finish the test" + (ui.error.takeIf { it.isNotBlank() }?.let { " ($it)" } ?: "") + ". Check your connection and try again.") to C.Red
                 connecting -> "Wait for the VPN to finish connecting." to C.Muted
