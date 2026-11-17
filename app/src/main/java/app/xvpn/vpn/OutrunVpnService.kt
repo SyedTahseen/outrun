@@ -275,9 +275,9 @@ class OutrunVpnService : VpnService() {
             x = SingBoxCore(this)
             core = x
             val settings = Store(this)
-            val dns = settings.dnsServers()       // NetShield's filtering DNS when it is on
+            val dns = settings.dnsServers()       // custom DNS, else NetShield's filtering DNS when it is on
             val mtu = settings.mtu
-            x.start(ConfigBuilder.build(link, port, settings.baseDnsServers().first()), port)
+            x.start(ConfigBuilder.build(link, port, settings.resolverDns()), port)
             currentCoroutineContext().ensureActive()
 
             val b = Builder()

@@ -64,6 +64,9 @@ object Choices {
         if (!ok) return null
         return if (prefix == max) addr else "$addr/$prefix"
     }
+    /** One DNS server address (IPv4 or IPv6, no prefix length), or null when [text] isn't one. */
+    fun parseDnsAddress(text: String): String? = parseIp(text)?.takeIf { '/' !in it }
+
     fun parseDns(text: String): List<String> = text.split(',', ' ', ';', '\n').map { it.trim() }.filter { it.isNotEmpty() }
         .let { parts -> if (parts.isNotEmpty() && parts.all { ipv4.matches(it) }) parts else emptyList() }
 }
@@ -221,13 +224,31 @@ class Store(context: Context) {
 
     fun pushRecent(link: String) = putLines("recents", (listOf(link) + recentLinks().filter { it != link }).take(10))
 
-    /** DNS the VPN uses: the NetShield filter when it is on, otherwise the user's choice. */
-    fun dnsServers(): List<String> = if (netShield) Choices.netShieldDns(blockAdult) else baseDnsServers()
+    /** Custom DNS switch. Until the user touches it, it follows the legacy DNS choice (anything other than the default Cloudflare = on). */
+    var customDnsEnabled: Boolean
+        get() = if (prefs.contains("cdns_on")) prefs.getBoolean("cdns_on", false) else dnsChoice != "cloudflare"
+        set(v) = prefs.edit().putBoolean("cdns_on", v).apply()
 
-    /** The user's own DNS choice (also used by sing-box itself to resolve the proxy server's hostname). */
-    fun baseDnsServers(): List<String> {
-        if (dnsChoice == "custom") Choices.parseDns(dnsCustom).takeIf { it.isNotEmpty() }?.let { return it }
-        return (Choices.dns.firstOrNull { it.id == dnsChoice } ?: Choices.dns.first()).servers
+    /** The user's own DNS servers, in the order they are tried (IPv4 or IPv6). Migrates the legacy preset / custom choice. */
+    var customDnsList: List<String>
+        get() = if (prefs.contains("cdns_list")) lines("cdns_list") else
+            if (dnsChoice == "custom") Choices.parseDns(dnsCustom)
+            else Choices.dns.firstOrNull { it.id == dnsChoice && it.id != "cloudflare" }?.servers ?: emptyList()
+        set(v) = putLines("cdns_list", v)
+
+    /** Custom DNS servers that will actually be used: switch on, list not empty, IPv6 addresses dropped while IPv6 is blocked. */
+    fun customDnsEffective(): List<String> =
+        if (customDnsEnabled) customDnsList.filter { ipv6Mode != "block" || ':' !in it } else emptyList()
+
+    /** DNS the VPN uses. Custom DNS wins; otherwise NetShield's filtering DNS when it is on; otherwise the default resolver. */
+    fun dnsServers(): List<String> = customDnsEffective().ifEmpty {
+        if (netShield) Choices.netShieldDns(blockAdult) else Choices.dns.first().servers
+    }
+
+    /** Resolver sing-box itself uses for the proxy server's hostname: the custom / default DNS, never the NetShield filter, IPv4 first. */
+    fun resolverDns(): String {
+        val list = customDnsEffective().ifEmpty { Choices.dns.first().servers }
+        return list.firstOrNull { ':' !in it } ?: list.first()
     }
 
     fun testUrl(): String = (Choices.testUrls.firstOrNull { it.id == testUrlChoice } ?: Choices.testUrls.first()).url

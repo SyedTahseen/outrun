@@ -20,7 +20,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.toggleable
@@ -52,6 +55,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import app.xvpn.R
+import app.xvpn.data.Choices
 import kotlin.math.min
 
 // Pages of Settings that Proton builds as "feature" screens (SplitTunneling.kt, KillSwitchInfo.kt, ThemeSettings.kt,
@@ -75,6 +79,7 @@ fun FeaturePage(
     title: String,
     onBack: () -> Unit,
     onScrolledChange: (Boolean) -> Unit,
+    bottom: (@Composable () -> Unit)? = null,
     content: LazyListScope.() -> Unit,
 ) {
     val listState = rememberLazyListState()
@@ -90,6 +95,7 @@ fun FeaturePage(
             }
         }
         LazyColumn(Modifier.weight(1f).fillMaxWidth(), state = listState, content = content)
+        bottom?.invoke()
     }
 }
 
@@ -270,5 +276,170 @@ private fun ThemeTile(label: String, imageRes: Int, selected: Boolean, modifier:
         Image(painterResource(imageRes), null)
         Box(Modifier.weight(1f)) { Text(label, style = Type.Small, color = C.Text, textAlign = TextAlign.Center, modifier = Modifier.align(Alignment.Center)) }
         AppRadio(selected)
+    }
+}
+
+
+// ------------------------------------------------------------------ Advanced settings rows
+
+/** [PV] SettingsItemScaffold: 16dp padding, title (body1) + 16dp + description (body2, weak). */
+@Composable
+private fun SettingsItemScaffold(
+    modifier: Modifier, description: String?,
+    title: @Composable () -> Unit,
+) {
+    Column(modifier.fillMaxWidth().padding(horizontal = Space.Lg, vertical = Space.Lg)) {
+        title()
+        if (description != null) {
+            Spacer(Modifier.height(Space.Lg))
+            Text(description, style = Type.Small, color = C.Muted, modifier = Modifier.padding(end = Space.Sm))
+        }
+    }
+}
+
+/** [PV] SettingsValueItem: title with the current value and a chevron at the end, description below; opens a sub-page. */
+@Composable
+fun SettingsValueItem(name: String, value: String, description: String?, onClick: () -> Unit) {
+    SettingsItemScaffold(Modifier.clickable(onClick = onClick), description) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(name, style = Type.Body, color = C.Text, modifier = Modifier.weight(1f))
+            Text(value, style = Type.Small, color = C.Muted)
+            Icon(ProtonIcons.ChevronRight, null, tint = C.Muted, modifier = Modifier.padding(start = Space.Xs).size(16.dp))
+        }
+    }
+}
+
+/** [PV] SettingsToggleItem: title with a switch at the end, description below; the whole row toggles. */
+@Composable
+fun SettingsToggleItem(name: String, checked: Boolean, description: String?, onToggle: (Boolean) -> Unit) {
+    SettingsItemScaffold(Modifier.toggleable(value = checked, onValueChange = onToggle, role = Role.Switch), description) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(name, style = Type.Body, color = C.Text, modifier = Modifier.weight(1f))
+            AppSwitch(checked, null)
+        }
+    }
+}
+
+/** [PV] LanSetting: feature page with the picture, title, description and the switch. */
+@Composable
+fun LanPage(on: Boolean, onOn: (Boolean) -> Unit, onBack: () -> Unit, onScrolledChange: (Boolean) -> Unit) {
+    FeaturePage("LAN connections", onBack, onScrolledChange) {
+        featureHeader(
+            R.drawable.setting_lan, "LAN connections",
+            "Allows you to connect to printers, speakers, and other devices in your device\u2019s local network.",
+        )
+        item { FeatureToggle("LAN connections", on, Modifier.padding(horizontal = Space.Gutter, vertical = Space.Lg), onOn) }
+        item {
+            Text(
+                "Traffic to private addresses (192.168.x.x, 10.x.x.x, 172.16\u201331.x.x) goes directly, not through the VPN. Applies the next time you connect. Ignored when split tunneling includes only specific IP addresses.",
+                style = Type.Caption, color = C.Muted,
+                modifier = Modifier.padding(start = Space.Gutter, end = Space.Gutter, bottom = Space.Lg),
+            )
+        }
+    }
+}
+
+/**
+ * [PV] CustomDnsScreen: feature page with the switch; when on, "Servers (n)", the list (reorder, remove) and an "Add new DNS server"
+ * button pinned at the bottom. Servers are tried in the order shown.
+ */
+@Composable
+fun CustomDnsPage(
+    on: Boolean, servers: List<String>, netShieldConflict: Boolean,
+    onOn: (Boolean) -> Unit, onMove: (from: Int, to: Int) -> Unit, onRemove: (String) -> Unit, onAdd: () -> Unit,
+    onBack: () -> Unit, onScrolledChange: (Boolean) -> Unit,
+) {
+    var conflictDialog by remember { mutableStateOf(false) }
+    FeaturePage(
+        "Custom DNS", onBack, onScrolledChange,
+        bottom = if (on) ({
+            Box(Modifier.fillMaxWidth().padding(Space.Lg)) {
+                AppButton("Add new DNS server", onAdd, Modifier.fillMaxWidth(), ButtonStyle.Primary)
+            }
+        }) else null,
+    ) {
+        featureHeader(
+            R.drawable.setting_custom_dns, "Custom DNS",
+            "Connect to VPN with a self-hosted or third-party domain name system (DNS).",
+        )
+        item {
+            FeatureToggle(
+                "Custom DNS", on, Modifier.padding(horizontal = Space.Gutter, vertical = Space.Lg),
+            ) { v -> onOn(v); if (v && netShieldConflict) conflictDialog = true }
+        }
+        if (on) {
+            item(key = "title") {
+                Text("Servers (${servers.size})", style = Type.SmallMedium, color = C.Text, modifier = Modifier.padding(Space.Lg))
+            }
+            itemsIndexed(servers, key = { _, s -> s }) { i, server ->
+                Row(
+                    Modifier.fillMaxWidth().padding(start = Space.Lg).heightIn(min = 56.dp).animateItem(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(server, style = Type.Body, color = C.Text, modifier = Modifier.weight(1f))
+                    if (i > 0) IconAction(ProtonIcons.ChevronUp, "Move up") { onMove(i, i - 1) }
+                    else Spacer(Modifier.size(Sizes.Control))
+                    if (i < servers.lastIndex) IconAction(ProtonIcons.ChevronDown, "Move down") { onMove(i, i + 1) }
+                    else Spacer(Modifier.size(Sizes.Control))
+                    IconAction(ProtonIcons.Trash, "Delete") { onRemove(server) }
+                    Spacer(Modifier.width(Space.Xs))
+                }
+            }
+            item(key = "footer") {
+                Text(
+                    if (servers.size <= 1) "If your custom DNS server doesn\u2019t work, the standard VPN DNS will be used."
+                    else "We\u2019ll try to connect to these servers in order. If none of them work, the VPN DNS will be used.",
+                    style = Type.Small, color = C.Shade50,
+                    modifier = Modifier.padding(start = Space.Lg, end = Space.Lg, top = Space.Sm, bottom = Space.Lg),
+                )
+            }
+        }
+    }
+    if (conflictDialog) {
+        AppDialog(
+            title = "NetShield will be unavailable", onDismiss = { conflictDialog = false },
+            confirmLabel = "Got it", onConfirm = { conflictDialog = false }, dismissLabel = null,
+        ) {
+            Text("NetShield can not filter out ads, trackers and malware when custom DNS is used.", style = Type.Small, color = C.Text)
+        }
+    }
+}
+
+/** [PV] AddNewDnsScreen: text field with an Add button beside it, assistive text or the error below. */
+@Composable
+fun AddDnsPage(existing: List<String>, onAdd: (String) -> Unit, onBack: () -> Unit) {
+    var text by remember { mutableStateOf("") }
+    var error by remember { mutableStateOf<String?>(null) }
+    val focus = remember { androidx.compose.ui.focus.FocusRequester() }
+    androidx.compose.runtime.LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
+    fun submit() {
+        val t = text.trim()
+        val addr = Choices.parseDnsAddress(t)
+        error = when {
+            t.isEmpty() -> "Enter an IPv4 or IPv6 address"
+            addr == null -> "Enter a valid IPv4 or IPv6 address"
+            addr in existing -> "Server already added"
+            else -> null
+        }
+        if (error == null && addr != null) onAdd(addr)
+    }
+    androidx.activity.compose.BackHandler(true) { onBack() }
+    Column(Modifier.fillMaxSize()) {
+        ScreenHeader("Add new DNS server", onBack)
+        Row(Modifier.fillMaxWidth().padding(Space.Lg), verticalAlignment = Alignment.Top) {
+            AppTextField(
+                value = text, onValueChange = { text = it; error = null }, placeholder = "192.0.2.0", isError = error != null,
+                modifier = Modifier.weight(1f).focusRequester(focus),
+                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(imeAction = androidx.compose.ui.text.input.ImeAction.Done),
+                keyboardActions = androidx.compose.foundation.text.KeyboardActions(onDone = { submit() }),
+            )
+            Spacer(Modifier.width(Space.Sm))
+            AppButton("Add", { submit() }, Modifier, ButtonStyle.Primary, ButtonSize.Compact)
+        }
+        Text(
+            error ?: "Enter the server\u2019s IPv4 or IPv6 address",
+            style = Type.Caption, color = if (error != null) C.Red else C.Muted,
+            modifier = Modifier.padding(horizontal = Space.Lg),
+        )
     }
 }

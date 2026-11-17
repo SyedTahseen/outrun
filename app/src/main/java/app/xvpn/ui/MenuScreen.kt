@@ -147,13 +147,15 @@ fun MenuScreen(
 
 private fun pageDepth(p: String) = when (p) {
     "main" -> 0
-    "apps", "ips", "dns_custom" -> 2
+    "dns_add" -> 3
+    "apps", "ips", "lan", "dns", "mtu" -> 2
     else -> 1
 }
 
 private fun pageParent(p: String) = when (p) {
     "apps", "ips" -> "split"
-    "dns_custom" -> "dns"
+    "lan", "dns", "mtu" -> "advanced"
+    "dns_add" -> "dns"
     else -> "main"
 }
 
@@ -187,8 +189,8 @@ private fun MenuPage(
     }
 
     var splitOn by remember { mutableStateOf(store.splitEnabled) }
-    var dns by remember { mutableStateOf(store.dnsChoice) }
-    var dnsCustom by remember { mutableStateOf(store.dnsCustom) }
+    var customDnsOn by remember { mutableStateOf(store.customDnsEnabled) }
+    var customDns by remember { mutableStateOf(store.customDnsList) }
     var testUrl by remember { mutableStateOf(store.testUrlChoice) }
     var autoConnect by remember { mutableStateOf(store.autoConnect) }
     var autoUpdate by remember { mutableStateOf(store.autoUpdateSubs) }
@@ -230,57 +232,51 @@ private fun MenuPage(
             ThemePage(themeMode, { themeMode = it; AppTheme.set(ctx, it) }, { page = "main" })
             return
         }
+        "advanced" -> {
+            SubPage("Advanced settings", { page = "main" }) {
+                SettingsValueItem(
+                    "LAN connections", if (lan) "On" else "Off",
+                    "Allows you to connect to printers, speakers, and other devices in your device\u2019s local network.",
+                ) { page = "lan" }
+                SettingsValueItem(
+                    "Custom DNS", if (customDnsOn) "On" else "Off",
+                    "Connect to VPN with a self-hosted or third-party domain name system (DNS).",
+                ) { page = "dns" }
+                SettingsToggleItem(
+                    "IPv6 support", ipv6 != "block",
+                    "Tunnels IPv6 traffic through the VPN. Can enhance compatibility with IPv6 networks. When off, IPv6 is blocked so it can\u2019t bypass servers without IPv6 support.",
+                ) { on -> ipv6 = if (on) "tunnel" else "block"; store.ipv6Mode = ipv6 }
+                SettingsValueItem(
+                    "MTU", "$mtu",
+                    "The largest packet the VPN sends. Lower it if some sites or apps stall or time out only while connected.",
+                ) { page = "mtu" }
+            }
+            return
+        }
+        "lan" -> {
+            LanPage(lan, { lan = it; store.lanAccess = it }, { page = "advanced" }, onScrolledChange)
+            return
+        }
         "dns" -> {
-            SubPage(null, { page = "main" }) {
-                HeroIcon(ProtonIcons.Servers)
-                PageHeading("DNS", "Choose the DNS servers used while connected. Applies the next time you connect.")
-                Spacer(Modifier.height(Space.Sm))
-                ChoiceList {
-                    Choices.dns.forEach { o -> ChoiceRow(o.name, o.note, dns == o.id) { dns = o.id; store.dnsChoice = o.id; page = "main" } }
-                    ChoiceRow("Custom", if (dnsCustom.isBlank()) "Your own IPv4 DNS servers" else dnsCustom, dns == "custom") { page = "dns_custom" }
-                }
-            }
+            CustomDnsPage(
+                on = customDnsOn, servers = customDns, netShieldConflict = netShield,
+                onOn = { customDnsOn = it; store.customDnsEnabled = it },
+                onMove = { from, to ->
+                    customDns = customDns.toMutableList().apply { add(to, removeAt(from)) }
+                    store.customDnsList = customDns
+                },
+                onRemove = { s -> customDns = customDns - s; store.customDnsList = customDns; Snack.show("Item removed") },
+                onAdd = { page = "dns_add" },
+                onBack = { page = "advanced" }, onScrolledChange = onScrolledChange,
+            )
             return
         }
-        "dns_custom" -> {
-            var text by remember { mutableStateOf(dnsCustom) }
-            var error by remember { mutableStateOf(false) }
-            Column(Modifier.fillMaxSize()) {
-                EditorBar("Custom DNS", { page = "dns" }) {
-                    if (Choices.parseDns(text).isNotEmpty()) {
-                        dnsCustom = text.trim(); store.dnsCustom = dnsCustom
-                        dns = "custom"; store.dnsChoice = "custom"; page = "main"
-                    } else error = true
-                }
-                Column(Modifier.padding(horizontal = Space.Gutter)) {
-                    FieldLabel("DNS servers")
-                    AppTextField(
-                        value = text, onValueChange = { text = it; error = false },
-                        placeholder = "e.g. 9.9.9.9, 149.112.112.112",
-                    )
-                    Spacer(Modifier.height(Space.Sm))
-                    Text(
-                        if (error) "Not a valid IPv4 address list." else "Enter one or more IPv4 addresses, separated by commas.",
-                        style = Type.Caption, color = if (error) C.Red else C.Muted,
-                    )
-                }
-            }
-            return
-        }
-        "ipv6" -> {
-            SubPage(null, { page = "main" }) {
-                HeroIcon(ProtonIcons.Language)
-                PageHeading("IPv6", "Choose how IPv6 traffic is handled while connected. Applies the next time you connect.")
-                Spacer(Modifier.height(Space.Sm))
-                ChoiceList {
-                    ChoiceRow("Tunnel IPv6", "Send IPv6 through the VPN. If the server has no IPv6, apps fall back to IPv4.", ipv6 == "tunnel") {
-                        ipv6 = "tunnel"; store.ipv6Mode = "tunnel"; page = "main"
-                    }
-                    ChoiceRow("Block IPv6", "Apps can only use IPv4. Stops IPv6 from bypassing servers that don't support it.", ipv6 == "block") {
-                        ipv6 = "block"; store.ipv6Mode = "block"; page = "main"
-                    }
-                }
-            }
+        "dns_add" -> {
+            AddDnsPage(
+                existing = customDns,
+                onAdd = { customDns = customDns + it; store.customDnsList = customDns; page = "dns" },
+                onBack = { page = "dns" },
+            )
             return
         }
         "usage" -> {
@@ -315,12 +311,26 @@ private fun MenuPage(
                     "NetShield",
                     "Blocks ads, trackers and malicious websites while you are connected, by sending DNS lookups to a filtering resolver (AdGuard DNS). Applies the next time you connect.",
                 )
+                val conflict = customDnsOn && customDns.isNotEmpty()
+                if (conflict) {
+                    // [PV] DnsConflictBanner: backgroundSecondary, shapes.medium, 16dp padding.
+                    Column(
+                        Modifier.padding(horizontal = Space.Gutter, vertical = Space.Md).fillMaxWidth()
+                            .clip(RoundedCornerShape(Radius.Control)).background(C.Card).padding(Space.Lg),
+                    ) {
+                        Text("NetShield is unavailable", style = Type.BodyMedium, color = C.Text)
+                        Spacer(Modifier.height(Space.Sm))
+                        Text("NetShield can not filter out ads, trackers and malware when custom DNS is used.", style = Type.Small, color = C.Muted)
+                        Spacer(Modifier.height(Space.Lg))
+                        AppButton("Turn off custom DNS", { customDnsOn = false; store.customDnsEnabled = false }, Modifier.fillMaxWidth(), ButtonStyle.OutlineAccent)
+                    }
+                }
                 SwitchCard("NetShield", netShield) { netShield = it; store.netShield = it }
                 if (netShield) {
                     Spacer(Modifier.height(Space.Sm))
                     SwitchCard("Block adult content", blockAdult) { blockAdult = it; store.blockAdult = it }
                     Text(
-                        "While NetShield is on it replaces your DNS setting. It works on domain names, so it can't block ads served from the same domain as the content, and apps that use their own encrypted DNS bypass it.",
+                        "NetShield works on domain names, so it can't block ads served from the same domain as the content, and apps that use their own encrypted DNS bypass it.",
                         style = Type.Caption, color = C.Muted,
                         modifier = Modifier.padding(horizontal = Space.Gutter, vertical = Space.Md),
                     )
@@ -339,23 +349,8 @@ private fun MenuPage(
             }
             return
         }
-        "lan" -> {
-            SubPage(null, { page = "main" }) {
-                HeroIcon(ProtonIcons.Language)
-                PageHeading(
-                    "Local network (LAN)",
-                    "Keep devices on your local network reachable while connected: printers, Chromecast, a NAS or your router's page. Traffic to private addresses (192.168.x.x, 10.x.x.x, 172.16-31.x.x) goes directly, not through the VPN. Applies the next time you connect.",
-                )
-                SwitchCard("Allow local network access", lan) { lan = it; store.lanAccess = it }
-                Text(
-                    "Ignored when split tunneling is set to include only specific IP addresses.",
-                    style = Type.Caption, color = C.Muted, modifier = Modifier.padding(horizontal = Space.Gutter, vertical = Space.Md),
-                )
-            }
-            return
-        }
         "mtu" -> {
-            SubPage(null, { page = "main" }) {
+            SubPage(null, { page = "advanced" }) {
                 HeroIcon(ProtonIcons.Sliders)
                 PageHeading(
                     "MTU",
@@ -364,7 +359,7 @@ private fun MenuPage(
                 Spacer(Modifier.height(Space.Sm))
                 ChoiceList {
                     Choices.mtuChoices.forEach { (v, note) ->
-                        ChoiceRow("$v", note, mtu == v) { mtu = v; store.mtu = v; page = "main" }
+                        ChoiceRow("$v", note, mtu == v) { mtu = v; store.mtu = v; page = "advanced" }
                     }
                 }
             }
@@ -408,7 +403,6 @@ private fun MenuPage(
         }
     }
 
-    val dnsLabel = if (netShield) "NetShield" else if (dns == "custom") "Custom" else Choices.dns.firstOrNull { it.id == dns }?.name ?: "Cloudflare"
     val testLabel = Choices.testUrls.firstOrNull { it.id == testUrl }?.name ?: "Google"
     val version = remember { ctx.appVersionName() ?: "-" }
 
@@ -425,22 +419,19 @@ private fun MenuPage(
             ) { page = "split" }
             ListRow(
                 ProtonIcons.Shield, "NetShield",
-                if (!netShield) "Off" else if (blockAdult) "Blocking ads, trackers, malware and adult content" else "Blocking ads, trackers and malware",
+                if (!netShield) "Off" else if (customDnsOn && customDns.isNotEmpty()) "Unavailable with custom DNS" else if (blockAdult) "Blocking ads, trackers, malware and adult content" else "Blocking ads, trackers and malware",
             ) { page = "netshield" }
             ListRow(ProtonIcons.Lock, "Kill switch") { page = "kill" }
             ListRow(ProtonIcons.ChartLine, "Usage & history", "Data use, connection log and app usage") { page = "usage" }
 
             SectionHeader("Connection")
-            ListRow(ProtonIcons.Servers, "DNS", dnsLabel) { page = "dns" }
-            ListRow(ProtonIcons.Language, "IPv6", if (ipv6 == "block") "Blocked" else "Tunneled") { page = "ipv6" }
             ListRow(ProtonIcons.Bolt, "Latency test", testLabel) { page = "test" }
             ListRow(
                 ProtonIcons.PowerOff, "Auto-connect",
                 listOfNotNull("On launch".takeIf { autoConnect }, "On boot".takeIf { connectBoot }).joinToString(", ").ifEmpty { "Off" },
             ) { page = "connect" }
             ListRow(ProtonIcons.ArrowsSwapRight, "Auto-reconnect", if (autoReconnect) "On" else "Off") { page = "reconnect" }
-            ListRow(ProtonIcons.Servers, "Local network (LAN)", if (lan) "Allowed" else "Through the VPN") { page = "lan" }
-            ListRow(ProtonIcons.Sliders, "MTU", "$mtu") { page = "mtu" }
+            ListRow(ProtonIcons.Sliders, "Advanced settings") { page = "advanced" }
             ListRow(ProtonIcons.ArrowsRotate, "Auto-update subscriptions", if (autoUpdate) "On" else "Off") { page = "autoupdate" }
 
             SectionHeader("General")
