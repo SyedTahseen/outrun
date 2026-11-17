@@ -7,7 +7,9 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.graphics.drawable.Icon
+import android.net.ConnectivityManager
 import android.net.IpPrefix
+import android.net.Network
 import android.net.VpnService
 import android.os.Build
 import android.os.ParcelFileDescriptor
@@ -38,6 +40,9 @@ import java.io.File
 import java.net.InetAddress
 import java.util.Locale
 
+/** establish() returned null: the user has not granted (or has revoked) VPN permission, so trying other servers can't help. */
+private class NoVpnPermission : Exception("VPN permission was not granted")
+
 class OutrunVpnService : VpnService() {
     companion object {
         const val ACTION_START = "app.xvpn.START"
@@ -45,8 +50,11 @@ class OutrunVpnService : VpnService() {
         const val ACTION_NEXT = "app.xvpn.NEXT"
         const val EXTRA_LINK = "link"
         private const val TAG = "OutrunVpnService"
-        private const val MTU = 1500
         private const val VERIFY_TIMEOUT_MS = 20_000L
+        private const val MAX_FALLBACKS = 3            // other servers tried when one fails to connect
+        private const val NET_DEBOUNCE_MS = 1_500L     // network callbacks come in bursts; reconnect once they settle
+        private const val HEALTH_INTERVAL_MS = 60_000L // tunnel health probe while connected
+        private const val HEALTH_FAILS = 2             // consecutive failed probes before reconnecting
         private val PROBE_URLS = Choices.testUrls.take(2).map { it.url }
         private const val CHANNEL = "vpn"
         private const val NOTIFICATION_ID = 1
@@ -68,6 +76,15 @@ class OutrunVpnService : VpnService() {
 
     private var currentLink: String? = null
     private var currentName: String = ""
+
+    /** True while the user wants the VPN up (set on start, cleared on disconnect); gates every automatic reconnect. */
+    @Volatile private var wanted = false
+    private var healthJob: Job? = null
+    private var netJob: Job? = null
+    private var netCallback: ConnectivityManager.NetworkCallback? = null
+    private var lastNet: Network? = null
+    private var netLost = false
+    @Volatile private var waitingNet = false
     private var canSwitch = false
     private var sessionStart = 0L
     private var sessUp = 0L
@@ -89,12 +106,33 @@ class OutrunVpnService : VpnService() {
             ACTION_NEXT -> switchNext()
             ACTION_START -> {
                 val link = intent.getStringExtra(EXTRA_LINK) ?: return START_NOT_STICKY
-                startForeground(NOTIFICATION_ID, notification(getString(R.string.app_name), "Connecting…"))
-                val prev = connectJob
-                connectJob = scope.launch { prev?.cancelAndJoin(); connect(link) }
+                begin(link)
+            }
+            else -> {
+                // Started by the system as an Always-on VPN (no action of ours): connect to the selected server.
+                val link = Store(this).selected?.takeIf { LinkParser.parse(it) != null }
+                if (link != null) begin(link)
+                else {
+                    startForeground(NOTIFICATION_ID, notification(getString(R.string.app_name), "Select a server in the app"))
+                    stopForeground(STOP_FOREGROUND_REMOVE)
+                    stopSelf()
+                }
             }
         }
         return START_NOT_STICKY
+    }
+
+    private fun begin(link: String) {
+        wanted = true
+        startForeground(NOTIFICATION_ID, notification(getString(R.string.app_name), "Connecting…"))
+        registerNetworkWatch()
+        launchConnect(link)
+    }
+
+    /** Cancels any attempt in progress and connects to [link] (with fallback to other servers if enabled). */
+    private fun launchConnect(link: String) {
+        val prev = connectJob
+        connectJob = scope.launch { prev?.cancelAndJoin(); connect(link, emptySet()) }
     }
 
     private fun nextLink(): String? {
@@ -106,12 +144,90 @@ class OutrunVpnService : VpnService() {
         return pool[(pool.indexOf(currentLink) + 1) % pool.size]
     }
 
+    /** Next server to try after [exclude] failed: favorites first, then every other server, in list order. */
+    private fun fallbackLink(exclude: Set<String>): String? {
+        val store = Store(this)
+        val all = store.links().filter { LinkParser.parse(it) != null && it !in exclude }
+        val favs = all.filter { it in store.favorites }
+        return (favs.ifEmpty { all }).firstOrNull()
+    }
+
     private fun switchNext() {
         val next = nextLink() ?: return
         val name = LinkParser.parse(next)?.name ?: ""
         notificationManager.notify(NOTIFICATION_ID, notification(getString(R.string.app_name), "Switching to $name…"))
-        val prev = connectJob
-        connectJob = scope.launch { prev?.cancelAndJoin(); connect(next) }
+        wanted = true
+        launchConnect(next)
+    }
+
+    // ---- network changes and tunnel health ----
+
+    /** Watches the real (non-VPN) default network: when it changes (Wi-Fi <-> mobile) or returns after a drop, the tunnel is rebuilt. */
+    private fun registerNetworkWatch() {
+        if (netCallback != null) return
+        val cm = getSystemService(ConnectivityManager::class.java) ?: return
+        val cb = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                val caps = cm.getNetworkCapabilities(network)
+                if (caps?.hasTransport(android.net.NetworkCapabilities.TRANSPORT_VPN) == true) return
+                onUnderlyingAvailable(network)
+            }
+
+            override fun onLost(network: Network) {
+                if (network == lastNet) {
+                    lastNet = null; netLost = true
+                    if (wanted && VpnState.status.value == Status.Connected) waitingNet = true
+                }
+            }
+        }
+        runCatching { cm.registerDefaultNetworkCallback(cb); netCallback = cb }
+    }
+
+    private fun unregisterNetworkWatch() {
+        netCallback?.let { cb -> runCatching { getSystemService(ConnectivityManager::class.java)?.unregisterNetworkCallback(cb) } }
+        netCallback = null
+        lastNet = null; netLost = false; waitingNet = false
+        netJob?.cancel(); netJob = null
+    }
+
+    @Synchronized
+    private fun onUnderlyingAvailable(network: Network) {
+        val changed = lastNet != null && lastNet != network
+        val recovered = lastNet == null && netLost
+        lastNet = network
+        waitingNet = false
+        if (!wanted) return
+        runCatching { setUnderlyingNetworks(arrayOf(network)) }
+        if ((changed || recovered) && Store(this).autoReconnect) {
+            netLost = false
+            val link = currentLink ?: return
+            netJob?.cancel()
+            netJob = scope.launch {
+                delay(NET_DEBOUNCE_MS)
+                notificationManager.notify(NOTIFICATION_ID, notification(getString(R.string.app_name), "Network changed, reconnecting…"))
+                launchConnect(link)
+            }
+        } else netLost = false
+    }
+
+    /** While connected, probes the tunnel once a minute; after [HEALTH_FAILS] failures in a row it reconnects (and falls back if needed). */
+    private fun startHealth(port: Int) {
+        healthJob?.cancel()
+        healthJob = scope.launch {
+            var fails = 0
+            while (isActive) {
+                delay(HEALTH_INTERVAL_MS)
+                if (waitingNet || VpnState.status.value != Status.Connected || !Store(this@OutrunVpnService).autoReconnect) { fails = 0; continue }
+                val ok = withContext(Dispatchers.IO) { PROBE_URLS.any { probe(port, it) } }
+                fails = if (ok) 0 else fails + 1
+                if (fails >= HEALTH_FAILS) {
+                    val link = currentLink ?: return@launch
+                    notificationManager.notify(NOTIFICATION_ID, notification(getString(R.string.app_name), "Connection lost, reconnecting…"))
+                    launchConnect(link)
+                    return@launch
+                }
+            }
+        }
     }
 
     @Synchronized
@@ -137,7 +253,7 @@ class OutrunVpnService : VpnService() {
     /** Prefix length of "addr/len"; a bare address is a single host (/32 or /128). */
     private fun prefixLength(ip: String): Int = ip.substringAfter('/', if (':' in ip) "128" else "32").toInt()
 
-    private suspend fun connect(link: String) {
+    private suspend fun connect(link: String, tried: Set<String>) {
         VpnState.error.value = null
         VpnState.status.value = Status.Connecting
         OutrunWidget.refresh(this)
@@ -145,7 +261,7 @@ class OutrunVpnService : VpnService() {
         val hadSession = tun != null || core != null
         teardownSession()
         currentLink = link
-        Store(this).selected = link
+        if (tried.isEmpty()) Store(this).selected = link   // a fallback server doesn't replace the user's choice
         VpnState.activeLink.value = link
         canSwitch = nextLink() != null
         if (hadSession) delay(300)
@@ -159,13 +275,14 @@ class OutrunVpnService : VpnService() {
             x = SingBoxCore(this)
             core = x
             val settings = Store(this)
-            val dns = settings.dnsServers()
-            x.start(ConfigBuilder.build(link, port, dns.first()), port)
+            val dns = settings.dnsServers()       // NetShield's filtering DNS when it is on
+            val mtu = settings.mtu
+            x.start(ConfigBuilder.build(link, port, settings.baseDnsServers().first()), port)
             currentCoroutineContext().ensureActive()
 
             val b = Builder()
                 .setSession(profile.name)
-                .setMtu(MTU)
+                .setMtu(mtu)
                 .addAddress(Tun2Socks.TUN_IPV4, 30)
             val v6 = settings.ipv6Mode != "block"
             if (v6) b.addAddress(Tun2Socks.TUN_IPV6, 126)
@@ -175,7 +292,10 @@ class OutrunVpnService : VpnService() {
             val exclude = settings.splitEnabled && !include
             val incApps = if (include) settings.splitIncludeApps.filter { it != packageName } else emptyList()
             val incIps = if (include) settings.splitIncludeIps else emptyList()
-            if (incIps.isEmpty()) { b.addRoute("0.0.0.0", 0); b.addRoute("::", 0) }
+            if (incIps.isEmpty() && settings.lanAccess) {
+                LanRoutes.ipv4.forEach { (addr, len) -> b.addRoute(addr, len) }
+                b.addRoute(LanRoutes.IPV6_ADDRESS, LanRoutes.IPV6_PREFIX)
+            } else if (incIps.isEmpty()) { b.addRoute("0.0.0.0", 0); b.addRoute("::", 0) }
             else incIps.forEach { ip ->
                 runCatching { b.addRoute(ip.substringBefore('/'), prefixLength(ip)) }
             }
@@ -192,12 +312,12 @@ class OutrunVpnService : VpnService() {
                 }
                 b.addDisallowedApplication(packageName)
             }
-            pfd = b.establish() ?: error("VPN permission was not granted")
+            pfd = b.establish() ?: throw NoVpnPermission()
             tun = pfd
             currentCoroutineContext().ensureActive()
 
             val cfg = File(filesDir, "tun2socks.yml").apply {
-                writeText(Tun2Socks.yaml(port, MTU, v6))
+                writeText(Tun2Socks.yaml(port, mtu, v6))
             }
             var started = Tun2Socks.TProxyStartService(cfg.absolutePath, pfd.fd)
             if (!started) {
@@ -223,6 +343,8 @@ class OutrunVpnService : VpnService() {
             }
             notificationManager.notify(NOTIFICATION_ID, notification("Connected · ${profile.name}", "↓ 0 KB/s   ↑ 0 KB/s"))
             startStats()
+            startHealth(port)
+            Store(this).pushRecent(link)
         } catch (e: Throwable) {
             if (!currentCoroutineContext().isActive) {
                 if (tunStarted) runCatching { Tun2Socks.TProxyStopService() }
@@ -230,8 +352,17 @@ class OutrunVpnService : VpnService() {
                 runCatching { pfd?.close() }
             } else {
                 Log.w(TAG, "connect failed: ${e.javaClass.simpleName}")
-                VpnState.error.value = e.message ?: e.javaClass.simpleName
-                shutdown()
+                val next = if (e !is NoVpnPermission && wanted && Store(this).autoReconnect && tried.size < MAX_FALLBACKS) fallbackLink(tried + link) else null
+                if (next != null) {
+                    notificationManager.notify(
+                        NOTIFICATION_ID, notification(getString(R.string.app_name), "Server unreachable, trying ${LinkParser.parse(next)?.name ?: "another server"}…"),
+                    )
+                    connect(next, tried + link)
+                } else {
+                    val msg = e.message ?: e.javaClass.simpleName
+                    VpnState.error.value = if (tried.isEmpty()) msg else "$msg (tried ${tried.size + 1} servers)"
+                    shutdown()
+                }
             }
         }
     }
@@ -280,7 +411,9 @@ class OutrunVpnService : VpnService() {
                 if (++ticks % 10 == 0) flushUsage()
                 if (VpnState.status.value == Status.Connected) {
                     notificationManager.notify(
-                        NOTIFICATION_ID, notification("Connected · $currentName", "↓ ${rate(VpnState.downBytesPerSec.value)}   ↑ ${rate(VpnState.upBytesPerSec.value)}"),
+                        NOTIFICATION_ID,
+                        if (waitingNet) notification("Connected · $currentName", "Waiting for network…")
+                        else notification("Connected · $currentName", "↓ ${rate(VpnState.downBytesPerSec.value)}   ↑ ${rate(VpnState.upBytesPerSec.value)}"),
                     )
                 }
             }
@@ -289,6 +422,7 @@ class OutrunVpnService : VpnService() {
 
     private fun teardownSession() {
         statsJob?.cancel(); statsJob = null
+        healthJob?.cancel(); healthJob = null
         finishSession()
         runCatching { Tun2Socks.TProxyStopService() }
         runCatching { core?.stop() }
@@ -302,6 +436,8 @@ class OutrunVpnService : VpnService() {
     }
 
     private fun shutdown() {
+        wanted = false
+        unregisterNetworkWatch()
         connectJob?.cancel()
         teardownSession()
         VpnState.status.value = Status.Disconnected

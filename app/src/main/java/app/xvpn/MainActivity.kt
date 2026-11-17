@@ -216,14 +216,16 @@ private fun App() {
     val scope = rememberCoroutineScope()
     var pings by remember { mutableStateOf<Map<String, Int>>(emptyMap()) }
     var testing by remember { mutableStateOf(false) }
+    var pingsAt by remember { mutableStateOf(0L) }
+    suspend fun runLatency() {
+        testing = true; pings = emptyMap()
+        runCatching { RealDelay.test(ctx, profiles.map { it.link }, store.testUrl()) { link, ms -> pings = pings + (link to ms) } }
+        pingsAt = System.currentTimeMillis()
+        testing = false
+    }
     fun testLatency() {
         if (testing || profiles.isEmpty()) return
-        testing = true; pings = emptyMap()
-        val list = profiles.map { it.link }
-        scope.launch {
-            runCatching { RealDelay.test(ctx, list, store.testUrl()) { link, ms -> pings = pings + (link to ms) } }
-            testing = false
-        }
+        scope.launch { runLatency() }
     }
 
     fun clipboardText(): String =
@@ -270,6 +272,30 @@ private fun App() {
         selectedLink = link; store.selected = link
         val intent = VpnService.prepare(ctx)
         if (intent != null) vpnPermission.launch(intent) else OutrunVpnService.start(ctx, link)
+    }
+
+    /** Connects to the lowest-latency server. Reuses a latency test from the last 10 minutes, otherwise runs one first. */
+    fun connectFastest() {
+        if (profiles.isEmpty()) { tab = Tab.Servers; return }
+        scope.launch {
+            if (testing) {
+                while (testing) delay(300)
+            } else if (System.currentTimeMillis() - pingsAt > 10 * 60_000L || pings.values.none { it > 0 }) {
+                runLatency()
+            }
+            val best = profiles.mapNotNull { p -> pings[p.link]?.takeIf { it > 0 }?.let { p to it } }.minByOrNull { it.second }?.first
+            if (best == null) toast("No server responded to the latency test", SnackType.Error)
+            else { connect(best.link); tab = Tab.Home }
+        }
+    }
+
+    /** Connects to a random server other than the current one. */
+    fun connectRandom() {
+        val current = VpnState.activeLink.value ?: selectedLink
+        val pool = profiles.filter { it.link != current }
+        if (pool.isEmpty()) { toast("No other server to switch to", SnackType.Warning); return }
+        connect(pool.random().link)
+        tab = Tab.Home
     }
 
     fun toggle() {
@@ -323,6 +349,11 @@ private fun App() {
         if (stale.isNotEmpty()) refreshSubs(stale, silent = true)
     }
 
+    // Recents: the last servers connected to (newest first), only those that still exist.
+    val recents = remember(status, profiles) {
+        store.recentLinks().mapNotNull { l -> profiles.firstOrNull { it.link == l } }.take(3)
+    }
+
     val statsOn = showStats && status == Status.Connected
     val screen = if (statsOn) Screen.Stats else tab.screen()
     val homeVisible = screen == Screen.Home
@@ -367,11 +398,16 @@ private fun App() {
                             onToggle = ::toggle,
                             onChangeServer = { tab = Tab.Servers },
                             onOpenStats = { showStats = true },
+                            recents = recents,
+                            onConnectRecent = { p -> connect(p.link) },
+                            onRandomServer = ::connectRandom,
                         )
                         Screen.Servers -> ServersScreen(
                             profiles = profiles,
                             selectedLink = selectedLink,
                             onConnect = { p -> connect(p.link); tab = Tab.Home },
+                            onConnectFastest = ::connectFastest,
+                            onConnectRandom = ::connectRandom,
                             onDelete = { p -> store.remove(p.link); reload() },
                             onPasteClipboard = ::importClipboard,
                             onScanQr = { qrLauncher.launch(Unit) },

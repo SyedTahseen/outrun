@@ -37,6 +37,18 @@ object Choices {
         TestUrlOption("cloudflare", "Cloudflare", "https://cp.cloudflare.com/generate_204"),
         TestUrlOption("apple", "Apple", "https://captive.apple.com/"),
     )
+    /** NetShield: DNS-level blocking of ads, trackers and malware (AdGuard DNS). [adult] also blocks adult content (AdGuard family). */
+    fun netShieldDns(adult: Boolean): List<String> =
+        if (adult) listOf("94.140.14.15", "94.140.15.16") else listOf("94.140.14.14", "94.140.15.15")
+
+    val mtuChoices = listOf(
+        1500 to "Default, best throughput",
+        1420 to "Good for most mobile networks",
+        1400 to "Safer on tunnels and some carriers",
+        1380 to "For networks that drop larger packets",
+        1280 to "Minimum for IPv6, most compatible",
+    )
+    const val MTU_DEFAULT = 1500
     private val ipv4 = Regex("^((25[0-5]|2[0-4]\\d|1?\\d?\\d)\\.){3}(25[0-5]|2[0-4]\\d|1?\\d?\\d)$")
 
     fun parseIp(text: String): String? {
@@ -117,6 +129,7 @@ class Store(context: Context) {
         putLines("links", before.filter { it !in set })
         saveSources(sources.filterKeys { it !in set })
         favorites = favorites - set
+        putLines("recents", recentLinks().filter { it !in set })
         if (selected in set) selected = null
         return before.count { it in set }
     }
@@ -176,7 +189,43 @@ class Store(context: Context) {
         get() = prefs.getBoolean("auto_update_subs", true)
         set(v) = prefs.edit().putBoolean("auto_update_subs", v).apply()
 
-    fun dnsServers(): List<String> {
+    /** NetShield on: ad / tracker / malware blocking through filtering DNS servers. Overrides the DNS choice while connected. */
+    var netShield: Boolean
+        get() = prefs.getBoolean("netshield", false)
+        set(v) = prefs.edit().putBoolean("netshield", v).apply()
+    var blockAdult: Boolean
+        get() = prefs.getBoolean("block_adult", false)
+        set(v) = prefs.edit().putBoolean("block_adult", v).apply()
+
+    /** Reconnect when the network changes or the tunnel stops working, and fall back to another server if one fails. */
+    var autoReconnect: Boolean
+        get() = prefs.getBoolean("auto_reconnect", true)
+        set(v) = prefs.edit().putBoolean("auto_reconnect", v).apply()
+
+    /** Connect to the selected server after the phone boots (needs the VPN permission to have been granted once). */
+    var connectOnBoot: Boolean
+        get() = prefs.getBoolean("connect_boot", false)
+        set(v) = prefs.edit().putBoolean("connect_boot", v).apply()
+
+    /** Keep private networks (192.168.x.x, 10.x.x.x ...) outside the tunnel so printers, Chromecast and NAS stay reachable. */
+    var lanAccess: Boolean
+        get() = prefs.getBoolean("lan_access", false)
+        set(v) = prefs.edit().putBoolean("lan_access", v).apply()
+
+    var mtu: Int
+        get() = prefs.getInt("mtu", Choices.MTU_DEFAULT).coerceIn(1280, 1500)
+        set(v) = prefs.edit().putInt("mtu", v.coerceIn(1280, 1500)).apply()
+
+    /** Most recently connected servers, newest first (max 10). */
+    fun recentLinks(): List<String> = lines("recents")
+
+    fun pushRecent(link: String) = putLines("recents", (listOf(link) + recentLinks().filter { it != link }).take(10))
+
+    /** DNS the VPN uses: the NetShield filter when it is on, otherwise the user's choice. */
+    fun dnsServers(): List<String> = if (netShield) Choices.netShieldDns(blockAdult) else baseDnsServers()
+
+    /** The user's own DNS choice (also used by sing-box itself to resolve the proxy server's hostname). */
+    fun baseDnsServers(): List<String> {
         if (dnsChoice == "custom") Choices.parseDns(dnsCustom).takeIf { it.isNotEmpty() }?.let { return it }
         return (Choices.dns.firstOrNull { it.id == dnsChoice } ?: Choices.dns.first()).servers
     }
@@ -184,7 +233,7 @@ class Store(context: Context) {
     fun testUrl(): String = (Choices.testUrls.firstOrNull { it.id == testUrlChoice } ?: Choices.testUrls.first()).url
 
     fun clear() {
-        prefs.edit().putString("links", "").putString("src", "{}").putString("favs", "").putString("selected", null).apply()
+        prefs.edit().putString("links", "").putString("src", "{}").putString("favs", "").putString("recents", "").putString("selected", null).apply()
     }
 
     var selected: String?

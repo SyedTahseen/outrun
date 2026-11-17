@@ -193,6 +193,12 @@ private fun MenuPage(
     var autoConnect by remember { mutableStateOf(store.autoConnect) }
     var autoUpdate by remember { mutableStateOf(store.autoUpdateSubs) }
     var ipv6 by remember { mutableStateOf(store.ipv6Mode) }
+    var netShield by remember { mutableStateOf(store.netShield) }
+    var blockAdult by remember { mutableStateOf(store.blockAdult) }
+    var autoReconnect by remember { mutableStateOf(store.autoReconnect) }
+    var connectBoot by remember { mutableStateOf(store.connectOnBoot) }
+    var lan by remember { mutableStateOf(store.lanAccess) }
+    var mtu by remember { mutableStateOf(store.mtu) }
 
     var themeMode by remember { mutableStateOf(store.themeMode) }
     var splitMode by remember { mutableStateOf(store.splitMode) }
@@ -295,8 +301,72 @@ private fun MenuPage(
         "connect" -> {
             SubPage(null, { page = "main" }) {
                 HeroIcon(ProtonIcons.PowerOff)
-                PageHeading("Connect on launch", "Connect to the selected server automatically when the app opens.")
+                PageHeading("Auto-connect", "Connect to the selected server automatically. Connecting on boot needs the VPN permission to have been granted once, by connecting from the app.")
                 SwitchCard("Connect on launch", autoConnect) { autoConnect = it; store.autoConnect = it }
+                Spacer(Modifier.height(Space.Sm))
+                SwitchCard("Connect on boot", connectBoot) { connectBoot = it; store.connectOnBoot = it }
+            }
+            return
+        }
+        "netshield" -> {
+            SubPage(null, { page = "main" }) {
+                HeroIcon(ProtonIcons.Shield)
+                PageHeading(
+                    "NetShield",
+                    "Blocks ads, trackers and malicious websites while you are connected, by sending DNS lookups to a filtering resolver (AdGuard DNS). Applies the next time you connect.",
+                )
+                SwitchCard("NetShield", netShield) { netShield = it; store.netShield = it }
+                if (netShield) {
+                    Spacer(Modifier.height(Space.Sm))
+                    SwitchCard("Block adult content", blockAdult) { blockAdult = it; store.blockAdult = it }
+                    Text(
+                        "While NetShield is on it replaces your DNS setting. It works on domain names, so it can't block ads served from the same domain as the content, and apps that use their own encrypted DNS bypass it.",
+                        style = Type.Caption, color = C.Muted,
+                        modifier = Modifier.padding(horizontal = Space.Gutter, vertical = Space.Md),
+                    )
+                }
+            }
+            return
+        }
+        "reconnect" -> {
+            SubPage(null, { page = "main" }) {
+                HeroIcon(ProtonIcons.ArrowsRotate)
+                PageHeading(
+                    "Auto-reconnect",
+                    "Rebuilds the connection when you switch between Wi-Fi and mobile data or the network comes back, and checks the tunnel once a minute. If a server fails to connect, up to 3 other servers are tried (favorites first). The server you picked stays selected.",
+                )
+                SwitchCard("Auto-reconnect", autoReconnect) { autoReconnect = it; store.autoReconnect = it }
+            }
+            return
+        }
+        "lan" -> {
+            SubPage(null, { page = "main" }) {
+                HeroIcon(ProtonIcons.Language)
+                PageHeading(
+                    "Local network (LAN)",
+                    "Keep devices on your local network reachable while connected: printers, Chromecast, a NAS or your router's page. Traffic to private addresses (192.168.x.x, 10.x.x.x, 172.16-31.x.x) goes directly, not through the VPN. Applies the next time you connect.",
+                )
+                SwitchCard("Allow local network access", lan) { lan = it; store.lanAccess = it }
+                Text(
+                    "Ignored when split tunneling is set to include only specific IP addresses.",
+                    style = Type.Caption, color = C.Muted, modifier = Modifier.padding(horizontal = Space.Gutter, vertical = Space.Md),
+                )
+            }
+            return
+        }
+        "mtu" -> {
+            SubPage(null, { page = "main" }) {
+                HeroIcon(ProtonIcons.Sliders)
+                PageHeading(
+                    "MTU",
+                    "The largest packet the VPN sends. Lower it if some sites or apps stall, load halfway or time out only while connected. Applies the next time you connect.",
+                )
+                Spacer(Modifier.height(Space.Sm))
+                ChoiceList {
+                    Choices.mtuChoices.forEach { (v, note) ->
+                        ChoiceRow("$v", note, mtu == v) { mtu = v; store.mtu = v; page = "main" }
+                    }
+                }
             }
             return
         }
@@ -338,7 +408,7 @@ private fun MenuPage(
         }
     }
 
-    val dnsLabel = if (dns == "custom") "Custom" else Choices.dns.firstOrNull { it.id == dns }?.name ?: "Cloudflare"
+    val dnsLabel = if (netShield) "NetShield" else if (dns == "custom") "Custom" else Choices.dns.firstOrNull { it.id == dns }?.name ?: "Cloudflare"
     val testLabel = Choices.testUrls.firstOrNull { it.id == testUrl }?.name ?: "Google"
     val version = remember { ctx.appVersionName() ?: "-" }
 
@@ -353,14 +423,24 @@ private fun MenuPage(
                 ProtonIcons.ArrowsSwapRight, "Split tunneling",
                 if (!splitOn) "Off" else "On",
             ) { page = "split" }
-            ListRow(ProtonIcons.Shield, "Kill switch") { page = "kill" }
+            ListRow(
+                ProtonIcons.Shield, "NetShield",
+                if (!netShield) "Off" else if (blockAdult) "Blocking ads, trackers, malware and adult content" else "Blocking ads, trackers and malware",
+            ) { page = "netshield" }
+            ListRow(ProtonIcons.Lock, "Kill switch") { page = "kill" }
             ListRow(ProtonIcons.ChartLine, "Usage & history", "Data use, connection log and app usage") { page = "usage" }
 
             SectionHeader("Connection")
             ListRow(ProtonIcons.Servers, "DNS", dnsLabel) { page = "dns" }
             ListRow(ProtonIcons.Language, "IPv6", if (ipv6 == "block") "Blocked" else "Tunneled") { page = "ipv6" }
             ListRow(ProtonIcons.Bolt, "Latency test", testLabel) { page = "test" }
-            ListRow(ProtonIcons.PowerOff, "Connect on launch", if (autoConnect) "On" else "Off") { page = "connect" }
+            ListRow(
+                ProtonIcons.PowerOff, "Auto-connect",
+                listOfNotNull("On launch".takeIf { autoConnect }, "On boot".takeIf { connectBoot }).joinToString(", ").ifEmpty { "Off" },
+            ) { page = "connect" }
+            ListRow(ProtonIcons.ArrowsSwapRight, "Auto-reconnect", if (autoReconnect) "On" else "Off") { page = "reconnect" }
+            ListRow(ProtonIcons.Servers, "Local network (LAN)", if (lan) "Allowed" else "Through the VPN") { page = "lan" }
+            ListRow(ProtonIcons.Sliders, "MTU", "$mtu") { page = "mtu" }
             ListRow(ProtonIcons.ArrowsRotate, "Auto-update subscriptions", if (autoUpdate) "On" else "Off") { page = "autoupdate" }
 
             SectionHeader("General")

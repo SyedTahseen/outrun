@@ -115,6 +115,8 @@ fun ServersScreen(
     subInfo: Map<String, SubInfo> = emptyMap(),
     onRefreshSubscription: (String) -> Unit = {},
     onCopySubscription: (String) -> Unit = {},
+    onConnectFastest: () -> Unit = {},
+    onConnectRandom: () -> Unit = {},
 ) {
     var searching by remember { mutableStateOf(false) }
     var query by remember { mutableStateOf("") }
@@ -274,6 +276,16 @@ fun ServersScreen(
                     )
                 } else {
                     LazyColumn(Modifier.fillMaxSize().verticalScrollbar(listState), state = listState) {
+                        // Quick connect: fastest server by latency (runs a test first when there are no results) or a random one.
+                        if (query.isBlank() && f == null) item(key = "quick") {
+                            Row(
+                                Modifier.fillMaxWidth().padding(horizontal = Space.Gutter, vertical = Space.Sm),
+                                horizontalArrangement = Arrangement.spacedBy(Space.Sm),
+                            ) {
+                                AppButton(if (testing) "Testing…" else "Fastest", onConnectFastest, Modifier.weight(1f), ButtonStyle.OutlineCard, ButtonSize.Compact, enabled = !testing)
+                                AppButton("Random", onConnectRandom, Modifier.weight(1f), ButtonStyle.OutlineCard, ButtonSize.Compact)
+                            }
+                        }
                         // [PV] ServerGroupHeader: body2Regular textWeak, top 16 / sides 16, text padding(vertical = 8); scrolls with the list.
                         item(key = "count") {
                             Row(Modifier.padding(start = Space.Gutter, end = Space.Gutter, top = Space.Lg), verticalAlignment = Alignment.CenterVertically) {

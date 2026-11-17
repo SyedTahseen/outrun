@@ -65,6 +65,19 @@ been granted yet, the power button opens the app instead.
   Per-app numbers come from Android's NetworkStatsManager and are approximate (hourly buckets).
 - **Notification**: live speed, Disconnect, and Switch server (cycles through favorites, or all servers if you have fewer than 2 favorites).
 
+## Features added from the Proton VPN comparison
+
+- **NetShield** (Settings -> NetShield): blocks ads, trackers and malware while connected by using AdGuard DNS as the VPN's DNS; an extra switch uses AdGuard's family servers to block adult content too. It replaces the DNS setting while on. DNS-level only: no blocked-count statistics.
+- **Auto-reconnect** (Settings -> Auto-reconnect, on by default): rebuilds the tunnel when the real network changes (Wi-Fi <-> mobile) or returns after a drop, probes the tunnel every 60 s (2 failures -> reconnect), and when a server fails to connect tries up to 3 other servers (favorites first). The server you picked stays selected. The service also starts correctly when Android launches it as an Always-on VPN.
+- **Auto-connect on boot** (Settings -> Auto-connect): needs the VPN permission to have been granted once.
+- **Quick Settings tile**: add "Outrun VPN" from the notification shade's edit menu. Opens the app when no server is selected or the VPN permission is missing.
+- **Recents**: the last 3 servers appear on Home while disconnected for one-tap reconnect.
+- **Fastest / Random** (Servers tab, top of the list): Fastest reuses a latency test from the last 10 minutes or runs one first. While connecting is slow, Home offers "Try another server" (random).
+- **Local network (LAN)** (Settings): keeps 10/8, 172.16/12, 192.168/16, link-local and multicast outside the tunnel (works on every Android version, not only 13+). Off by default.
+- **MTU** (Settings): 1500 (default) down to 1280.
+
+All of the above was written without a compiler, like the rest of the project, so expect small fixes on the first build.
+
 ## sing-box limitations
 
 Stock sing-box does not support these, so such links fail with a clear error instead of connecting:

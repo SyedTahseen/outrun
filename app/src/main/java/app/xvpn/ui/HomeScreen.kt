@@ -78,6 +78,9 @@ fun HomeScreen(
     onToggle: () -> Unit,
     onChangeServer: () -> Unit,
     onOpenStats: () -> Unit,
+    recents: List<Profile> = emptyList(),
+    onConnectRecent: (Profile) -> Unit = {},
+    onRandomServer: () -> Unit = onChangeServer,
 ) {
     val status by VpnState.status.collectAsState()
     val connectedAt by VpnState.connectedAt.collectAsState()
@@ -218,7 +221,7 @@ fun HomeScreen(
                                 AnimatedVisibility(slow) {
                                     Column {
                                         Spacer(Modifier.height(Space.Sm))
-                                        AppButton("Change server", onChangeServer, Modifier.fillMaxWidth(), ButtonStyle.OutlineCard)
+                                        AppButton("Try another server", onRandomServer, Modifier.fillMaxWidth(), ButtonStyle.OutlineCard)
                                     }
                                 }
                             }
@@ -236,8 +239,33 @@ fun HomeScreen(
                     }
                 }
             }
+            // Recents: one-tap reconnect to the last servers used (shown while disconnected; hidden when the list is empty).
+            AnimatedVisibility(visible = status == Status.Disconnected && recents.isNotEmpty()) {
+                Column {
+                    Text("Recents", style = Type.Small, color = C.Muted, modifier = Modifier.padding(top = Space.Lg, bottom = Space.Xs))
+                    recents.forEach { p -> RecentRow(p) { onConnectRecent(p) } }
+                }
+            }
             Spacer(Modifier.height(Space.Lg))
         }
+    }
+}
+
+@Composable
+private fun RecentRow(p: Profile, onClick: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().heightIn(min = 48.dp).clip(RoundedCornerShape(Radius.Control))
+            .pressable(RoundedCornerShape(Radius.Control), Press.Card, onClick = onClick)
+            .padding(vertical = Space.Xs),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        FlagBadge(p.name)
+        Spacer(Modifier.width(Space.Md))
+        Column(Modifier.weight(1f)) {
+            Text(Flags.clean(p.name), style = Type.Body, color = C.Text, maxLines = 1)
+            Text("${p.host}:${p.port}", style = Type.Caption, color = C.Muted, maxLines = 1)
+        }
+        Icon(ProtonIcons.ArrowRight, null, tint = C.Muted, modifier = Modifier.size(Sizes.Icon))
     }
 }
 
