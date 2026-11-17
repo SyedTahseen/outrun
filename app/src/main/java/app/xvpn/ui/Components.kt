@@ -129,8 +129,11 @@ fun FastestFlag() {
 }
 
 @Composable
-fun HeaderSurface(scrolled: Boolean = false, content: @Composable ColumnScope.() -> Unit) {
-    val bg by animateColorAsState(if (scrolled) C.Header else C.Bg, tween(Motion.Medium), label = "headerSurface")
+fun HeaderSurface(scrolled: Boolean = false, overlay: Boolean = false, content: @Composable ColumnScope.() -> Unit) {
+    val bg by animateColorAsState(
+        if (scrolled) C.Header else if (overlay) C.Bg.copy(alpha = 0f) else C.Bg,
+        tween(Motion.Medium), label = "headerSurface",
+    )
     Column(Modifier.fillMaxWidth().background(bg), content = content)
 }
 
@@ -149,9 +152,10 @@ fun ScreenHeader(
     onBack: (() -> Unit)? = null,
     scrolled: Boolean = false,
     titleTrailing: (@Composable () -> Unit)? = null,
+    overlay: Boolean = false,
     actions: @Composable RowScope.() -> Unit = {},
 ) {
-    HeaderSurface(scrolled) { ScreenHeaderContent(title, onBack, scrolled, titleTrailing, actions) }
+    HeaderSurface(scrolled, overlay) { ScreenHeaderContent(title, onBack, scrolled, titleTrailing, actions) }
 }
 
 @Composable

@@ -79,12 +79,16 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
+import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.graphicsLayer
@@ -97,7 +101,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.xvpn.data.NetInfo
@@ -226,28 +232,31 @@ private fun StartView(
     val scroll = rememberScrollState()
     val scrolled by remember { derivedStateOf { scroll.value > 0 } }
     ReportScrolled(scrolled, onScrolledChange)
-    Column(Modifier.fillMaxSize()) {
-        ScreenHeader("Speed test", scrolled = scrolled)
-        Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(scroll).padding(horizontal = Space.Gutter)) {
-            Spacer(Modifier.height(Space.Xxxl))
-            Box(Modifier.align(Alignment.CenterHorizontally)) { StartRing(enabled = !connecting, onClick = onStart) }
-            Spacer(Modifier.height(Space.Xxxl))
-            val note = when {
-                ui.phase == SpeedPhase.Failed -> ("Couldn't finish the test" + (ui.error.takeIf { it.isNotBlank() }?.let { " ($it)" } ?: "") + ". Check your connection and try again.") to C.Red
-                connecting -> "Wait for the VPN to finish connecting." to C.Muted
-                else -> null
+    Box(Modifier.fillMaxSize()) {
+        WaveBackdrop(Modifier.fillMaxSize())
+        Column(Modifier.fillMaxSize()) {
+            ScreenHeader("Speed test", scrolled = scrolled, overlay = true)
+            Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(scroll).padding(horizontal = Space.Gutter)) {
+                Spacer(Modifier.height(Space.Lg))
+                Box(Modifier.align(Alignment.CenterHorizontally)) { StartButton(enabled = !connecting, onClick = onStart) }
+                Spacer(Modifier.height(Space.Xl))
+                val note = when {
+                    ui.phase == SpeedPhase.Failed -> ("Couldn't finish the test" + (ui.error.takeIf { it.isNotBlank() }?.let { " ($it)" } ?: "") + ". Check your connection and try again.") to C.Red
+                    connecting -> "Wait for the VPN to finish connecting." to C.Muted
+                    else -> null
+                }
+                if (note != null) {
+                    Text(note.first, style = Type.Small, color = note.second, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(bottom = Space.Sm))
+                }
+
+                DetailCard(listOf("Connection" to connection, "Location" to location))
+                Spacer(Modifier.height(Space.Md))
+
+                FieldLabel("Transmit Mode")
+                ModePicker(cfg.mode) { onCfg(cfg.copy(mode = it)) }
+
+                Spacer(Modifier.height(Space.Xxl))
             }
-            if (note != null) {
-                Text(note.first, style = Type.Small, color = note.second, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(bottom = Space.Sm))
-            }
-
-            DetailCard(listOf("Connection" to connection, "Location" to location))
-            Spacer(Modifier.height(Space.Md))
-
-            FieldLabel("Transmit Mode")
-            ModePicker(cfg.mode) { onCfg(cfg.copy(mode = it)) }
-
-            Spacer(Modifier.height(Space.Xxl))
         }
     }
 }
@@ -288,60 +297,211 @@ private fun ModePicker(selected: TransmitMode, onSelect: (TransmitMode) -> Unit)
     }
 }
 
-private fun ringStops(): Array<Pair<Float, Color>> {
-    val cols = listOf(C.Accent, C.Blue, C.Green, C.Amber, C.Red)
-    return Array(cols.size + 1) { i -> (i / cols.size.toFloat()) to cols[i % cols.size] }
+private const val TAU = 6.2831855f
+private val StartBox = 300.dp
+private val StartMain = 220.dp
+private const val START_ROT = 12f
+private const val START_ROUND = 0.38f
+private val Violet = Color(0xFF7C5CFF)
+private val VioletSoft = Color(0xFFA98BFF)
+private val VioletDeep = Color(0xFF4A2CB8)
+
+private fun mix(a: Offset, b: Offset, t: Float) = Offset(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t)
+
+private fun roundedTriangle(center: Offset, radius: Float, rotationDeg: Float, round: Float = START_ROUND): Path {
+    val v = List(3) { i ->
+        val ang = Math.toRadians((rotationDeg - 90f + i * 120f).toDouble())
+        Offset(center.x + (cos(ang) * radius).toFloat(), center.y + (sin(ang) * radius).toFloat())
+    }
+    return Path().apply {
+        for (i in 0 until 3) {
+            val cur = v[i]
+            val p1 = mix(cur, v[(i + 2) % 3], round)
+            val p2 = mix(cur, v[(i + 1) % 3], round)
+            if (i == 0) moveTo(p1.x, p1.y) else lineTo(p1.x, p1.y)
+            val c1 = mix(p1, cur, 0.65f)
+            val c2 = mix(p2, cur, 0.65f)
+            cubicTo(c1.x, c1.y, c2.x, c2.y, p2.x, p2.y)
+        }
+        close()
+    }
 }
 
-private const val RING_BOX = 250
-private const val RING_R = 86.5f
-private const val RING_W = 7.5f
+private object StartShape : Shape {
+    override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline =
+        Outline.Generic(roundedTriangle(Offset(size.width / 2f, size.height / 2f), size.minDimension / 2f, START_ROT))
+}
+
+private fun DrawScope.ghostBlob(center: Offset, radius: Float, rotation: Float, alpha: Float) {
+    val path = roundedTriangle(center, radius, rotation)
+    drawPath(
+        path,
+        Brush.linearGradient(
+            listOf(Violet.copy(alpha = 0.30f * alpha), VioletDeep.copy(alpha = 0.04f * alpha)),
+            start = Offset(center.x - radius, center.y - radius), end = Offset(center.x + radius, center.y + radius),
+        ),
+    )
+    drawPath(path, Violet.copy(alpha = 0.30f * alpha), style = Stroke(1.dp.toPx()))
+}
 
 @Composable
-private fun RingGlowLayer(modifier: Modifier, stops: Array<Pair<Float, Color>>, strokeDp: Float, alpha: Float) {
-    Canvas(modifier.fillMaxSize()) {
-        drawCircle(
-            brush = Brush.sweepGradient(*stops, center = center),
-            radius = RING_R.dp.toPx(), alpha = alpha, style = Stroke(strokeDp.dp.toPx()),
+private fun StartGlowLayer(modifier: Modifier, strokeDp: Float, alpha: () -> Float) {
+    Canvas(modifier.size(StartMain)) {
+        drawPath(
+            roundedTriangle(center, size.minDimension / 2f, START_ROT), Violet,
+            alpha = alpha(), style = Stroke(strokeDp.dp.toPx(), join = StrokeJoin.Round),
         )
     }
 }
 
 @Composable
-private fun StartRing(enabled: Boolean, onClick: () -> Unit) {
-    val on by animateFloatAsState(if (enabled) 1f else 0.35f, tween(Motion.Medium), label = "ringOn")
+private fun StartButton(enabled: Boolean, onClick: () -> Unit) {
+    val on by animateFloatAsState(if (enabled) 1f else 0.4f, tween(Motion.Medium), label = "startOn")
     val tick = rememberTick(strong = true)
-    val stops = remember(Palette.dark) { ringStops() }
+    val idle = rememberInfiniteTransition(label = "startIdle")
+    val drift = idle.animateFloat(0f, TAU, infiniteRepeatable(tween(16000, easing = LinearEasing)), label = "startDrift")
+    val breathe = idle.animateFloat(0f, 1f, infiniteRepeatable(tween(3200, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "startBreathe")
     val blurOk = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
-    Box(Modifier.size(RING_BOX.dp), contentAlignment = Alignment.Center) {
+    Box(Modifier.size(StartBox), contentAlignment = Alignment.Center) {
+        Canvas(Modifier.fillMaxSize()) {
+            val r = StartMain.toPx() / 2f
+            val sway = sin(drift.value)
+            val pulse = 1f + 0.025f * breathe.value
+            ghostBlob(
+                Offset(center.x + 10.dp.toPx() * sway - 14.dp.toPx(), center.y + 18.dp.toPx()),
+                r * 1.34f * pulse, START_ROT - 22f + 5f * sway, 0.55f * on,
+            )
+            ghostBlob(
+                Offset(center.x - 12.dp.toPx() * sway - 6.dp.toPx(), center.y - 6.dp.toPx()),
+                r * 1.16f * pulse, START_ROT + 20f - 6f * sway, 1f * on,
+            )
+        }
         if (blurOk) {
-            RingGlowLayer(Modifier.blur(18.dp, BlurredEdgeTreatment.Unbounded), stops, RING_W, 0.45f * on)
-            RingGlowLayer(Modifier.blur(7.dp, BlurredEdgeTreatment.Unbounded), stops, RING_W, 0.7f * on)
+            StartGlowLayer(Modifier.blur(22.dp, BlurredEdgeTreatment.Unbounded), 12f) { (0.40f + 0.12f * breathe.value) * on }
+            StartGlowLayer(Modifier.blur(8.dp, BlurredEdgeTreatment.Unbounded), 4f) { 0.75f * on }
         } else {
-            Canvas(Modifier.fillMaxSize()) {
-                val brush = Brush.sweepGradient(*stops, center = center)
-                val layers = 16
+            Canvas(Modifier.size(StartMain)) {
+                val path = roundedTriangle(center, size.minDimension / 2f, START_ROT)
+                val layers = 14
                 for (i in layers downTo 1) {
-                    val reach = 30.dp.toPx() * sqrt(i.toFloat() / layers)
-                    drawCircle(
-                        brush = brush, radius = RING_R.dp.toPx(), alpha = 0.04f * on,
-                        style = Stroke(RING_W.dp.toPx() + 2f * reach),
-                    )
+                    val reach = 24.dp.toPx() * sqrt(i.toFloat() / layers)
+                    drawPath(path, Violet, alpha = 0.04f * on, style = Stroke(3.dp.toPx() + 2f * reach, join = StrokeJoin.Round))
                 }
             }
         }
-        Canvas(Modifier.fillMaxSize()) {
-            val r = RING_R.dp.toPx()
-            val w = RING_W.dp.toPx()
-            drawCircle(color = C.Bg, radius = r - w / 2f)
-            val brush = Brush.sweepGradient(*stops, center = center)
-            drawCircle(brush = brush, radius = r, alpha = on, style = Stroke(w))
-        }
         Box(
-            Modifier.size(Sizes.SpeedRing).pressable(CircleShape, 0.94f, enabled = enabled, ripple = false) { tick(); onClick() },
+            Modifier.size(StartMain).pressable(StartShape, 0.94f, enabled = enabled, ripple = false) { tick(); onClick() },
             contentAlignment = Alignment.Center,
         ) {
-            Text("START", style = Type.Subtitle, color = if (enabled) C.Text else Dim)
+            Canvas(Modifier.fillMaxSize()) {
+                val rad = size.minDimension / 2f
+                val path = roundedTriangle(center, rad, START_ROT)
+                drawPath(
+                    path,
+                    Brush.verticalGradient(
+                        0f to Color(0xFF4B2DBB), 0.5f to Color(0xFF22145A), 0.85f to Color(0xFF0D0920), 1f to Color(0xFF140C34),
+                        startY = center.y - rad * 0.9f, endY = center.y + rad * 0.5f,
+                    ),
+                    alpha = 0.55f + 0.45f * on,
+                )
+                clipPath(path) {
+                    for ((w, a) in listOf(36f to 0.05f, 24f to 0.08f, 12f to 0.12f, 5f to 0.20f)) {
+                        drawPath(path, Violet, alpha = a * on, style = Stroke(w.dp.toPx()))
+                    }
+                }
+                drawPath(
+                    path,
+                    Brush.linearGradient(listOf(VioletSoft, Violet, Color(0xFF5B3BE0)), start = Offset.Zero, end = Offset(size.width, size.height)),
+                    alpha = on, style = Stroke(2.5f.dp.toPx(), join = StrokeJoin.Round),
+                )
+            }
+            Text(
+                "START",
+                style = Type.Title.copy(fontSize = 24.sp, lineHeight = 28.sp, fontWeight = FontWeight.Medium, letterSpacing = 0.5.sp),
+                color = Color.White.copy(alpha = 0.45f + 0.55f * on),
+            )
+        }
+    }
+}
+
+private class Ribbon(
+    val base: Float, val tilt: Float, val amp: Float, val freq: Float, val speed: Int, val offset: Float,
+    val thick: Float, val fill: List<Color>, val edge: List<Color>,
+)
+
+private fun ribbons(dark: Boolean): List<Ribbon> {
+    val k = if (dark) 1f else 0.45f
+    fun c(argb: Long, a: Float) = Color(argb).copy(alpha = a * k)
+    return listOf(
+        Ribbon(0.22f, -0.22f, 0.04f, 1f, 2, 0.8f, 0.34f,
+            listOf(c(0xFF4B2CC0, 0f), c(0xFF3A22A0, 0.22f), c(0xFF4B2CC0, 0.50f)),
+            listOf(c(0xFF8A6EFF, 0f), c(0xFF8A6EFF, 0.25f))),
+        Ribbon(0.52f, 0.30f, 0.03f, 1f, 1, 0.3f, 0.30f,
+            listOf(c(0xFF3A2390, 0.55f), c(0xFF241562, 0.30f), c(0xFF241562, 0f)),
+            listOf(c(0xFF7B52FF, 0.30f), c(0xFF7B52FF, 0f))),
+        Ribbon(0.70f, 0.26f, 0.04f, 1f, -1, 2.1f, 0.30f,
+            listOf(c(0xFF2A1A6E, 0.40f), c(0xFF1A1050, 0.20f), c(0xFF1A1050, 0f)),
+            listOf(c(0xFF5B3BE0, 0.22f), c(0xFF5B3BE0, 0f))),
+        Ribbon(0.30f, -0.26f, 0.05f, 1f, 1, 1.2f, 0.14f,
+            listOf(c(0xFF4B2CC0, 0f), c(0xFF5A38E0, 0.60f), c(0xFF8A66FF, 0.95f)),
+            listOf(c(0xFF8A6EFF, 0f), c(0xFFB79CFF, 0.80f))),
+        Ribbon(0.38f, -0.24f, 0.04f, 1.5f, 2, 3.4f, 0.05f,
+            listOf(c(0xFF5A38E0, 0f), c(0xFF6D4AFF, 0.45f)),
+            listOf(c(0xFF8A6EFF, 0f), c(0xFFA98BFF, 0.55f))),
+    )
+}
+
+private fun DrawScope.drawRibbon(r: Ribbon, phase: Float, edgeOnly: Boolean) {
+    val w = size.width
+    val h = size.height
+    val n = 48
+    val top = FloatArray(n + 1)
+    val bottom = FloatArray(n + 1)
+    for (i in 0..n) {
+        val f = i / n.toFloat()
+        val s1 = sin(f * TAU * r.freq + phase * r.speed + r.offset)
+        val s2 = sin(f * TAU * r.freq * 0.5f + phase + r.offset * 1.7f)
+        val y = (r.base + r.tilt * (f - 0.5f) + r.amp * (0.65f * s1 + 0.35f * s2)) * h
+        val t = r.thick * h * (1f + 0.35f * sin(f * TAU * 0.8f + phase + r.offset))
+        top[i] = y
+        bottom[i] = y + t
+    }
+    if (!edgeOnly) {
+        val fill = Path().apply {
+            moveTo(0f, top[0])
+            for (i in 1..n) lineTo(w * i / n, top[i])
+            for (i in n downTo 0) lineTo(w * i / n, bottom[i])
+            close()
+        }
+        drawPath(fill, Brush.horizontalGradient(r.fill, 0f, w))
+    } else {
+        val edge = Path().apply {
+            moveTo(0f, top[0])
+            for (i in 1..n) lineTo(w * i / n, top[i])
+        }
+        drawPath(edge, Brush.horizontalGradient(r.edge, 0f, w), style = Stroke(1.2f.dp.toPx(), cap = StrokeCap.Round))
+    }
+}
+
+@Composable
+private fun WaveBackdrop(modifier: Modifier = Modifier) {
+    val dark = Palette.dark
+    val list = remember(dark) { ribbons(dark) }
+    val blurOk = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+    val phase = rememberInfiniteTransition(label = "waves")
+        .animateFloat(0f, TAU, infiniteRepeatable(tween(24000, easing = LinearEasing)), label = "wavePhase")
+    Box(modifier) {
+        if (dark) {
+            Canvas(Modifier.fillMaxSize()) {
+                drawRect(Brush.verticalGradient(listOf(Color(0xFF0D0B18), Color(0xFF08060F))))
+            }
+        }
+        Canvas(Modifier.fillMaxSize().then(if (blurOk) Modifier.blur(10.dp) else Modifier)) {
+            haze(Offset(size.width * 0.92f, size.height * 0.16f), size.width * 0.75f, Color(0xFF4B2CC0), if (dark) 0.30f else 0.12f)
+            for (r in list) drawRibbon(r, phase.value, edgeOnly = false)
+        }
+        Canvas(Modifier.fillMaxSize()) {
+            for (r in list) drawRibbon(r, phase.value, edgeOnly = true)
         }
     }
 }
