@@ -235,7 +235,7 @@ private fun StatusChip(content: @Composable () -> Unit) {
 @Composable
 private fun UnprotectedHeader(real: IpInfo?, error: String?) {
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-        Icon(ProtonIcons.LockOpen, null, tint = C.Red, modifier = Modifier.padding(Space.Sm).size(Sizes.IconLg))
+        Icon(ProtonIcons.LockOpenFilled2, null, tint = C.Red, modifier = Modifier.padding(Space.Sm).size(Sizes.IconLg))
         Text("You are unprotected", style = Type.BodyMedium, color = C.Text, textAlign = TextAlign.Center, modifier = Modifier.padding(Space.Sm))
         StatusChip {
             Text(real?.let { r -> r.city.ifBlank { r.country } } ?: "Locating…", style = Type.Body, color = C.Text)
@@ -280,9 +280,9 @@ private fun ScrambleText(text: String, color: Color, style: TextStyle) {
 private fun ProtectedHeader(time: String, up: Long, down: Long) {
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(ProtonIcons.Lock, null, tint = C.Green, modifier = Modifier.size(Sizes.IconLg))
+            Icon(ProtonIcons.LockFilled, null, tint = C.Green, modifier = Modifier.size(Sizes.IconLg))
             Spacer(Modifier.width(Space.Sm))   // Proton: 8dp between lock icon and "Connected"
-            Text("Protected", style = Type.Display, color = C.Green)
+            Text("Protected", style = Type.Heading, color = C.Green)   // [PV] VpnConnectedViewTop: headlineNorm in vpnGreen
         }
         Spacer(Modifier.height(Space.Sm))
         AppCard(Modifier.fillMaxWidth(), containerColor = C.CardOverlay, translucentBorder = true) {

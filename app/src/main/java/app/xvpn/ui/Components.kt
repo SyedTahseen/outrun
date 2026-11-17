@@ -341,7 +341,7 @@ fun AppDialog(
                 .graphicsLayer { alpha = enter.value; scaleX = 0.92f + 0.08f * enter.value; scaleY = 0.92f + 0.08f * enter.value }
                 .clip(shape).background(C.Card).padding(Space.Xxl),
         ) {
-            Text(title, style = Type.Subtitle, color = C.Text)
+            Text(title, style = Type.Heading, color = C.Text)   // [PV] ProtonAlert title: headlineNorm
             Spacer(Modifier.height(Space.Lg))
             content()
             Spacer(Modifier.height(Space.Xxl))

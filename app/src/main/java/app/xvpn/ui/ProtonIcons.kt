@@ -57,4 +57,6 @@ object ProtonIcons {
     val ThreeDotsVertical: ImageVector @Composable get() = ImageVector.vectorResource(R.drawable.ic_proton_three_dots_vertical)
     val Trash: ImageVector @Composable get() = ImageVector.vectorResource(R.drawable.ic_proton_trash)
     val WindowTerminal: ImageVector @Composable get() = ImageVector.vectorResource(R.drawable.ic_proton_window_terminal)
+    val LockFilled: ImageVector @Composable get() = ImageVector.vectorResource(R.drawable.ic_proton_lock_filled)
+    val LockOpenFilled2: ImageVector @Composable get() = ImageVector.vectorResource(R.drawable.ic_proton_lock_open_filled_2)
 }

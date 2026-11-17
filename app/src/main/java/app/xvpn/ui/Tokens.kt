@@ -74,6 +74,7 @@ object Type {
     val Headline = TextStyle(                           // [PC] hero: 28sp W700, 34sp line, 0.45sp tracking
         fontFamily = Font, fontSize = 28.sp, fontWeight = FontWeight.Bold, lineHeight = 34.sp, letterSpacing = 0.45.sp,
     )
+    val Heading = style(20, FontWeight.Bold, 24, 0.01f)    // [PC] headline: dialog titles, "Protected" status
     val Title = style(22, FontWeight.SemiBold, 28)      // sub-page titles, key figures (no proton-core equivalent)
     val Subtitle = style(18, FontWeight.SemiBold, 24)   // card titles, dialog titles (no proton-core equivalent)
     val Body = style(16, FontWeight.Normal, 24, 0.03f)         // [PC] body1Regular
@@ -83,7 +84,7 @@ object Type {
     val Section = style(14, FontWeight.Medium, 20, 0.02f)      // accent section headings (body2Medium)
     val Caption = style(12, FontWeight.Normal, 16, 0.03f)      // [PC] captionRegular
     val Label = style(12, FontWeight.Medium, 16, 0.03f)        // [PC] captionMedium
-    val Button = style(16, FontWeight.Medium, 24, 0.03f)       // large buttons (body1Medium)
+    val Button = style(16, FontWeight.Normal, 24, 0.03f)       // [PV] ProtonButton style = defaultUnspecified = body1Regular
     val ButtonSmall = style(16, FontWeight.Medium, 24, 0.03f)  // chips, compact buttons, text actions
     val Mono = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 12.sp, lineHeight = 18.sp, letterSpacing = 0.sp)
 }

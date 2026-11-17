@@ -38,12 +38,13 @@ object C {
     val Muted = Color(0xFFA7A4B5)       // [PV] textWeak / shade80 (tvInMaintenance): secondary text and icons
     val Shade50 = Color(0xFF6D697D)     // [PC] shade60 (Dolphin) = textHint/iconHint; [PV] tvButtonBg. (name kept for call sites): hints, placeholder, unchecked switch track, unselected radio
     val OnPrimary = Color(0xFFFFFFFF)
+    val PrimaryDisabled = Color(0xFF372580) // [PV] interactionDisabled = brandDarken40: disabled solid button fill
     val Disabled = Color(0xFF5B576B)    // [PC] shade50 (Smoky) = textDisabled / iconDisabled
 
     // Status
     val Green = Color(0xFF2CFFCC)       // [PV] vpnGreen (dark): connected, ok, download
-    val Red = Color(0xFFDC3251)         // [PV] notificationError (tvAlert): disconnected, error, upload, destructive
-    val Amber = Color(0xFFFF9900)       // [PV] notificationWarning (tvServerLoadMedium): warning, favorite
+    val Red = Color(0xFFF08FA4)         // [PC] notificationError (dark, Mauvelous), used by VpnStatusView/ProtonSnackbar: disconnected, error, upload, destructive
+    val Amber = Color(0xFFFFB84D)       // [PC] notificationWarning (dark, TexasRose): warning, favorite
     val Neutral = Color(0xFFA6A3B2)     // in-progress
 
     // World map

@@ -70,3 +70,20 @@ Verified in `Colors.kt`/`Typography.kt`/`Shape.kt`/`Dimension.kt`/`ProtonButton.
 New token: `C.Disabled` (5B576B, textDisabled).
 
 Not changed (proton-core and the VPN app disagree or core is silent): dialog shape (core `ProtonAlertDialog` = 8dp on Bg, VPN's own alert = M3 28dp), bottom-sheet shape (core 8dp top corners), disabled button colours (core uses pale `brandLighten40`), Title 22 / Subtitle 18 sizes (no core equivalent), Material icons without a Proton twin (`ContentPaste`, `WifiOff`).
+
+## Pass 4: checked against the Proton VPN app source (`android-app-master`), still uncompiled
+Corrections to earlier "verified" entries (the tv* resources were Android-TV only; the phone app uses `ProtonColors.Dark`):
+| Area | Before | Now | Source |
+|---|---|---|---|
+| Error / destructive colour | DC3251 | F08FA4 | `notificationError` (dark) used by VpnStatusView, ProtonSnackbar |
+| Warning colour | FF9900 | FFB84D | `notificationWarning` (dark) |
+| Switch unchecked track + border | 6D697D | 5B576B (`C.Disabled`) | ProtonSwitch: shade50 (6D697D is shade60) |
+| Outline (accent) button border | 6D4AFF | 8A6EFF | `protonOutlinedBorder` = textAccent |
+| Disabled solid buttons | 40% alpha | fill 372580, label white @ 50% | `protonButtonColors` = interactionDisabled |
+| Disabled outline buttons | 40% alpha | border + label 372580 (neutral: 5B576B) | `protonOutlinedButtonColors` |
+| Button label | 16 Medium | 16 Regular (body1Regular), 24dp horizontal padding in both sizes | ProtonButton `style = defaultUnspecified`, ProtonContentPadding(Compact) |
+| "Protected" status | 30 Bold | 20 Bold (headline) | VpnConnectedViewTop `headlineNorm` |
+| Status icons | outlined lock / lock-open | filled `lock_filled` / `lock_open_filled_2` | VpnStatusView |
+| Dialog title | 18 SemiBold | 20 Bold (headline) | ProtonAlert `headlineNorm` |
+Confirmed correct: card radius 12 (`shapes.large` in VpnStatusView / VpnConnectionCard), card border = separatorNorm, dialog shape 28 + `backgroundSecondary` fill, sheet fill `backgroundNorm` + `iconHint` handle, top bar scrolled fill `backgroundSecondary`, text-field focus border `interactionNorm`, section header 14 Medium accent 24/8, settings row 16dp vertical + 4dp gap, snackbar 12dp margin + `shapes.medium`.
+Still open: Medium/Expanded window padding (56/128dp), selected/unselected bottom-bar icon variants (Proton `getIcon(isSelected)`), dialog body text (14sp body2Regular) must be set by each caller, widget/launcher colours, light theme.

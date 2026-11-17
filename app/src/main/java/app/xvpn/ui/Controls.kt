@@ -79,22 +79,39 @@ fun AppButton(
     val tick = rememberTick(strong = style == ButtonStyle.Primary)
     val shape = RoundedCornerShape(Radius.Control)
     val container by animateColorAsState(
-        when (style) { ButtonStyle.Primary -> C.Primary; ButtonStyle.Secondary -> C.Control; ButtonStyle.Outline -> Color.Transparent; ButtonStyle.OutlineAccent -> C.Bg },
+        when {
+            !enabled && (style == ButtonStyle.Primary || style == ButtonStyle.Secondary) -> C.PrimaryDisabled   // [PV] protonButtonColors: interactionDisabled
+            style == ButtonStyle.Primary -> C.Primary
+            style == ButtonStyle.Secondary -> C.Control
+            style == ButtonStyle.OutlineAccent -> C.Bg
+            else -> Color.Transparent
+        },
         tween(Motion.Medium), label = "buttonContainer",
     )
     val large = size == ButtonSize.Large
     val outlined = style == ButtonStyle.Outline || style == ButtonStyle.OutlineAccent
-    val content = when (style) { ButtonStyle.Outline -> C.Text; ButtonStyle.OutlineAccent -> C.Accent; else -> C.OnPrimary }
+    val content = when {
+        !enabled && outlined -> if (style == ButtonStyle.Outline) C.Disabled else C.PrimaryDisabled   // [PV] textDisabled / interactionDisabled
+        !enabled -> C.OnPrimary.copy(alpha = 0.5f)                                                    // [PV] Color.White @ 0.5
+        style == ButtonStyle.Outline -> C.Text
+        style == ButtonStyle.OutlineAccent -> C.Accent
+        else -> C.OnPrimary
+    }
+    val borderColor = when {
+        !enabled -> if (style == ButtonStyle.Outline) C.Disabled else C.PrimaryDisabled
+        style == ButtonStyle.OutlineAccent -> C.Accent   // [PV] protonOutlinedBorder: textAccent
+        else -> C.Text                                    // [PV] protonOutlineNeutralBorder: interactionStrongNorm
+    }
     Box(
-        modifier.alpha(if (enabled) 1f else 0.4f)
+        modifier
             .height(if (large) Sizes.Button else Sizes.Control)
             .pressable(shape, Press.Control, enabled) { tick(); onClick() }
             .background(container)
-            .then(if (outlined) Modifier.border(1.dp, if (style == ButtonStyle.OutlineAccent) C.Primary else C.Text, shape) else Modifier)
-            .padding(horizontal = if (large) Space.Xxl else Space.Xl),
+            .then(if (outlined) Modifier.border(1.dp, borderColor, shape) else Modifier)
+            .padding(horizontal = Space.Xxl),   // [PV] ProtonContentPadding / Compact: 24dp horizontal
         contentAlignment = Alignment.Center,
     ) {
-        Text(label, style = if (large) Type.Button else Type.ButtonSmall, color = content, maxLines = 1)
+        Text(label, style = Type.Button, color = content, maxLines = 1)   // [PV] body1Regular for both sizes
         if (trailingIcon != null) Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
             Icon(trailingIcon, null, tint = content, modifier = Modifier.size(Sizes.Icon))
         }
@@ -174,7 +191,7 @@ fun AppSwitch(checked: Boolean, onChange: (Boolean) -> Unit) {
         colors = SwitchDefaults.colors(
             // ProtonSwitch: Material 3 defaults when checked (primary track, white thumb); shade50 track/border and shade80 thumb when off.
             checkedThumbColor = C.OnPrimary, checkedTrackColor = C.Primary, checkedBorderColor = C.Primary,
-            uncheckedThumbColor = C.Muted, uncheckedTrackColor = C.Shade50, uncheckedBorderColor = C.Shade50,
+            uncheckedThumbColor = C.Muted, uncheckedTrackColor = C.Disabled, uncheckedBorderColor = C.Disabled,  // [PV] ProtonSwitch: shade50 / shade80
         ),
     )
 }
