@@ -134,11 +134,11 @@ fun FlagBadge(name: String?) {
     }
 }
 
-/** [PV] ConnectIntentIcon for CountryId.fastest: Proton's own flag_fastest (green 30x20 flag with a bolt) in the 30x30 flag area. */
+/** [PV] ConnectIntentIcon for CountryId.fastest: Proton's flag_fastest in the 30x30 flag area. Light: green flag, white bolt. Dark (drawable-night): mint flag, dark bolt; chosen by the in-app theme. */
 @Composable
 fun FastestFlag() {
     Box(Modifier.size(Sizes.FlagArea), contentAlignment = Alignment.Center) {
-        Image(painterResource(R.drawable.flag_fastest), null, Modifier.size(width = Sizes.FlagWidth, height = Sizes.FlagHeight))
+        Image(painterResource(if (Palette.dark) R.drawable.flag_fastest_dark else R.drawable.flag_fastest), null, Modifier.size(width = Sizes.FlagWidth, height = Sizes.FlagHeight))
     }
 }
 

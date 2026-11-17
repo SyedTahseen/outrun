@@ -341,7 +341,7 @@ fun ServersScreen(
     if (manual) ManualDialog(onDismiss = { manual = false }, onAdd = { onAddManual(it).also { ok -> if (ok) manual = false } })
 }
 
-/** Minimal subscription bar shown under the pills: name, time left, data used and a copy-link action. No card, no URL, no update button. */
+/** Minimal subscription bar docked above the bottom bar, on the same surface colour as the bar (Card) so it reads as part of it, not of the server list. */
 @Composable
 private fun SubscriptionBar(info: SubInfo?, host: String, onCopy: () -> Unit) {
     val now = System.currentTimeMillis()
@@ -358,7 +358,7 @@ private fun SubscriptionBar(info: SubInfo?, host: String, onCopy: () -> Unit) {
     }
     val expColor = when { expired -> C.Red; days <= 7 -> C.Amber; else -> C.Muted }
     val hasUsage = info != null && (info.total > 0 || info.used > 0)
-    Column(Modifier.fillMaxWidth().background(C.Bg)) {
+    Column(Modifier.fillMaxWidth().background(C.Card)) {
         Row(
             Modifier.fillMaxWidth().padding(start = Space.Gutter, end = Space.Xs, top = Space.Sm, bottom = Space.Sm),
             verticalAlignment = Alignment.CenterVertically,
@@ -388,7 +388,6 @@ private fun SubscriptionBar(info: SubInfo?, host: String, onCopy: () -> Unit) {
             }
             IconAction(ProtonIcons.SquaresInSquare, "Copy subscription link", tint = C.Muted, onClick = onCopy)
         }
-        HairlineDivider()
     }
 }
 
