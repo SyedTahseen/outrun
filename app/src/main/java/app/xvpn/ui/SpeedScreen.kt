@@ -239,8 +239,8 @@ private fun StartView(
     Column(Modifier.fillMaxSize()) {
         ScreenHeader("Speed test", scrolled = scrolled)
         Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(scroll).padding(horizontal = Space.Gutter)) {
-            Spacer(Modifier.height(Space.Xxxl)) // headroom so the ring's haze isn't cut off by the scroll area
-            Box(Modifier.align(Alignment.CenterHorizontally)) { StartRing(enabled = !connecting, onClick = onStart) }
+            Spacer(Modifier.height(Space.Xxl))
+            Box(Modifier.align(Alignment.CenterHorizontally)) { StartButton(enabled = !connecting, onClick = onStart) }
             val note = when {
                 ui.phase == SpeedPhase.Failed -> ("Couldn't finish the test" + (ui.error.takeIf { it.isNotBlank() }?.let { " ($it)" } ?: "") + ". Check your connection and try again.") to C.Red
                 connecting -> "Wait for the VPN to finish connecting." to C.Muted
@@ -334,79 +334,19 @@ private fun ModePicker(selected: TransmitMode, onSelect: (TransmitMode) -> Unit)
     }
 }
 
-private val RingHex = longArrayOf(
-    0x3b9272, 0x56806c, 0x714980, 0x094faf, 0x0a57a2, 0x256b63, 0x496593, 0x8957b5, 0xf56932,
-    0xdb643e, 0x0962cf, 0x0961cd, 0xaa866f, 0x975a6e, 0x9a59a7, 0xf96b33, 0xee662f, 0x7e714d,
-)
-
-private val RingStops: Array<Pair<Float, Color>> = run {
-    fun boost(c: Color): Color {   // a little more saturated than the sampled pixels, which are softened by the image's compression
-        val g = (c.red + c.green + c.blue) / 3f
-        fun ch(v: Float) = (g + (v - g) * 1.25f).coerceIn(0f, 1f)
-        return Color(ch(c.red), ch(c.green), ch(c.blue))
-    }
-    val cols = RingHex.map { boost(Color(0xFF000000L or it)) }
-    Array(cols.size + 1) { i -> (i / cols.size.toFloat()) to cols[i % cols.size] }
-}
-
-private const val RING_BOX = 250       // dp: the size of the button area
-private const val RING_R = 86.5f       // dp, middle of the ring stroke
-private const val RING_W = 7.5f        // dp, stroke width
-
-/** The thick gradient ring drawn once; the caller blurs this layer to get the glow. */
-@Composable
-private fun RingGlowLayer(modifier: Modifier, strokeDp: Float, alpha: Float) {
-    Canvas(modifier.fillMaxSize()) {
-        drawCircle(
-            brush = Brush.sweepGradient(*RingStops, center = center),
-            radius = RING_R.dp.toPx(), alpha = alpha, style = Stroke(strokeDp.dp.toPx()),
-        )
-    }
-}
-
 /**
- * The START button from the design. The glow is the ring itself, really blurred (RenderEffect, Android 12+): the colors of the ring
- * bleed into each other and into the dark, like light through smoke. A wide, faint blur sits under a tighter, brighter one.
- * Blur is not available before Android 12, so older phones get stacked vector rings instead.
+ * The Start button: a solid brand-purple circle with a white label, like Proton's Connect button (Primary fill, OnPrimary text),
+ * with the standard press scale, ripple and haptic tick. Dimmed while the VPN is still connecting.
  */
 @Composable
-private fun StartRing(enabled: Boolean, onClick: () -> Unit) {
-    val on by animateFloatAsState(if (enabled) 1f else 0.35f, tween(Motion.Medium), label = "ringOn")
+private fun StartButton(enabled: Boolean, onClick: () -> Unit) {
     val tick = rememberTick(strong = true)
-    val blurOk = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
-    Box(Modifier.size(RING_BOX.dp), contentAlignment = Alignment.Center) {
-        if (blurOk) {
-            RingGlowLayer(Modifier.blur(18.dp, BlurredEdgeTreatment.Unbounded), RING_W, 0.45f * on)
-            RingGlowLayer(Modifier.blur(7.dp, BlurredEdgeTreatment.Unbounded), RING_W, 0.7f * on)
-        } else {
-            // Android 11 and older: no blur available, so stack faint, slightly wider copies of the ring. Still pure vector drawing.
-            Canvas(Modifier.fillMaxSize()) {
-                val brush = Brush.sweepGradient(*RingStops, center = center)
-                val layers = 16
-                for (i in layers downTo 1) {
-                    val reach = 30.dp.toPx() * sqrt(i.toFloat() / layers)
-                    drawCircle(
-                        brush = brush, radius = RING_R.dp.toPx(), alpha = 0.04f * on,
-                        style = Stroke(RING_W.dp.toPx() + 2f * reach),
-                    )
-                }
-            }
-        }
-        Canvas(Modifier.fillMaxSize()) {
-            val r = RING_R.dp.toPx()
-            val w = RING_W.dp.toPx()
-            // Dark face: keeps the glow outside the ring, like the design.
-            drawCircle(color = C.Bg, radius = r - w / 2f)
-            val brush = Brush.sweepGradient(*RingStops, center = center)
-            // One crisp, fully opaque pass: the ring edge stays sharp and only the glow around it is soft.
-            drawCircle(brush = brush, radius = r, alpha = on, style = Stroke(w))
-        }
-        Box(
-            Modifier.size(Sizes.SpeedRing).pressable(CircleShape, 0.94f, enabled = enabled, ripple = false) { tick(); onClick() },
-            contentAlignment = Alignment.Center,
-        ) {
-            Text("START", style = Type.Subtitle, color = if (enabled) C.Text else Dim)   // C.Text: the ring face is C.Bg, so white text vanished on the light theme
-        }
+    val bg by animateColorAsState(if (enabled) C.Primary else C.PrimaryDisabled, tween(Motion.Medium), label = "startBg")
+    Box(
+        Modifier.size(Sizes.SpeedRing).pressable(CircleShape, 0.94f, enabled = enabled) { tick(); onClick() }.background(bg),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text("Start", style = Type.Subtitle, color = C.OnPrimary)
     }
 }
 
