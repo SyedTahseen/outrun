@@ -299,19 +299,10 @@ private fun ModePicker(selected: TransmitMode, onSelect: (TransmitMode) -> Unit)
     }
 }
 
-private val RingHex = longArrayOf(
-    0x3b9272, 0x56806c, 0x714980, 0x094faf, 0x0a57a2, 0x256b63, 0x496593, 0x8957b5, 0xf56932,
-    0xdb643e, 0x0962cf, 0x0961cd, 0xaa866f, 0x975a6e, 0x9a59a7, 0xf96b33, 0xee662f, 0x7e714d,
-)
-
-private val RingStops: Array<Pair<Float, Color>> = run {
-    fun boost(c: Color): Color {   // a little more saturated than the sampled pixels, which are softened by the image's compression
-        val g = (c.red + c.green + c.blue) / 3f
-        fun ch(v: Float) = (g + (v - g) * 1.25f).coerceIn(0f, 1f)
-        return Color(ch(c.red), ch(c.green), ch(c.blue))
-    }
-    val cols = RingHex.map { boost(Color(0xFF000000L or it)) }
-    Array(cols.size + 1) { i -> (i / cols.size.toFloat()) to cols[i % cols.size] }
+/** The ring runs through the app's own colors and comes back to the first one, so the sweep has no seam. Follows the light / dark theme. */
+private fun ringStops(): Array<Pair<Float, Color>> {
+    val cols = listOf(C.Accent, C.Blue, C.Green, C.Amber, C.Red)
+    return Array(cols.size + 1) { i -> (i / cols.size.toFloat()) to cols[i % cols.size] }
 }
 
 private const val RING_BOX = 250       // dp: the size of the button area
@@ -320,10 +311,10 @@ private const val RING_W = 7.5f        // dp, stroke width
 
 /** The thick gradient ring drawn once; the caller blurs this layer to get the glow. */
 @Composable
-private fun RingGlowLayer(modifier: Modifier, strokeDp: Float, alpha: Float) {
+private fun RingGlowLayer(modifier: Modifier, stops: Array<Pair<Float, Color>>, strokeDp: Float, alpha: Float) {
     Canvas(modifier.fillMaxSize()) {
         drawCircle(
-            brush = Brush.sweepGradient(*RingStops, center = center),
+            brush = Brush.sweepGradient(*stops, center = center),
             radius = RING_R.dp.toPx(), alpha = alpha, style = Stroke(strokeDp.dp.toPx()),
         )
     }
@@ -338,15 +329,16 @@ private fun RingGlowLayer(modifier: Modifier, strokeDp: Float, alpha: Float) {
 private fun StartRing(enabled: Boolean, onClick: () -> Unit) {
     val on by animateFloatAsState(if (enabled) 1f else 0.35f, tween(Motion.Medium), label = "ringOn")
     val tick = rememberTick(strong = true)
+    val stops = remember(Palette.dark) { ringStops() }
     val blurOk = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
     Box(Modifier.size(RING_BOX.dp), contentAlignment = Alignment.Center) {
         if (blurOk) {
-            RingGlowLayer(Modifier.blur(18.dp, BlurredEdgeTreatment.Unbounded), RING_W, 0.45f * on)
-            RingGlowLayer(Modifier.blur(7.dp, BlurredEdgeTreatment.Unbounded), RING_W, 0.7f * on)
+            RingGlowLayer(Modifier.blur(18.dp, BlurredEdgeTreatment.Unbounded), stops, RING_W, 0.45f * on)
+            RingGlowLayer(Modifier.blur(7.dp, BlurredEdgeTreatment.Unbounded), stops, RING_W, 0.7f * on)
         } else {
             // Android 11 and older: no blur available, so stack faint, slightly wider copies of the ring. Still pure vector drawing.
             Canvas(Modifier.fillMaxSize()) {
-                val brush = Brush.sweepGradient(*RingStops, center = center)
+                val brush = Brush.sweepGradient(*stops, center = center)
                 val layers = 16
                 for (i in layers downTo 1) {
                     val reach = 30.dp.toPx() * sqrt(i.toFloat() / layers)
@@ -362,7 +354,7 @@ private fun StartRing(enabled: Boolean, onClick: () -> Unit) {
             val w = RING_W.dp.toPx()
             // Dark face: keeps the glow outside the ring, like the design.
             drawCircle(color = C.Bg, radius = r - w / 2f)
-            val brush = Brush.sweepGradient(*RingStops, center = center)
+            val brush = Brush.sweepGradient(*stops, center = center)
             // One crisp, fully opaque pass: the ring edge stays sharp and only the glow around it is soft.
             drawCircle(brush = brush, radius = r, alpha = on, style = Stroke(w))
         }
