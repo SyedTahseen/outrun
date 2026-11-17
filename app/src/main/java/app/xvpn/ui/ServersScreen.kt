@@ -324,7 +324,7 @@ fun ServersScreen(
                 confirmDel = null
             },
             onDismiss = { confirmDel = null },
-        ) { Text(d.text, style = Type.Small, color = C.Text)   // [PV] ProtonAlert text: body2Regular, textNorm }
+        ) { Text(d.text, style = Type.Small, color = C.Text) }   // [PV] ProtonAlert text: body2Regular, textNorm
     }
     delSub?.let { url ->
         val n = sources.count { it.value == url }
