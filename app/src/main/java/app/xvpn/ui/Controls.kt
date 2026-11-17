@@ -66,7 +66,7 @@ fun AppButton(
     trailingIcon: ImageVector? = null,
 ) {
     val tick = rememberTick(strong = style == ButtonStyle.Primary)
-    val shape = RoundedCornerShape(Radius.Control)
+    val shape = RoundedCornerShape(Radius.Button)
     val outlinedStyle = style == ButtonStyle.Outline || style == ButtonStyle.OutlineAccent || style == ButtonStyle.OutlineCard
     val onCardOutline = style == ButtonStyle.OutlineCard
     val container by animateColorAsState(
@@ -75,8 +75,8 @@ fun AppButton(
             !enabled && style == ButtonStyle.Secondary -> C.Card
             style == ButtonStyle.Primary -> C.Primary
             style == ButtonStyle.Secondary -> C.Control
-            onCardOutline -> C.Card
-            outlinedStyle -> C.Bg
+            onCardOutline -> if (Palette.spark) Color.Transparent else C.Card
+            outlinedStyle -> if (Palette.spark) Color.Transparent else C.Bg
             else -> Color.Transparent
         },
         tween(Motion.Medium), label = "buttonContainer",

@@ -24,18 +24,23 @@ object Space {
 }
 
 object Radius {
-    val Badge = 4.dp
-    val Small = 8.dp
-    val Control = 8.dp
-    val Card = 12.dp
-    val Sheet = 28.dp
+    val Badge get() = if (Palette.spark) 6.dp else 4.dp
+    val Small get() = if (Palette.spark) 12.dp else 8.dp
+    val Control get() = if (Palette.spark) 16.dp else 8.dp
+    val Card get() = if (Palette.spark) 24.dp else 12.dp
+    val Sheet get() = if (Palette.spark) 32.dp else 28.dp
+    val Button get() = if (Palette.spark) 28.dp else 8.dp
     val Pill = 16.dp
+}
+
+object Glass {
+    val Blur = 24.dp
 }
 
 object Sizes {
     val Control = 48.dp
     val Field = 56.dp
-    val Button = 48.dp
+    val Button get() = if (Palette.spark) 52.dp else 48.dp
     val Row = 64.dp
     val ServerRow = 64.dp
     val TopBar = 64.dp
@@ -71,12 +76,14 @@ object Type {
         fontFamily = Font, fontSize = size.sp, fontWeight = weight, lineHeight = line.sp, letterSpacing = spacingEm.em,
     )
 
-    val Display = style(30, FontWeight.Bold, 36)
-    val Headline = TextStyle(
-        fontFamily = Font, fontSize = 28.sp, fontWeight = FontWeight.Bold, lineHeight = 34.sp, letterSpacing = 0.45.sp,
+    val Display get() = if (Palette.spark) style(30, FontWeight.Medium, 36, -0.01f) else style(30, FontWeight.Bold, 36)
+    val Headline get() = TextStyle(
+        fontFamily = Font, fontSize = 28.sp, lineHeight = 34.sp,
+        fontWeight = if (Palette.spark) FontWeight.Medium else FontWeight.Bold,
+        letterSpacing = if (Palette.spark) (-0.3).sp else 0.45.sp,
     )
     val Heading = style(20, FontWeight.Bold, 24, 0.01f)
-    val Title = style(22, FontWeight.SemiBold, 28)
+    val Title get() = if (Palette.spark) style(22, FontWeight.Medium, 28, -0.01f) else style(22, FontWeight.SemiBold, 28)
     val Subtitle = style(18, FontWeight.SemiBold, 24)
     val Body = style(16, FontWeight.Normal, 24, 0.03f)
     val BodyMedium = style(16, FontWeight.Medium, 24, 0.03f)

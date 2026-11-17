@@ -422,7 +422,7 @@ private fun ServerRow(
 ) {
     var menu by remember { mutableStateOf(false) }
 
-    Column(modifier.fillMaxWidth().background(C.Bg)) {
+    Column(modifier.fillMaxWidth().background(C.Surface)) {
         Row(
             Modifier.fillMaxWidth().clickable(onClick = onConnect).heightIn(min = Sizes.ServerRow)
                 .padding(start = Space.Gutter, end = Space.Xs),
@@ -454,7 +454,7 @@ private fun ServerRow(
 
 @Composable
 private fun FastestRow(testing: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    Column(modifier.fillMaxWidth().background(C.Bg)) {
+    Column(modifier.fillMaxWidth().background(C.Surface)) {
         Row(
             Modifier.fillMaxWidth().clickable(enabled = !testing, onClick = onClick).heightIn(min = Sizes.ServerRow)
                 .padding(start = Space.Gutter, end = Space.Gutter),

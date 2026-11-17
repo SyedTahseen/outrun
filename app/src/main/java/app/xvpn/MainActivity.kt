@@ -75,6 +75,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -85,7 +87,10 @@ import app.xvpn.data.LinkParser
 import app.xvpn.data.NetInfo
 import app.xvpn.data.RealDelay
 import app.xvpn.data.Store
+import app.xvpn.ui.AmbientBackdrop
 import app.xvpn.ui.C
+import app.xvpn.ui.Palette
+import app.xvpn.ui.glass
 import app.xvpn.ui.OutrunApp
 import app.xvpn.ui.HomeScreen
 import app.xvpn.ui.MenuScreen
@@ -353,7 +358,7 @@ private fun App() {
 
     var serversScrolled by remember { mutableStateOf(false) }
     val statusStripColor by animateColorAsState(
-        if ((tab == Tab.Servers || tab == Tab.Menu) && serversScrolled) C.Header else C.Bg,
+        if ((tab == Tab.Servers || tab == Tab.Menu) && serversScrolled) C.Header else C.Surface,
         tween(Motion.Medium), label = "statusStrip",
     )
 
@@ -362,6 +367,7 @@ private fun App() {
     val dockInset by animateDpAsState(if (dockHidden) 0.dp else Sizes.Dock, tween(Motion.Medium, easing = Motion.Standard), label = "dockInset")
 
     Box(Modifier.fillMaxSize().background(C.Bg).imePadding()) {
+        if (Palette.spark) AmbientBackdrop()
         Box(Modifier.fillMaxSize()) {
             AnimatedContent(
                 targetState = screen,
@@ -463,7 +469,11 @@ private fun App() {
             enter = slideInVertically(tween(Motion.Medium, easing = Motion.Standard)) { it } + fadeIn(tween(Motion.Medium)),
             exit = slideOutVertically(tween(Motion.Medium, easing = Motion.Standard)) { it } + fadeOut(tween(Motion.Fast)),
         ) {
-            NavigationBar(containerColor = C.Card, tonalElevation = 0.dp) {
+            NavigationBar(
+                modifier = if (Palette.spark) Modifier.glass(RectangleShape, strong = true, fullBorder = false) else Modifier,
+                containerColor = if (Palette.spark) Color.Transparent else C.Card,
+                tonalElevation = 0.dp,
+            ) {
                 Tab.entries.forEach { t ->
                     val selected = t == tab
                     NavigationBarItem(

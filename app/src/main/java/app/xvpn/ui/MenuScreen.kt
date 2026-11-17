@@ -300,7 +300,7 @@ private fun MenuPage(
                 if (conflict) {
                     Column(
                         Modifier.padding(horizontal = Space.Gutter, vertical = Space.Md).fillMaxWidth()
-                            .clip(RoundedCornerShape(Radius.Control)).background(C.Card).padding(Space.Lg),
+                            .clip(RoundedCornerShape(Radius.Control)).cardSurface(RoundedCornerShape(Radius.Control)).padding(Space.Lg),
                     ) {
                         Text("NetShield is unavailable", style = Type.BodyMedium, color = C.Text)
                         Spacer(Modifier.height(Space.Sm))
@@ -412,7 +412,7 @@ private fun MenuPage(
             }
             ListRow(
                 ProtonIcons.CircleHalfFilled, "Theme",
-                when (themeMode) { AppTheme.LIGHT -> "Light"; AppTheme.DARK -> "Dark"; else -> "Device theme" },
+                when (themeMode) { AppTheme.LIGHT -> "Light"; AppTheme.DARK -> "Dark"; AppTheme.SPARK -> "Spark"; else -> "Device theme" },
             ) { page = "theme" }
             ListRow(
                 ProtonIcons.Mobile, "Widget",

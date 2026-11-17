@@ -131,7 +131,8 @@ fun HomeScreen(
     Box(Modifier.fillMaxSize()) {
         WorldMap(
             target = cam, countryCode = camCode, dotColor = tone,
-            modifier = Modifier.fillMaxSize(), centerY = 0.46f,
+            modifier = Modifier.fillMaxSize().then(if (Palette.spark) Modifier.backdropSource(isMap = true).bottomFade() else Modifier),
+            centerY = 0.46f,
             pin = when { on -> MapPin.Connected; connecting -> MapPin.Connecting; else -> MapPin.Selected },
         )
 
@@ -159,11 +160,13 @@ fun HomeScreen(
 
         Column(
             Modifier.align(Alignment.BottomCenter).fillMaxWidth()
-                .drawBehind {
-                    val gradientBottom = 100.dp.toPx()
-                    drawRect(Brush.verticalGradient(listOf(Color.Transparent, bg), startY = 0f, endY = gradientBottom), size = androidx.compose.ui.geometry.Size(size.width, gradientBottom))
-                    drawRect(bg, topLeft = androidx.compose.ui.geometry.Offset(0f, gradientBottom))
-                }
+                .then(
+                    if (Palette.spark) Modifier else Modifier.drawBehind {
+                        val gradientBottom = 100.dp.toPx()
+                        drawRect(Brush.verticalGradient(listOf(Color.Transparent, bg), startY = 0f, endY = gradientBottom), size = androidx.compose.ui.geometry.Size(size.width, gradientBottom))
+                        drawRect(bg, topLeft = androidx.compose.ui.geometry.Offset(0f, gradientBottom))
+                    },
+                )
                 .padding(top = 68.dp).padding(horizontal = Space.Gutter),
         ) {
             AnimatedContent(
@@ -267,7 +270,9 @@ private fun RecentRow(p: Profile, onClick: () -> Unit) {
 private fun StatusChip(content: @Composable () -> Unit) {
     val shape = RoundedCornerShape(Radius.Control)
     Row(
-        Modifier.clip(shape).background(C.CardOverlay).translucentBorder(shape).padding(horizontal = Space.Sm, vertical = Space.Xs),
+        Modifier.clip(shape)
+            .then(if (Palette.spark) Modifier.glass(shape, strong = true) else Modifier.background(C.CardOverlay).translucentBorder(shape))
+            .padding(horizontal = Space.Sm, vertical = Space.Xs),
         verticalAlignment = Alignment.CenterVertically,
     ) { content() }
 }
