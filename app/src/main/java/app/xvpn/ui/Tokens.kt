@@ -67,7 +67,7 @@ object Elevation {
 
 /** The type scale. Colors are applied at the call site. */
 object Type {
-    private val Font = FontFamily.Default
+    private val Font = FontFamily.SansSerif   // [PC] ProtonTypography defaultFontFamily
     // proton-core ProtonTypography: every style carries letter spacing, and body/caption line heights are 24/20/16.
     private fun style(size: Int, weight: FontWeight, line: Int, spacingEm: Float = 0f) = TextStyle(
         fontFamily = Font, fontSize = size.sp, fontWeight = weight, lineHeight = line.sp, letterSpacing = spacingEm.em,
@@ -89,6 +89,8 @@ object Type {
     val Label = style(12, FontWeight.Medium, 16, 0.03f)        // [PC] captionMedium
     val Button = style(16, FontWeight.Normal, 24, 0.03f)       // [PV] ProtonButton style = defaultUnspecified = body1Regular
     val ButtonSmall = style(16, FontWeight.Medium, 24, 0.03f)  // chips, compact buttons, text actions
+    val Overline = style(10, FontWeight.Normal, 16, 0.03f)     // [PC] overlineRegular
+    val OverlineMedium = style(10, FontWeight.Medium, 16, 0.03f) // [PC] overlineMedium
     val Mono = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 12.sp, lineHeight = 18.sp, letterSpacing = 0.sp)
 }
 

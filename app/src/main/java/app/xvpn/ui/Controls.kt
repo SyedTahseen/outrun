@@ -59,7 +59,7 @@ fun IconAction(icon: ImageVector, desc: String, modifier: Modifier = Modifier, t
     }
 }
 
-enum class ButtonStyle { Primary, Secondary, Outline, OutlineAccent }
+enum class ButtonStyle { Primary, Secondary, Outline, OutlineAccent, OutlineCard }
 enum class ButtonSize { Large, Compact }
 
 /**
@@ -78,29 +78,33 @@ fun AppButton(
 ) {
     val tick = rememberTick(strong = style == ButtonStyle.Primary)
     val shape = RoundedCornerShape(Radius.Control)
-    val outlinedStyle = style == ButtonStyle.Outline || style == ButtonStyle.OutlineAccent
+    val outlinedStyle = style == ButtonStyle.Outline || style == ButtonStyle.OutlineAccent || style == ButtonStyle.OutlineCard
+    val onCardOutline = style == ButtonStyle.OutlineCard   // [PV] ChangeServerButton: backgroundSecondary fill, 1dp separatorNorm border, textNorm label
     val container by animateColorAsState(
         when {
             !enabled && style == ButtonStyle.Primary -> C.PrimaryDisabled   // [PV] protonButtonColors: interactionDisabled
             !enabled && style == ButtonStyle.Secondary -> C.Card            // [PV] protonSecondaryButtonColors: interactionWeakDisabled (shade15)
             style == ButtonStyle.Primary -> C.Primary
             style == ButtonStyle.Secondary -> C.Control
+            onCardOutline -> C.Card
             outlinedStyle -> C.Bg   // [PV] protonOutlined(Neutral)ButtonColors: backgroundNorm, also on cards
             else -> Color.Transparent
         },
         tween(Motion.Medium), label = "buttonContainer",
     )
     val large = size == ButtonSize.Large
-    val outlined = style == ButtonStyle.Outline || style == ButtonStyle.OutlineAccent
+    val outlined = outlinedStyle
     val content = when {
+        !enabled && onCardOutline -> C.Shade50                                                        // [PV] ChangeServerButton disabledContentColor: textHint
         !enabled && outlined -> if (style == ButtonStyle.Outline) C.Disabled else C.PrimaryDisabled   // [PV] textDisabled / interactionDisabled
         !enabled && style == ButtonStyle.Secondary -> C.Disabled                                      // [PV] textDisabled
         !enabled -> C.OnPrimary.copy(alpha = 0.5f)                                                    // [PV] Color.White @ 0.5
-        style == ButtonStyle.Outline -> C.Text
+        style == ButtonStyle.Outline || onCardOutline -> C.Text
         style == ButtonStyle.OutlineAccent -> C.Accent
         else -> C.OnPrimary
     }
     val borderColor = when {
+        onCardOutline -> C.Border
         !enabled -> if (style == ButtonStyle.Outline) C.Disabled else C.PrimaryDisabled
         style == ButtonStyle.OutlineAccent -> C.Accent   // [PV] protonOutlinedBorder: textAccent
         else -> C.Text                                    // [PV] protonOutlineNeutralBorder: interactionStrongNorm
@@ -129,7 +133,7 @@ fun TextAction(label: String, onClick: () -> Unit, modifier: Modifier = Modifier
             .pressable(RoundedCornerShape(Radius.Badge), Press.Control, enabled, onClick = onClick)  // [PC] ProtonTextButton: shapes.small (4dp)
             .padding(horizontal = Space.Md),                                                           // [PV] M3 TextButtonContentPadding (12dp)
         contentAlignment = Alignment.Center,
-    ) { Text(label, style = Type.ButtonSmall, color = if (enabled) color else C.Muted, maxLines = 1) }
+    ) { Text(label, style = Type.ButtonSmall, color = if (enabled) color else C.Disabled, maxLines = 1) }   // [PC] protonTextButtonColors: textDisabled
 }
 
 /** Full-width text action at the bottom of a card ("Run test", "Open settings"). Rows only ripple. */
@@ -138,7 +142,7 @@ fun CardAction(label: String, onClick: () -> Unit, color: Color = C.Accent, enab
     Box(
         Modifier.fillMaxWidth().height(Sizes.Field).clickable(enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center,
-    ) { Text(label, style = Type.ButtonSmall, color = if (enabled) color else C.Muted) }
+    ) { Text(label, style = Type.ButtonSmall, color = if (enabled) color else C.Disabled) }
 }
 
 /** A filled box that turns purple when selected: the base of chips, segmented controls and the transmit-mode picker. */

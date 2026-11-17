@@ -199,19 +199,19 @@ fun HomeScreen(
                                 AnimatedVisibility(slow) {
                                     Column {
                                         Spacer(Modifier.height(Space.Sm))
-                                        AppButton("Change server", onChangeServer, Modifier.fillMaxWidth(), ButtonStyle.Outline)
+                                        AppButton("Change server", onChangeServer, Modifier.fillMaxWidth(), ButtonStyle.OutlineCard)
                                     }
                                 }
                             }
                             Status.Connected -> {
                                 AppButton("Disconnect", onToggle, Modifier.fillMaxWidth(), ButtonStyle.Secondary)
                                 Spacer(Modifier.height(Space.Sm))
-                                AppButton("Change server", onChangeServer, Modifier.fillMaxWidth(), ButtonStyle.Outline)
+                                AppButton("Change server", onChangeServer, Modifier.fillMaxWidth(), ButtonStyle.OutlineCard)
                             }
                             Status.Disconnected -> {
                                 AppButton("Connect", onToggle, Modifier.fillMaxWidth(), ButtonStyle.Primary)
                                 Spacer(Modifier.height(Space.Sm))
-                                AppButton("Change server", onChangeServer, Modifier.fillMaxWidth(), ButtonStyle.Outline)
+                                AppButton("Change server", onChangeServer, Modifier.fillMaxWidth(), ButtonStyle.OutlineCard)
                             }
                         }
                     }

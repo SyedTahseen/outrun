@@ -346,7 +346,7 @@ fun AppDialog(
             content()
             Spacer(Modifier.height(Space.Xxl))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                if (dismissLabel != null) TextAction(dismissLabel, onDismiss, color = C.Muted)
+                if (dismissLabel != null) TextAction(dismissLabel, onDismiss)   // [PV] ProtonDialogButton: textAccent for both actions
                 if (confirmLabel != null) TextAction(confirmLabel, onConfirm, color = confirmColor)
             }
         }

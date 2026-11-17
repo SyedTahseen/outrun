@@ -324,7 +324,7 @@ fun ServersScreen(
                 confirmDel = null
             },
             onDismiss = { confirmDel = null },
-        ) { Text(d.text, style = Type.Small, color = C.Muted) }
+        ) { Text(d.text, style = Type.Small, color = C.Text)   // [PV] ProtonAlert text: body2Regular, textNorm }
     }
     delSub?.let { url ->
         val n = sources.count { it.value == url }
@@ -332,7 +332,7 @@ fun ServersScreen(
             title = "Delete subscription?", confirmLabel = "Delete", confirmColor = C.Red,
             onConfirm = { onDeleteSubscription(url); delSub = null; onFilterChange(null) },
             onDismiss = { delSub = null },
-        ) { Text("${subHost(url)} and its $n server(s) will be removed.", style = Type.Small, color = C.Muted) }
+        ) { Text("${subHost(url)} and its $n server(s) will be removed.", style = Type.Small, color = C.Text) }
     }
     if (subDialog) SubscriptionDialog(onDismiss = { subDialog = false }, onAdd = { onAddSubscription(it); subDialog = false })
     if (manual) ManualDialog(onDismiss = { manual = false }, onAdd = { onAddManual(it).also { ok -> if (ok) manual = false } })
@@ -504,7 +504,7 @@ private fun ManualDialog(onDismiss: () -> Unit, onAdd: (String) -> Boolean) {
         title = "Add manually", confirmLabel = "Add",
         onConfirm = { if (!onAdd(text)) bad = true }, onDismiss = onDismiss,
     ) {
-        Text("Paste a WireGuard .conf or a vless://, trojan://, ss://, vmess://, hysteria2://, tuic:// or wireguard:// link (one per line).", style = Type.Small, color = C.Muted)
+        Text("Paste a WireGuard .conf or a vless://, trojan://, ss://, vmess://, hysteria2://, tuic:// or wireguard:// link (one per line).", style = Type.Small, color = C.Text)
         Spacer(Modifier.height(Space.Md))
         AppTextField(text, { text = it; bad = false }, singleLine = false, onCard = true)
         if (bad) Text("No valid link found", style = Type.Caption, color = C.Red, modifier = Modifier.padding(top = Space.Sm))
@@ -518,7 +518,7 @@ private fun SubscriptionDialog(onDismiss: () -> Unit, onAdd: (String) -> Unit) {
         title = "Add subscription link", confirmLabel = "Add",
         onConfirm = { if (url.isNotBlank()) onAdd(url.trim()) }, onDismiss = onDismiss,
     ) {
-        Text("Servers from this URL are added now and when you update subscriptions.", style = Type.Small, color = C.Muted)
+        Text("Servers from this URL are added now and when you update subscriptions.", style = Type.Small, color = C.Text)
         Spacer(Modifier.height(Space.Md))
         AppTextField(url, { url = it }, placeholder = "https://…", onCard = true)
     }
