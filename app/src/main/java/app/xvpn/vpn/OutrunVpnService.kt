@@ -198,7 +198,7 @@ class OutrunVpnService : VpnService() {
         waitingNet = false
         if (!wanted) return
         runCatching { setUnderlyingNetworks(arrayOf(network)) }
-        if ((changed || recovered) && Store(this).autoReconnect) {
+        if (changed || recovered) {
             netLost = false
             val link = currentLink ?: return
             netJob?.cancel()
@@ -217,7 +217,7 @@ class OutrunVpnService : VpnService() {
             var fails = 0
             while (isActive) {
                 delay(HEALTH_INTERVAL_MS)
-                if (waitingNet || VpnState.status.value != Status.Connected || !Store(this@OutrunVpnService).autoReconnect) { fails = 0; continue }
+                if (waitingNet || VpnState.status.value != Status.Connected) { fails = 0; continue }
                 val ok = withContext(Dispatchers.IO) { PROBE_URLS.any { probe(port, it) } }
                 fails = if (ok) 0 else fails + 1
                 if (fails >= HEALTH_FAILS) {
@@ -352,7 +352,7 @@ class OutrunVpnService : VpnService() {
                 runCatching { pfd?.close() }
             } else {
                 Log.w(TAG, "connect failed: ${e.javaClass.simpleName}")
-                val next = if (e !is NoVpnPermission && wanted && Store(this).autoReconnect && tried.size < MAX_FALLBACKS) fallbackLink(tried + link) else null
+                val next = if (e !is NoVpnPermission && wanted && tried.size < MAX_FALLBACKS) fallbackLink(tried + link) else null
                 if (next != null) {
                     notificationManager.notify(
                         NOTIFICATION_ID, notification(getString(R.string.app_name), "Server unreachable, trying ${LinkParser.parse(next)?.name ?: "another server"}…"),

@@ -1,5 +1,6 @@
 package app.xvpn.ui
 
+import app.xvpn.R
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
@@ -130,6 +131,14 @@ fun FlagBadge(name: String?) {
             if (res != null) Image(painterResource(res), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
             else Icon(ProtonIcons.Earth, null, tint = C.Muted, modifier = Modifier.size(Sizes.IconSm))
         }
+    }
+}
+
+/** [PV] ConnectIntentIcon for CountryId.fastest: Proton's own flag_fastest (green 30x20 flag with a bolt) in the 30x30 flag area. */
+@Composable
+fun FastestFlag() {
+    Box(Modifier.size(Sizes.FlagArea), contentAlignment = Alignment.Center) {
+        Image(painterResource(R.drawable.flag_fastest), null, Modifier.size(width = Sizes.FlagWidth, height = Sizes.FlagHeight))
     }
 }
 

@@ -192,13 +192,10 @@ private fun MenuPage(
     var customDnsOn by remember { mutableStateOf(store.customDnsEnabled) }
     var customDns by remember { mutableStateOf(store.customDnsList) }
     var testUrl by remember { mutableStateOf(store.testUrlChoice) }
-    var autoConnect by remember { mutableStateOf(store.autoConnect) }
     var autoUpdate by remember { mutableStateOf(store.autoUpdateSubs) }
     var ipv6 by remember { mutableStateOf(store.ipv6Mode) }
     var netShield by remember { mutableStateOf(store.netShield) }
     var blockAdult by remember { mutableStateOf(store.blockAdult) }
-    var autoReconnect by remember { mutableStateOf(store.autoReconnect) }
-    var connectBoot by remember { mutableStateOf(store.connectOnBoot) }
     var lan by remember { mutableStateOf(store.lanAccess) }
     var mtu by remember { mutableStateOf(store.mtu) }
 
@@ -294,16 +291,6 @@ private fun MenuPage(
             }
             return
         }
-        "connect" -> {
-            SubPage(null, { page = "main" }) {
-                HeroIcon(ProtonIcons.PowerOff)
-                PageHeading("Auto-connect", "Connect to the selected server automatically. Connecting on boot needs the VPN permission to have been granted once, by connecting from the app.")
-                SwitchCard("Connect on launch", autoConnect) { autoConnect = it; store.autoConnect = it }
-                Spacer(Modifier.height(Space.Sm))
-                SwitchCard("Connect on boot", connectBoot) { connectBoot = it; store.connectOnBoot = it }
-            }
-            return
-        }
         "netshield" -> {
             SubPage(null, { page = "main" }) {
                 HeroIcon(ProtonIcons.Shield)
@@ -335,17 +322,6 @@ private fun MenuPage(
                         modifier = Modifier.padding(horizontal = Space.Gutter, vertical = Space.Md),
                     )
                 }
-            }
-            return
-        }
-        "reconnect" -> {
-            SubPage(null, { page = "main" }) {
-                HeroIcon(ProtonIcons.ArrowsRotate)
-                PageHeading(
-                    "Auto-reconnect",
-                    "Rebuilds the connection when you switch between Wi-Fi and mobile data or the network comes back, and checks the tunnel once a minute. If a server fails to connect, up to 3 other servers are tried (favorites first). The server you picked stays selected.",
-                )
-                SwitchCard("Auto-reconnect", autoReconnect) { autoReconnect = it; store.autoReconnect = it }
             }
             return
         }
@@ -426,11 +402,6 @@ private fun MenuPage(
 
             SectionHeader("Connection")
             ListRow(ProtonIcons.Bolt, "Latency test", testLabel) { page = "test" }
-            ListRow(
-                ProtonIcons.PowerOff, "Auto-connect",
-                listOfNotNull("On launch".takeIf { autoConnect }, "On boot".takeIf { connectBoot }).joinToString(", ").ifEmpty { "Off" },
-            ) { page = "connect" }
-            ListRow(ProtonIcons.ArrowsLeftRight, "Auto-reconnect", if (autoReconnect) "On" else "Off") { page = "reconnect" }
             ListRow(ProtonIcons.ArrowsRotate, "Auto-update subscriptions", if (autoUpdate) "On" else "Off") { page = "autoupdate" }
             ListRow(ProtonIcons.Sliders, "Advanced settings") { page = "advanced" }
 

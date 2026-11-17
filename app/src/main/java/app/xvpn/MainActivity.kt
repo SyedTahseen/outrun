@@ -306,10 +306,6 @@ private fun App() {
         }
     }
 
-    LaunchedEffect(Unit) {
-        if (store.autoConnect && status == Status.Disconnected && selectedLink != null) toggle()
-    }
-
     fun refreshSubs(list: List<String>, silent: Boolean = false) {
         thread {
             var added = 0; var removed = 0; var failed = 0; var err = ""; var total = 0
@@ -438,7 +434,6 @@ private fun App() {
                             filter = serverFilter, onFilterChange = { serverFilter = it },
                             onScrolledChange = { serversScrolled = it },
                             subInfo = subInfo,
-                            onRefreshSubscription = { refreshSubs(listOf(it)) },
                             onCopySubscription = { url ->
                                 copyToClipboard("subscription", url)
                                 toast("Subscription link copied")

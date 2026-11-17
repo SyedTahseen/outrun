@@ -178,9 +178,6 @@ class Store(context: Context) {
     var testUrlChoice: String
         get() = prefs.getString("test_url", "google") ?: "google"
         set(v) = prefs.edit().putString("test_url", v).apply()
-    var autoConnect: Boolean
-        get() = prefs.getBoolean("auto_connect", false)
-        set(v) = prefs.edit().putBoolean("auto_connect", v).apply()
     var ipv6Mode: String
         get() = prefs.getString("ipv6_mode", "tunnel") ?: "tunnel"
         set(v) = prefs.edit().putString("ipv6_mode", v).apply()
@@ -199,16 +196,6 @@ class Store(context: Context) {
     var blockAdult: Boolean
         get() = prefs.getBoolean("block_adult", false)
         set(v) = prefs.edit().putBoolean("block_adult", v).apply()
-
-    /** Reconnect when the network changes or the tunnel stops working, and fall back to another server if one fails. */
-    var autoReconnect: Boolean
-        get() = prefs.getBoolean("auto_reconnect", true)
-        set(v) = prefs.edit().putBoolean("auto_reconnect", v).apply()
-
-    /** Connect to the selected server after the phone boots (needs the VPN permission to have been granted once). */
-    var connectOnBoot: Boolean
-        get() = prefs.getBoolean("connect_boot", false)
-        set(v) = prefs.edit().putBoolean("connect_boot", v).apply()
 
     /** Keep private networks (192.168.x.x, 10.x.x.x ...) outside the tunnel so printers, Chromecast and NAS stay reachable. */
     var lanAccess: Boolean

@@ -113,7 +113,6 @@ fun ServersScreen(
     onFilterChange: (String?) -> Unit,
     onScrolledChange: (Boolean) -> Unit = {},
     subInfo: Map<String, SubInfo> = emptyMap(),
-    onRefreshSubscription: (String) -> Unit = {},
     onCopySubscription: (String) -> Unit = {},
     onConnectFastest: () -> Unit = {},
 ) {
@@ -275,11 +274,6 @@ fun ServersScreen(
                     )
                 } else {
                     LazyColumn(Modifier.fillMaxSize().verticalScrollbar(listState), state = listState) {
-                        // [PV] CountriesViewModel adds fastestCountryItem() as the first row of the list: same row layout as a server,
-                        // a "Fastest" entry with a description instead of a flag.
-                        if (query.isBlank() && f == null) item(key = "fastest") {
-                            FastestRow(testing, onConnectFastest)
-                        }
                         // [PV] ServerGroupHeader: body2Regular textWeak, top 16 / sides 16, text padding(vertical = 8); scrolls with the list.
                         item(key = "count") {
                             Row(Modifier.padding(start = Space.Gutter, end = Space.Gutter, top = Space.Lg), verticalAlignment = Alignment.CenterVertically) {
@@ -291,6 +285,10 @@ fun ServersScreen(
                                 ) { n -> Text("$n", style = Type.Small, color = C.Muted, modifier = Modifier.padding(vertical = Space.Sm)) }
                                 Text(")", style = Type.Small, color = C.Muted, modifier = Modifier.padding(vertical = Space.Sm))
                             }
+                        }
+                        // [PV] CountriesViewModel: Header first, then fastestCountryItem(), then the sorted countries.
+                        if (query.isBlank() && f == null) item(key = "fastest") {
+                            FastestRow(testing, onConnectFastest)
                         }
                         items(shown, key = { it.link }) { p ->
                             ServerRow(
@@ -316,7 +314,7 @@ fun ServersScreen(
         ) {
             if (barUrl != null) SubscriptionBar(
                 info = subInfo[barUrl], host = subHost(barUrl),
-                onRefresh = { onRefreshSubscription(barUrl) }, onCopy = { onCopySubscription(barUrl) },
+                onCopy = { onCopySubscription(barUrl) },
             )
         }
     }
@@ -343,8 +341,9 @@ fun ServersScreen(
     if (manual) ManualDialog(onDismiss = { manual = false }, onAdd = { onAddManual(it).also { ok -> if (ok) manual = false } })
 }
 
+/** Minimal subscription bar shown under the pills: name, time left, data used and a copy-link action. No card, no URL, no update button. */
 @Composable
-private fun SubscriptionBar(info: SubInfo?, host: String, onRefresh: () -> Unit, onCopy: () -> Unit) {
+private fun SubscriptionBar(info: SubInfo?, host: String, onCopy: () -> Unit) {
     val now = System.currentTimeMillis()
     val expMs = (info?.expire ?: 0L) * 1000
     val left = expMs - now
@@ -358,49 +357,38 @@ private fun SubscriptionBar(info: SubInfo?, host: String, onRefresh: () -> Unit,
         else -> "$days days left"
     }
     val expColor = when { expired -> C.Red; days <= 7 -> C.Amber; else -> C.Muted }
-    Box(Modifier.fillMaxWidth().background(C.Bg).padding(horizontal = Space.Gutter, vertical = Space.Md)) {
-        AppCard(Modifier.fillMaxWidth(), padding = 0.dp) {
-            Row(
-                Modifier.fillMaxWidth().padding(start = Space.Lg, top = Space.Md, bottom = Space.Md, end = Space.Xs),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(Modifier.weight(1f)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            info?.title?.takeIf { it.isNotBlank() } ?: host, style = Type.BodyMedium, color = C.Text,
-                            maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false),
-                        )
-                        if (expText != null) {
-                            Spacer(Modifier.width(Space.Sm))
-                            Text(expText, style = Type.SmallMedium, color = expColor, maxLines = 1)
-                        }
-                    }
-                    if (info != null && (info.total > 0 || info.used > 0)) {
-                        Spacer(Modifier.height(Space.Xs))
-                        Text(
-                            if (info.total > 0) "${fmtSize(info.used, binary = true)} of ${fmtSize(info.total, binary = true)} used" else "${fmtSize(info.used, binary = true)} used · Unlimited",
-                            style = Type.Small, color = if (exhausted) C.Red else C.Muted, maxLines = 1,
-                        )
-                        if (info.total > 0) {
-                            val frac = (info.used.toFloat() / info.total).coerceIn(0f, 1f)
-                            Spacer(Modifier.height(Space.Sm))
-                            AppProgressBar(frac, if (exhausted) C.Red else if (frac > 0.9f) C.Amber else C.Accent)
-                        }
-                    }
-                    if (info != null && info.announce.isNotBlank()) {
-                        Spacer(Modifier.height(Space.Xs))
-                        Text(info.announce.trim().replace("\n", " "), style = Type.Small, color = C.Text, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    }
-                    Spacer(Modifier.height(Space.Xs))
+    val hasUsage = info != null && (info.total > 0 || info.used > 0)
+    Column(Modifier.fillMaxWidth().background(C.Bg)) {
+        Row(
+            Modifier.fillMaxWidth().padding(start = Space.Gutter, end = Space.Xs, top = Space.Sm, bottom = Space.Sm),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        host + if (info != null && info.fetchedAt > 0) " · updated ${fmtAgo(info.fetchedAt)}" else "",
-                        style = Type.Caption, color = C.Muted, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                        info?.title?.takeIf { it.isNotBlank() } ?: host, style = Type.Small, color = C.Text,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false),
                     )
+                    if (expText != null) {
+                        Spacer(Modifier.width(Space.Sm))
+                        Text(expText, style = Type.SmallMedium, color = expColor, maxLines = 1)
+                    }
                 }
-                IconAction(ProtonIcons.SquaresInSquare, "Copy subscription link", tint = C.Muted, onClick = onCopy)
-                IconAction(ProtonIcons.ArrowsRotate, "Update subscription", tint = C.Muted, onClick = onRefresh)
+                if (hasUsage && info != null) {
+                    Text(
+                        if (info.total > 0) "${fmtSize(info.used, binary = true)} of ${fmtSize(info.total, binary = true)} used" else "${fmtSize(info.used, binary = true)} used · Unlimited",
+                        style = Type.Caption, color = if (exhausted) C.Red else C.Muted, maxLines = 1,
+                    )
+                    if (info.total > 0) {
+                        val frac = (info.used.toFloat() / info.total).coerceIn(0f, 1f)
+                        Spacer(Modifier.height(Space.Xs))
+                        AppProgressBar(frac, if (exhausted) C.Red else if (frac > 0.9f) C.Amber else C.Accent)
+                    }
+                }
             }
+            IconAction(ProtonIcons.SquaresInSquare, "Copy subscription link", tint = C.Muted, onClick = onCopy)
         }
+        HairlineDivider()
     }
 }
 
@@ -472,7 +460,7 @@ private fun ServerRow(
     }
 }
 
-/** [PV] "Fastest country" row: leading icon in the 30dp flag area, title, weak description, hairline divider. */
+/** [PV] "Fastest country" row (CountryId.fastest): same layout as a country row, Proton's green fastest flag, title only, hairline divider. */
 @Composable
 private fun FastestRow(testing: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
     Column(modifier.fillMaxWidth().background(C.Bg)) {
@@ -481,17 +469,12 @@ private fun FastestRow(testing: Boolean, onClick: () -> Unit, modifier: Modifier
                 .padding(start = Space.Gutter, end = Space.Gutter),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(Modifier.size(Sizes.FlagArea), contentAlignment = Alignment.Center) {
-                Icon(ProtonIcons.Bolt, null, tint = C.Accent, modifier = Modifier.size(Sizes.Icon))
-            }
+            FastestFlag()
             Spacer(Modifier.width(Space.Md))
             Column(Modifier.weight(1f).padding(vertical = Space.Md)) {
                 Text("Fastest server", style = Type.Body, color = C.Text, maxLines = 1)
-                Text(
-                    if (testing) "Testing servers…" else "The best server based on latency",
-                    style = Type.Small, color = C.Muted, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(top = Space.Xs),
-                )
+                // Proton shows no description on this row; only a short status while the latency test runs.
+                if (testing) Text("Testing servers…", style = Type.Caption, color = C.Muted, maxLines = 1)
             }
         }
         HairlineDivider()
