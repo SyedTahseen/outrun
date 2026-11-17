@@ -91,3 +91,6 @@ Still open: Medium/Expanded window padding (56/128dp), selected/unselected botto
 ## Pass 5: motion
 Proton VPN has no custom screen transitions: tabs and settings pages use Navigation Compose's default (`NavigationTransition.DefaultFade`, fade in/out 700 ms; only profile creation slides). Outrun's `axisTransition` (300 ms slide + fade) now cross-fades for 700 ms. Press feedback = ripple only and no haptics were already matched. Status gradient 500 ms matched earlier.
 Not matched: Outrun's `statusTransition` (slide + scale + fade on the home status) vs Proton's 500 ms alpha only on Connecting -> Connected and snap for everything else; card/recents slide, 200 ms fades with 600/1100/1300 ms delays in VpnConnectionCard, M3 scroll-linked collapsing top bar (Outrun animates a scrolled flag).
+
+## Pass 6: bottom bar icons
+Proton `BottomBarView.getIcon(selected)`: outline icon when idle, filled when selected (house, earth, servers, cog wheel). Outrun used filled Material icons for every tab all the time. Now: Home = house, Servers = earth, Settings = cog wheel, each outline/filled by selection. Speed has no Proton counterpart: bolt, same glyph in both states. Proton's tab set (Home, Countries, Profiles, Settings) differs from Outrun's by design.

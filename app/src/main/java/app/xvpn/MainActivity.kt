@@ -94,6 +94,7 @@ import app.xvpn.ui.SortMode
 import app.xvpn.ui.SpeedScreen
 import app.xvpn.ui.StatsScreen
 import app.xvpn.ui.appVersionName
+import app.xvpn.ui.ProtonIcons
 import app.xvpn.ui.axisTransition
 import app.xvpn.ui.rememberTick
 import app.xvpn.ui.setUpEdgeToEdge
@@ -127,11 +128,20 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private enum class Tab(val label: String, val icon: ImageVector) {
-    Home("Home", Icons.Filled.Home),
-    Servers("Servers", Icons.Filled.Public),
-    Speed("Speed", Icons.Filled.Speed),
-    Menu("Settings", Icons.Filled.Settings),
+private enum class Tab(val label: String) {
+    Home("Home"),
+    Servers("Servers"),
+    Speed("Speed"),
+    Menu("Settings"),
+}
+
+/** Proton BottomBarView.getIcon(selected): outline when idle, filled when selected (no filled bolt exists, so Speed keeps one glyph). */
+@Composable
+private fun Tab.icon(selected: Boolean): ImageVector = when (this) {
+    Tab.Home -> if (selected) ProtonIcons.HouseFilled else ProtonIcons.House
+    Tab.Servers -> if (selected) ProtonIcons.EarthFilled else ProtonIcons.Earth
+    Tab.Speed -> ProtonIcons.Bolt
+    Tab.Menu -> if (selected) ProtonIcons.CogWheelFilled else ProtonIcons.CogWheel
 }
 
 private enum class Screen { Home, Servers, Speed, Menu, Stats }
@@ -458,7 +468,7 @@ private fun RowScope.DockItem(t: Tab, selected: Boolean, onClick: () -> Unit) {
                 Modifier.matchParentSize().graphicsLayer { scaleX = pillScale; alpha = pillAlpha }.background(C.NavPill, pill),
             )
             Icon(
-                t.icon, t.label, tint = tint,
+                t.icon(selected), t.label, tint = tint,
                 modifier = Modifier.size(Sizes.Icon),
             )
         }

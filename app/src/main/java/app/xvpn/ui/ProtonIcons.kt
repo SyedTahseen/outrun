@@ -59,4 +59,9 @@ object ProtonIcons {
     val WindowTerminal: ImageVector @Composable get() = ImageVector.vectorResource(R.drawable.ic_proton_window_terminal)
     val LockFilled: ImageVector @Composable get() = ImageVector.vectorResource(R.drawable.ic_proton_lock_filled)
     val LockOpenFilled2: ImageVector @Composable get() = ImageVector.vectorResource(R.drawable.ic_proton_lock_open_filled_2)
+    val House: ImageVector @Composable get() = ImageVector.vectorResource(R.drawable.ic_proton_house)
+    val HouseFilled: ImageVector @Composable get() = ImageVector.vectorResource(R.drawable.ic_proton_house_filled)
+    val EarthFilled: ImageVector @Composable get() = ImageVector.vectorResource(R.drawable.ic_proton_earth_filled)
+    val CogWheel: ImageVector @Composable get() = ImageVector.vectorResource(R.drawable.ic_proton_cog_wheel)
+    val CogWheelFilled: ImageVector @Composable get() = ImageVector.vectorResource(R.drawable.ic_proton_cog_wheel_filled)
 }
