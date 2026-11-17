@@ -78,12 +78,14 @@ fun AppButton(
 ) {
     val tick = rememberTick(strong = style == ButtonStyle.Primary)
     val shape = RoundedCornerShape(Radius.Control)
+    val outlinedStyle = style == ButtonStyle.Outline || style == ButtonStyle.OutlineAccent
     val container by animateColorAsState(
         when {
-            !enabled && (style == ButtonStyle.Primary || style == ButtonStyle.Secondary) -> C.PrimaryDisabled   // [PV] protonButtonColors: interactionDisabled
+            !enabled && style == ButtonStyle.Primary -> C.PrimaryDisabled   // [PV] protonButtonColors: interactionDisabled
+            !enabled && style == ButtonStyle.Secondary -> C.Card            // [PV] protonSecondaryButtonColors: interactionWeakDisabled (shade15)
             style == ButtonStyle.Primary -> C.Primary
             style == ButtonStyle.Secondary -> C.Control
-            style == ButtonStyle.OutlineAccent -> C.Bg
+            outlinedStyle -> C.Bg   // [PV] protonOutlined(Neutral)ButtonColors: backgroundNorm, also on cards
             else -> Color.Transparent
         },
         tween(Motion.Medium), label = "buttonContainer",
@@ -92,6 +94,7 @@ fun AppButton(
     val outlined = style == ButtonStyle.Outline || style == ButtonStyle.OutlineAccent
     val content = when {
         !enabled && outlined -> if (style == ButtonStyle.Outline) C.Disabled else C.PrimaryDisabled   // [PV] textDisabled / interactionDisabled
+        !enabled && style == ButtonStyle.Secondary -> C.Disabled                                      // [PV] textDisabled
         !enabled -> C.OnPrimary.copy(alpha = 0.5f)                                                    // [PV] Color.White @ 0.5
         style == ButtonStyle.Outline -> C.Text
         style == ButtonStyle.OutlineAccent -> C.Accent
@@ -108,7 +111,7 @@ fun AppButton(
             .pressable(shape, Press.Control, enabled) { tick(); onClick() }
             .background(container)
             .then(if (outlined) Modifier.border(1.dp, borderColor, shape) else Modifier)
-            .padding(horizontal = Space.Xxl),   // [PV] ProtonContentPadding / Compact: 24dp horizontal
+            .padding(horizontal = if (large) Space.Lg else Space.Xxl),   // [PV] ProtonContentPadding 16dp / ProtonContentPaddingCompact 24dp
         contentAlignment = Alignment.Center,
     ) {
         Text(label, style = Type.Button, color = content, maxLines = 1)   // [PV] body1Regular for both sizes
@@ -124,7 +127,7 @@ fun TextAction(label: String, onClick: () -> Unit, modifier: Modifier = Modifier
     Box(
         modifier.heightIn(min = Sizes.Control)
             .pressable(RoundedCornerShape(Radius.Badge), Press.Control, enabled, onClick = onClick)  // [PC] ProtonTextButton: shapes.small (4dp)
-            .padding(horizontal = Space.Sm),                                                           // [PC] TextButtonContentPadding (8dp)
+            .padding(horizontal = Space.Md),                                                           // [PV] M3 TextButtonContentPadding (12dp)
         contentAlignment = Alignment.Center,
     ) { Text(label, style = Type.ButtonSmall, color = if (enabled) color else C.Muted, maxLines = 1) }
 }
@@ -222,14 +225,17 @@ fun AppTextField(
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     keyboardActions: KeyboardActions = KeyboardActions.Default,
     trailing: (@Composable () -> Unit)? = null,
+    isError: Boolean = false,
 ) {
     var focused by remember { mutableStateOf(false) }
-    val border by animateColorAsState(if (focused) C.Primary else Color.Transparent, tween(Motion.Short), label = "fieldBorder")
+    // [PC] protonOutlineTextFieldColors: focused brandNorm, error notificationError, unfocused = fill (invisible); Material outlined field: 2dp focused / 1dp otherwise
+    val border by animateColorAsState(if (isError) C.Red else if (focused) C.Primary else Color.Transparent, tween(Motion.Short), label = "fieldBorder")
+    val borderWidth = if (focused || isError) 2.dp else 1.dp
     val shape = RoundedCornerShape(Radius.Control)
     Row(
         modifier.fillMaxWidth()
             .then(if (singleLine) Modifier.heightIn(min = Sizes.Field) else Modifier.height(height))
-            .clip(shape).background(if (onCard) C.Bg else C.Card).border(1.dp, border, shape)
+            .clip(shape).background(if (onCard) C.Bg else C.Card).border(borderWidth, border, shape)
             .padding(start = Space.Lg, end = if (trailing != null) Space.Xs else Space.Lg, top = if (singleLine) 0.dp else Space.Md, bottom = if (singleLine) 0.dp else Space.Md),
         verticalAlignment = if (singleLine) Alignment.CenterVertically else Alignment.Top,
     ) {

@@ -94,3 +94,18 @@ Not matched: Outrun's `statusTransition` (slide + scale + fade on the home statu
 
 ## Pass 6: bottom bar icons
 Proton `BottomBarView.getIcon(selected)`: outline icon when idle, filled when selected (house, earth, servers, cog wheel). Outrun used filled Material icons for every tab all the time. Now: Home = house, Servers = earth, Settings = cog wheel, each outline/filled by selection. Speed has no Proton counterpart: bolt, same glyph in both states. Proton's tab set (Home, Countries, Profiles, Settings) differs from Outrun's by design.
+
+## Pass 7: buttons and text fields, checked against `android-app-master/base/ui/ProtonButton.kt`, `VpnButton.kt` and proton-core `ProtonOutlinedTextField.kt`
+| Area | Before | Now | Source |
+|---|---|---|---|
+| Large button padding | 24dp horizontal | 16dp (Compact stays 24dp) | `ProtonContentPadding` 16x12 / `ProtonContentPaddingCompact` 24x12 |
+| Secondary button, disabled | 372580 fill, white 50% label | Card fill (`interactionWeakDisabled`), `C.Disabled` label | `protonSecondaryButtonColors` |
+| Outline buttons, fill | transparent (neutral) | `C.Bg` (`backgroundNorm`), also on cards | `protonOutlined(Neutral)ButtonColors` |
+| Text button padding | 8dp horizontal | 12dp (Material 3 `TextButtonContentPadding`; the VPN app uses material3) | `ProtonTextButton` |
+| Text field focus border | 1dp | 2dp when focused or in error, 1dp otherwise | Material outlined text field |
+| Text field error | none | `isError` param: `C.Red` border | `errorBorderColor = notificationError` |
+| Widget gradient / hairline | F0728C, FFB74D, 3A3944 | F08FA4, FFB84D, 3B3747 | synced to `C.Red`, `C.Amber`, `C.Border` |
+
+Confirmed correct, no change: all `ProtonColors.Dark` values in `Colors.kt`, radii 4/8/12, 48dp button min height, outline-accent border = `textAccent` in the VPN app (proton-core's own version uses `brandNorm`, but the VPN app overrides it), dialog button style `body1Medium`.
+Corrects an earlier note: the "Secondary" button in the VPN app is `VpnWeakSolidButton` (48dp, fill-width), not `ProtonSecondaryButton` (32dp, caption text).
+Not changed: Outrun's own brand art (launcher icon, widget globe, world map shape), which has no Proton counterpart.
