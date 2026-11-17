@@ -193,10 +193,10 @@ fun Segmented(options: List<String>, selected: Int, enabled: List<Boolean> = opt
 }
 
 @Composable
-fun AppSwitch(checked: Boolean, onChange: (Boolean) -> Unit) {
+fun AppSwitch(checked: Boolean, onChange: ((Boolean) -> Unit)?) {
     val tick = rememberTick()
     Switch(
-        checked = checked, onCheckedChange = { tick(); onChange(it) },
+        checked = checked, onCheckedChange = onChange?.let { cb -> { v: Boolean -> tick(); cb(v) } },
         colors = SwitchDefaults.colors(
             // ProtonSwitch: Material 3 defaults when checked (primary track, white thumb); shade50 track/border and shade80 thumb when off.
             checkedThumbColor = C.OnPrimary, checkedTrackColor = C.Primary, checkedBorderColor = C.Primary,

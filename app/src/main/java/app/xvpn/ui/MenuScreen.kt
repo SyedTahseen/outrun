@@ -115,6 +115,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import app.xvpn.LogActivity
 import app.xvpn.data.Choices
 import app.xvpn.data.Store
 import app.xvpn.widget.OutrunWidget
@@ -139,22 +140,19 @@ fun MenuScreen(
     AnimatedContent(
         targetState = pageState.value,
         modifier = Modifier.fillMaxSize(),
-        transitionSpec = {
-            if (targetState == "logs" || initialState == "logs") activityTransition(opening = targetState == "logs")
-            else axisTransition(forward = pageDepth(targetState) >= pageDepth(initialState))
-        },
+        transitionSpec = { axisTransition(forward = pageDepth(targetState) >= pageDepth(initialState)) },
         label = "settingsPage",
     ) { shown -> MenuPage(store, debugInfo, onScrolledChange, onFullScreenChange, pageState, scroll, shown) }
 }
 
 private fun pageDepth(p: String) = when (p) {
     "main" -> 0
-    "mode", "apps", "ips", "dns_custom" -> 2
+    "apps", "ips", "dns_custom" -> 2
     else -> 1
 }
 
 private fun pageParent(p: String) = when (p) {
-    "mode", "apps", "ips" -> "split"
+    "apps", "ips" -> "split"
     "dns_custom" -> "dns"
     else -> "main"
 }
@@ -196,6 +194,7 @@ private fun MenuPage(
     var autoUpdate by remember { mutableStateOf(store.autoUpdateSubs) }
     var ipv6 by remember { mutableStateOf(store.ipv6Mode) }
 
+    var themeMode by remember { mutableStateOf(store.themeMode) }
     var splitMode by remember { mutableStateOf(store.splitMode) }
     var excApps by remember { mutableStateOf(store.splitApps) }
     var incApps by remember { mutableStateOf(store.splitIncludeApps) }
@@ -207,30 +206,22 @@ private fun MenuPage(
 
     when (shown) {
         "split" -> {
-            SplitPage(
-                on = splitOn, including = including,
-                apps = if (including) incApps else excApps, ipCount = (if (including) incIps else excIps).size,
+            val pm = ctx.packageManager
+            val chosen = if (including) incApps else excApps
+            val names = remember(chosen) {
+                chosen.mapNotNull { runCatching { pm.getApplicationInfo(it, 0).loadLabel(pm).toString() }.getOrNull() }.sortedBy { it.lowercase() }
+            }
+            SplitTunnelingPage(
+                on = splitOn, including = including, appNames = names, ips = if (including) incIps else excIps,
                 onOn = { splitOn = it; store.splitEnabled = it },
-                onMode = { page = "mode" },
+                onMode = { inc -> splitMode = if (inc) "include" else "exclude"; store.splitMode = splitMode },
                 onApps = { page = "apps" }, onIps = { page = "ips" },
-                onBack = { page = "main" },
+                onBack = { page = "main" }, onScrolledChange = onScrolledChange,
             )
             return
         }
-        "mode" -> {
-            SubPage(null, { page = "split" }) {
-                HeroIcon(ProtonIcons.Sliders)
-                PageHeading("Mode", "Choose how split tunneling treats the apps and IP addresses you select. Applies the next time you connect.")
-                Spacer(Modifier.height(Space.Sm))
-                ChoiceList {
-                    ChoiceRow("Exclude", "Selected apps and IP addresses are excluded from the VPN connection.", !including) {
-                        splitMode = "exclude"; store.splitMode = "exclude"; page = "split"
-                    }
-                    ChoiceRow("Include", "Only selected apps and IP addresses connect through the VPN, all other traffic is unprotected.", including) {
-                        splitMode = "include"; store.splitMode = "include"; page = "split"
-                    }
-                }
-            }
+        "theme" -> {
+            ThemePage(themeMode, { themeMode = it; AppTheme.set(ctx, it) }, { page = "main" })
             return
         }
         "dns" -> {
@@ -290,10 +281,6 @@ private fun MenuPage(
             UsagePage { page = "main" }
             return
         }
-        "logs" -> {
-            LogsPage(info = debugInfo(), onScrolledChange = onScrolledChange, onFullScreenChange = onFullScreenChange, onBack = { page = "main" })
-            return
-        }
         "test" -> {
             SubPage(null, { page = "main" }) {
                 HeroIcon(ProtonIcons.Bolt)
@@ -322,52 +309,11 @@ private fun MenuPage(
             return
         }
         "kill" -> {
-            val bold = SpanStyle(fontWeight = FontWeight.Bold)
-            SubPage(
-                "Kill switch", { page = "main" },
-                bottom = {
-                    AppButton(
-                        "Settings", {
-                            runCatching { ctx.startActivity(Intent(Settings.ACTION_VPN_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
-                        },
-                        Modifier.fillMaxWidth(), ButtonStyle.Primary, trailingIcon = ProtonIcons.ArrowOutSquare,
-                    )
-                    Spacer(Modifier.height(Space.Md))
-                    AppButton(
-                        "What is kill switch?", {
-                            runCatching { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(KILL_SWITCH_HELP_URL)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
-                        },
-                        Modifier.fillMaxWidth(), ButtonStyle.OutlineAccent, trailingIcon = ProtonIcons.ArrowOutSquare,
-                    )
-                },
-            ) {
-                HeroIcon(ProtonIcons.Shield, size = 96.dp, centered = true, tint = C.Green)
-                Spacer(Modifier.height(Space.Xxl))
-                Text("How to enable kill switch", style = Type.Headline, color = C.Text, modifier = Modifier.padding(horizontal = Space.Gutter))
-                Spacer(Modifier.height(Space.Lg))
-                Column(Modifier.padding(horizontal = Space.Gutter)) {
-                    Text("1. Open your device settings", style = Type.Body, color = C.Text)
-                    Text("2. Find Outrun and tap the gear icon", style = Type.Body, color = C.Text)
-                    Text(
-                        buildAnnotatedString {
-                            append("3. Enable \""); pushStyle(bold); append("Always-on VPN"); pop(); append("\" and \"")
-                            pushStyle(bold); append("Block connections without VPN"); pop(); append("\"")
-                        },
-                        style = Type.Body, color = C.Text,
-                    )
-                    Spacer(Modifier.height(Space.Xl))
-                    Row(verticalAlignment = Alignment.Top) {
-                        Icon(ProtonIcons.InfoCircle, null, tint = C.Muted, modifier = Modifier.size(Sizes.Icon))
-                        Spacer(Modifier.width(Space.Md))
-                        Column {
-                            Text("When kill switch is on, you won't be able to connect to:", style = Type.Small, color = C.Muted)
-                            Spacer(Modifier.height(Space.Sm))
-                            Text("•  Websites and apps excluded from your VPN connection through split tunneling", style = Type.Small, color = C.Muted)
-                            Text("•  Devices on your local area network", style = Type.Small, color = C.Muted)
-                        }
-                    }
-                }
-            }
+            KillSwitchPage(
+                onBack = { page = "main" },
+                onOpenVpnSettings = { runCatching { ctx.startActivity(Intent(Settings.ACTION_VPN_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } },
+                onLearnMore = { runCatching { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(KILL_SWITCH_HELP_URL)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } },
+            )
             return
         }
         "apps" -> {
@@ -425,6 +371,11 @@ private fun MenuPage(
                     notifLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                 } else ctx.openNotificationSettings()
             }
+            // [PV] Settings > General: Theme sits between Notifications and the icon / widget rows.
+            ListRow(
+                ProtonIcons.CircleHalfFilled, "Theme",
+                when (themeMode) { AppTheme.LIGHT -> "Light"; AppTheme.DARK -> "Dark"; else -> "Device theme" },
+            ) { page = "theme" }
             ListRow(
                 ProtonIcons.Mobile, "Widget",
                 if (widgetCount > 0) "Added to home screen" else "Add to home screen",
@@ -433,7 +384,10 @@ private fun MenuPage(
             SectionHeader("Support")
             ListRow(ProtonIcons.LifeRing, "Support contact", external = true) { ctx.emailSupport() }
             ListRow(ProtonIcons.Bug, "Report an issue", external = true) { ctx.reportIssue(debugInfo()) }
-            ListRow(ProtonIcons.Code, "Debug logs") { page = "logs" }
+            ListRow(ProtonIcons.Code, "Debug logs") {
+                // [PV] Proton opens its log as a separate Activity, so it gets the system activity transition.
+                ctx.startActivity(Intent(ctx, LogActivity::class.java).putExtra(LogActivity.EXTRA_INFO, debugInfo()))
+            }
 
             Spacer(Modifier.height(Space.Xxl))
             Text(
@@ -501,103 +455,6 @@ private fun Context.reportIssue(info: String) {
 
 private fun Context.copyText(label: String, text: String) {
     (getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(ClipData.newPlainText(label, text))
-}
-
-/** The app's own recent log output (apps can only read their own entries). */
-private suspend fun readLogs(): List<String> = withContext(Dispatchers.IO) {
-    runCatching {
-        val p = ProcessBuilder("logcat", "-d", "-t", "400", "-v", "time").redirectErrorStream(true).start()
-        val text = p.inputStream.bufferedReader().use { it.readText() }
-        p.destroy()
-        text.trim().ifEmpty { "No log entries yet." }.lines()
-    }.getOrElse { listOf("Couldn't read logs: ${it.message}") }
-}
-
-@Composable
-private fun LogsPage(
-    info: String, onScrolledChange: (Boolean) -> Unit, onFullScreenChange: (Boolean) -> Unit, onBack: () -> Unit,
-) {
-    val ctx = LocalContext.current
-    var lines by remember { mutableStateOf<List<String>?>(null) }
-    // [PV] LogActivity: lines stream in while the page is open. Refresh every 2 s.
-    LaunchedEffect(Unit) {
-        kotlinx.coroutines.delay(Motion.Medium.toLong())
-        while (true) { lines = readLogs(); kotlinx.coroutines.delay(2000) }
-    }
-    BackHandler(true) { onBack() }
-    // Full-screen page: hide the bottom bar; header and status strip keep the app background.
-    ReportScrolled(false, onScrolledChange)
-    DisposableEffect(Unit) { onFullScreenChange(true); onDispose { onFullScreenChange(false) } }
-
-    // [PV] LogActivity: stay at the bottom while new lines arrive, unless the user scrolled up.
-    val listState = rememberLazyListState()
-    var pinned by remember { mutableStateOf(true) }
-    LaunchedEffect(listState) {
-        snapshotFlow { listState.isScrollInProgress }.filter { !it }.collect { pinned = !listState.canScrollForward }
-    }
-    LaunchedEffect(lines) {
-        val l = lines ?: return@LaunchedEffect
-        if (pinned && l.isNotEmpty()) listState.scrollToItem(l.lastIndex)
-    }
-
-    Column(Modifier.fillMaxSize()) {
-        ScreenHeader("Log", onBack = onBack) {
-            IconAction(ProtonIcons.ArrowUpFromSquare, "Share logs") {
-                lines?.let {
-                    val send = Intent(Intent.ACTION_SEND).setType("text/plain")
-                        .putExtra(Intent.EXTRA_SUBJECT, "Outrun VPN logs").putExtra(Intent.EXTRA_TEXT, info + "\n\n" + it.joinToString("\n"))
-                    ctx.launch(Intent.createChooser(send, "Share logs"), "Couldn't share logs")
-                }
-            }
-        }
-        val shown = lines
-        if (shown == null) {
-            Text("Loading…", style = Type.Small, color = C.Muted, modifier = Modifier.padding(horizontal = Space.Gutter))
-        } else {
-            LazyColumn(
-                Modifier.weight(1f).fillMaxWidth(), state = listState,
-                contentPadding = PaddingValues(start = Space.Gutter, end = Space.Gutter, bottom = Space.Lg),
-            ) {
-                items(shown.size) { i -> Text(shown[i], style = Type.LogLine, color = C.Text) }
-            }
-        }
-    }
-}
-
-@Composable
-private fun SplitPage(
-    on: Boolean, including: Boolean, apps: Set<String>, ipCount: Int,
-    onOn: (Boolean) -> Unit, onMode: () -> Unit, onApps: () -> Unit, onIps: () -> Unit, onBack: () -> Unit,
-) {
-    val pm = LocalContext.current.packageManager
-    val names = remember(apps) {
-        apps.mapNotNull { runCatching { pm.getApplicationInfo(it, 0).loadLabel(pm).toString() }.getOrNull() }.sortedBy { it.lowercase() }
-    }
-    val appsText = when {
-        names.isEmpty() -> "None"
-        names.size <= 2 -> names.joinToString(", ")
-        else -> "${names.take(2).joinToString(", ")} +${names.size - 2}"
-    }
-    val word = if (including) "Included" else "Excluded"
-    SubPage(null, onBack) {
-        HeroIcon(ProtonIcons.ArrowsSwapRight)
-        PageHeading("Split tunneling", "Customize your connection by deciding which apps and IP addresses are protected by the VPN.")
-        SwitchCard("Split tunneling", on, onChange = onOn)
-        if (on) {
-            Spacer(Modifier.height(Space.Sm))
-            ListRow(ProtonIcons.Sliders, "Mode", if (including) "Include" else "Exclude") { onMode() }
-            ListRow(ProtonIcons.Mobile, "$word apps", appsText) { onApps() }
-            ListRow(
-                ProtonIcons.WindowTerminal, "$word IP addresses",
-                if (ipCount == 0) "None" else "$ipCount address${if (ipCount == 1) "" else "es"}",
-            ) { onIps() }
-            Spacer(Modifier.height(Space.Sm))
-            Text(
-                "Applies the next time you connect." + if (!including) " Excluding IP addresses needs Android 13 or newer." else "",
-                style = Type.Caption, color = C.Muted, modifier = Modifier.padding(horizontal = Space.Gutter),
-            )
-        }
-    }
 }
 
 /** Header of an editor page: back arrow, title and a Save action. */

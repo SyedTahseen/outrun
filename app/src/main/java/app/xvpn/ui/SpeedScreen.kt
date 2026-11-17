@@ -502,7 +502,7 @@ private fun DialGlowLayer(modifier: Modifier, frac: Float, upload: Boolean, stro
 private fun SpeedDial(value: Double, max: Double, upload: Boolean, modifier: Modifier = Modifier) {
     val frac by animateFloatAsState((value / max).toFloat().coerceIn(0f, 1f), tween(Motion.Medium, easing = Motion.Standard), label = "dial")
     val measurer = rememberTextMeasurer()
-    val labelStyle = remember { Type.Label.copy(color = C.TextDim, letterSpacing = 0.4.sp) }
+    val labelStyle = remember(Palette.dark) { Type.Label.copy(color = C.TextDim, letterSpacing = 0.4.sp) }
     val blurOk = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
     Box(modifier.fillMaxWidth().aspectRatio(2f)) {
         if (blurOk) {

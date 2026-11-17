@@ -29,6 +29,7 @@ object ProtonIcons {
     val ChevronDown: ImageVector @Composable get() = ImageVector.vectorResource(R.drawable.ic_proton_chevron_down)
     val ChevronRight: ImageVector @Composable get() = ImageVector.vectorResource(R.drawable.ic_proton_chevron_right)
     val ChevronUp: ImageVector @Composable get() = ImageVector.vectorResource(R.drawable.ic_proton_chevron_up)
+    val CircleHalfFilled: ImageVector @Composable get() = ImageVector.vectorResource(R.drawable.ic_proton_circle_half_filled)
     val Code: ImageVector @Composable get() = ImageVector.vectorResource(R.drawable.ic_proton_code)
     val Cross: ImageVector @Composable get() = ImageVector.vectorResource(R.drawable.ic_proton_cross)
     val Earth: ImageVector @Composable get() = ImageVector.vectorResource(R.drawable.ic_proton_earth)

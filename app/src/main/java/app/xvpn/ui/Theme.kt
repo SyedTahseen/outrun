@@ -15,6 +15,12 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
+import app.xvpn.data.Store
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -29,8 +35,12 @@ fun OutrunApp(content: @Composable () -> Unit) {
 /** Material theme built from the app's own tokens, so any stock Material component that slips in looks like the rest of the app. */
 @Composable
 fun OutrunTheme(content: @Composable () -> Unit) {
-    val dark = isSystemInDarkTheme()   // Proton follows the system theme
+    val dark = AppTheme.isDark(isSystemInDarkTheme())   // Settings > Theme: Light / Dark / Device theme
     Palette.dark = dark
+    // Re-apply the system bars when the user changes the theme while the app is open.
+    val activity = LocalContext.current as? ComponentActivity
+    val firstRun = remember { booleanArrayOf(true) }
+    LaunchedEffect(dark) { if (firstRun[0]) firstRun[0] = false else activity?.applySystemBars(dark) }
     val scheme = if (dark) {
         darkColorScheme(
             primary = C.Primary, onPrimary = C.OnPrimary,
@@ -83,13 +93,42 @@ fun OutrunTheme(content: @Composable () -> Unit) {
 @Composable
 internal fun DesignScale(content: @Composable () -> Unit) = content()
 
+/** The user's theme choice (Settings > Theme), mirroring Proton's ThemeType: Device theme / Light / Dark. */
+object AppTheme {
+    const val SYSTEM = "system"
+    const val LIGHT = "light"
+    const val DARK = "dark"
+
+    /** Snapshot state, so changing it recomposes the whole app at once, without recreating the activity. */
+    var mode by mutableStateOf(SYSTEM)
+        private set
+
+    fun load(ctx: Context) { mode = Store(ctx).themeMode }
+
+    fun set(ctx: Context, value: String) {
+        Store(ctx).themeMode = value
+        mode = value
+    }
+
+    fun isDark(systemDark: Boolean): Boolean = when (mode) { LIGHT -> false; DARK -> true; else -> systemDark }
+}
+
+private fun Context.systemDark() =
+    (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES
+
 /** Transparent system bars drawn over the app background; shared by every activity. */
 internal fun ComponentActivity.setUpEdgeToEdge(navigationBarFromBg: Boolean = false) {
-    Palette.dark = (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES
+    AppTheme.load(this)
+    val dark = AppTheme.isDark(systemDark())
+    Palette.dark = dark
+    applySystemBars(dark, navigationBarFromBg)
+}
+
+internal fun ComponentActivity.applySystemBars(dark: Boolean, navigationBarFromBg: Boolean = false) {
     val navigationBarColor = if (navigationBarFromBg) C.Bg.toArgb() else android.graphics.Color.TRANSPARENT
     enableEdgeToEdge(
-        statusBarStyle = SystemBarStyle.auto(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT),
-        navigationBarStyle = SystemBarStyle.auto(navigationBarColor, navigationBarColor),
+        statusBarStyle = SystemBarStyle.auto(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT) { dark },
+        navigationBarStyle = SystemBarStyle.auto(navigationBarColor, navigationBarColor) { dark },
     )
     window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(C.Bg.toArgb()))
 }

@@ -164,4 +164,13 @@ Verified unchanged: ProtonTypography, ProtonShapes, ProtonDimens, all 55 `ic_pro
 Start view now reports scroll state (header collapses, status bar tints, like Settings/Servers); hard-coded sizes moved to `Sizes` (SpeedRing, SpeedChart, LogMin/Max); gauge/log toggle 48dp with 24dp icons; "More" uses TextAction metrics; stat labels Body (16sp); details row "Test server" reads `SpeedTest.SERVER_NAME`.
 
 ## Pass 13: log page (vs `LogActivity` / `log_item.xml`)
-Lines: 9sp monospace `textNorm` (`Type.LogLine`) in a LazyColumn instead of one 14sp proportional block; live refresh every 2 s; stays at the bottom unless the user scrolled up. Transition: Proton's log is a separate Activity (platform transition, no custom animation), so opening/closing it now uses `activityTransition` (300 ms slide + fade) instead of the 700 ms settings cross-fade. Not matched: Proton shows its own `ProtonLogger` event log, Outrun shows its logcat; Proton's lines have no side padding, Outrun keeps the 16dp gutter.
+Lines: 9sp monospace `textNorm` (`Type.LogLine`) in a LazyColumn instead of one 14sp proportional block; live refresh every 2 s; stays at the bottom unless the user scrolled up. Transition: superseded in Pass 14 (the log is now a real Activity). Not matched: Proton shows its own `ProtonLogger` event log, Outrun shows its logcat; Proton's lines have no side padding, Outrun keeps the 16dp gutter.
+
+## Pass 14: log activity, split tunneling, kill switch, theme
+| Area | Before | Now | Source |
+|---|---|---|---|
+| Debug logs | in-app page (cross-fade / custom slide) | `LogActivity`: a real Activity, so it gets the same system activity transition as Proton | `LogActivity.kt` |
+| Split tunneling | hero tile, 28sp heading, switch card, "Mode" sub-page | Proton illustration, 20sp title that moves into the top bar on scroll, `FeatureToggle` (Card, 16dp, 20x16), Mode row (no icon) opens a dialog, rows show "A, B and N more" | `SplitTunneling.kt`, `FeatureSubSetting.kt`, `SettingsFeatureToggle.kt` |
+| Kill switch | hero tile, 28sp heading, "tap the gear icon" | promo image, 20sp heading, inline cog icon, 16dp button gaps, "(LAN)" | `KillSwitchInfo.kt` |
+| Theme | follows the system only | Settings > General > Theme (Light / Dark / Device theme), three picture + radio tiles; applies instantly (`Palette.dark` is snapshot state) and re-tints the system bars | `ThemeSettings.kt` |
+Not matched: no "Learn more" link in the split tunneling description (Outrun has no help page); the Mode dialog uses `AppDialog` (20sp bold title) where Proton uses a 16sp bold title.

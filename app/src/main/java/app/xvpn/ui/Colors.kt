@@ -1,11 +1,16 @@
 package app.xvpn.ui
 
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
 
 /** Which palette [C] resolves to. Set once per composition root in [OutrunTheme] from the system setting; the activity is recreated when it changes. */
 object Palette {
-    @Volatile var dark: Boolean = true
+    // Snapshot state: every composable / draw block that reads a C.* colour re-runs when the theme changes.
+    private val state = mutableStateOf(true)
+    var dark: Boolean
+        get() = state.value
+        set(v) { if (state.value != v) state.value = v }
 }
 
 private fun pick(dark: Long, light: Long) = Color(if (Palette.dark) dark else light)
