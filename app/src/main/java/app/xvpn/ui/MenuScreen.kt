@@ -414,13 +414,13 @@ private fun MenuPage(
         Column(Modifier.weight(1f).fillMaxWidth().verticalScrollbar(scroll).verticalScroll(scroll)) {
             SectionHeader("Features", first = true)
             ListRow(
-                ProtonIcons.ArrowsSwapRight, "Split tunneling",
-                if (!splitOn) "Off" else "On",
-            ) { page = "split" }
-            ListRow(
                 ProtonIcons.Shield, "NetShield",
                 if (!netShield) "Off" else if (customDnsOn && customDns.isNotEmpty()) "Unavailable with custom DNS" else if (blockAdult) "Blocking ads, trackers, malware and adult content" else "Blocking ads, trackers and malware",
             ) { page = "netshield" }
+            ListRow(
+                ProtonIcons.ArrowsSwapRight, "Split tunneling",
+                if (!splitOn) "Off" else "On",
+            ) { page = "split" }
             ListRow(ProtonIcons.Lock, "Kill switch") { page = "kill" }
             ListRow(ProtonIcons.ChartLine, "Usage & history", "Data use, connection log and app usage") { page = "usage" }
 
@@ -430,9 +430,9 @@ private fun MenuPage(
                 ProtonIcons.PowerOff, "Auto-connect",
                 listOfNotNull("On launch".takeIf { autoConnect }, "On boot".takeIf { connectBoot }).joinToString(", ").ifEmpty { "Off" },
             ) { page = "connect" }
-            ListRow(ProtonIcons.ArrowsSwapRight, "Auto-reconnect", if (autoReconnect) "On" else "Off") { page = "reconnect" }
-            ListRow(ProtonIcons.Sliders, "Advanced settings") { page = "advanced" }
+            ListRow(ProtonIcons.ArrowsLeftRight, "Auto-reconnect", if (autoReconnect) "On" else "Off") { page = "reconnect" }
             ListRow(ProtonIcons.ArrowsRotate, "Auto-update subscriptions", if (autoUpdate) "On" else "Off") { page = "autoupdate" }
+            ListRow(ProtonIcons.Sliders, "Advanced settings") { page = "advanced" }
 
             SectionHeader("General")
             ListRow(ProtonIcons.Bell, "Notifications", if (notifOn) "On" else "Off") {
