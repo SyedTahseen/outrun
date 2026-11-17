@@ -196,7 +196,7 @@ private fun App() {
                 }
             }
 
-            status == Status.Connecting -> NetInfo.proxy.value = null
+            status == Status.Connecting || status == Status.WaitingForNetwork -> NetInfo.proxy.value = null
             status == Status.Connected && socks > 0 -> {
                 for (i in 0 until 5) {
                     val r = withContext(Dispatchers.IO) { GeoIp.lookup(socks) }

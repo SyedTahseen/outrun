@@ -95,13 +95,13 @@ fun HomeScreen(
     val on = status == Status.Connected
     val connecting = status == Status.Connecting
     val tone by animateColorAsState(
-        when (status) { Status.Connected -> C.Green; Status.Connecting -> C.Neutral; Status.Disconnected -> C.Red },
+        when (status) { Status.Connected -> C.Green; Status.Connecting, Status.WaitingForNetwork -> C.Neutral; Status.Disconnected -> C.Red },
         label = "tone",
     )
 
     // Proton vpnStatusOverlayBackground: vpnGreen / white / notificationError at 50%, fading to transparent, animated over 500ms.
     val overlay by animateColorAsState(
-        when (status) { Status.Connected -> C.Green.copy(alpha = C.OverlayConnected); Status.Connecting -> Color.White.copy(alpha = 0.5f); Status.Disconnected -> C.Red.copy(alpha = C.OverlayDisconnected) },
+        when (status) { Status.Connected -> C.Green.copy(alpha = C.OverlayConnected); Status.Connecting, Status.WaitingForNetwork -> Color.White.copy(alpha = 0.5f); Status.Disconnected -> C.Red.copy(alpha = C.OverlayDisconnected) },
         tween(500), label = "overlay",
     )
 
@@ -154,6 +154,7 @@ fun HomeScreen(
                 when (st) {
                     Status.Connected -> ProtectedHeader(fmtDuration(now - connectedAt), up, down)
                     Status.Connecting -> ConnectingHeader(real)
+                    Status.WaitingForNetwork -> WaitingForNetworkHeader()   // [PV] VpnStatusViewState.WaitingForNetwork
                     Status.Disconnected -> UnprotectedHeader(real, error)
                 }
             }
@@ -225,6 +226,7 @@ fun HomeScreen(
                                     }
                                 }
                             }
+                            Status.WaitingForNetwork -> AppButton("Cancel", onToggle, Modifier.fillMaxWidth(), ButtonStyle.Secondary)
                             Status.Connected -> {
                                 AppButton("Disconnect", onToggle, Modifier.fillMaxWidth(), ButtonStyle.Secondary)
                                 Spacer(Modifier.height(Space.Sm))
@@ -292,6 +294,20 @@ private fun UnprotectedHeader(real: IpInfo?, error: String?) {
             Spacer(Modifier.height(Space.Sm))
             Text(error, style = Type.Caption, color = C.Red, textAlign = TextAlign.Center)
         }
+    }
+}
+
+/** [PV] Spinner (same as Connecting) with the "Waiting for network" label (error_vpn_waiting_for_network). */
+@Composable
+private fun WaitingForNetworkHeader() {
+    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(Modifier.padding(Space.Sm).size(Sizes.IconLg), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(Sizes.IconLg), color = C.Text, trackColor = Color.Transparent,
+                strokeWidth = 2.dp,
+            )
+        }
+        Text("Waiting for network", style = Type.BodyMedium, color = C.Text, textAlign = TextAlign.Center, modifier = Modifier.padding(Space.Sm))
     }
 }
 

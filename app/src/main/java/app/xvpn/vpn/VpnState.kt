@@ -2,7 +2,8 @@ package app.xvpn.vpn
 
 import kotlinx.coroutines.flow.MutableStateFlow
 
-enum class Status { Disconnected, Connecting, Connected }
+/** [WaitingForNetwork]: the tunnel is wanted but the device has no usable network (Proton: VpnState.WaitingForNetwork). */
+enum class Status { Disconnected, Connecting, WaitingForNetwork, Connected }
 
 object VpnState {
     val status = MutableStateFlow(Status.Disconnected)

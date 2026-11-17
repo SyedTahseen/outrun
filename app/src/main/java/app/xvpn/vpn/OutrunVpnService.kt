@@ -126,7 +126,40 @@ class OutrunVpnService : VpnService() {
         wanted = true
         startForeground(NOTIFICATION_ID, notification(getString(R.string.app_name), "Connecting…"))
         registerNetworkWatch()
-        launchConnect(link)
+        if (hasUnderlyingNetwork()) launchConnect(link)
+        else {
+            // Nothing to connect over (e.g. Wi-Fi is off): wait, and connect as soon as a network returns.
+            currentLink = link
+            Store(this).selected = link
+            VpnState.activeLink.value = link
+            netLost = true
+            enterWaitingForNetwork()
+        }
+    }
+
+    /** True if the device has a real (non-VPN) network; this app is excluded from its own tunnel, so activeNetwork is the underlying one. */
+    private fun hasUnderlyingNetwork(): Boolean {
+        val cm = getSystemService(ConnectivityManager::class.java) ?: return true
+        val net = cm.activeNetwork ?: return false
+        val caps = cm.getNetworkCapabilities(net) ?: return false
+        return caps.hasTransport(android.net.NetworkCapabilities.TRANSPORT_VPN).not()
+    }
+
+    /**
+     * The underlying network is gone: stop pretending to be connected (Proton's WaitingForNetwork state). The tunnel interface is left up
+     * so traffic is blocked rather than leaking; it is rebuilt by [onUnderlyingAvailable] when a network returns.
+     */
+    @Synchronized
+    private fun enterWaitingForNetwork() {
+        waitingNet = true
+        netJob?.cancel(); netJob = null
+        connectJob?.cancel()
+        healthJob?.cancel(); healthJob = null
+        VpnState.upBytesPerSec.value = 0
+        VpnState.downBytesPerSec.value = 0
+        VpnState.status.value = Status.WaitingForNetwork
+        OutrunWidget.refresh(this)
+        notificationManager.notify(NOTIFICATION_ID, notification(getString(R.string.app_name), "Waiting for network…"))
     }
 
     /** Cancels any attempt in progress and connects to [link] (with fallback to other servers if enabled). */
@@ -176,7 +209,8 @@ class OutrunVpnService : VpnService() {
             override fun onLost(network: Network) {
                 if (network == lastNet) {
                     lastNet = null; netLost = true
-                    if (wanted && VpnState.status.value == Status.Connected) waitingNet = true
+                    val st = VpnState.status.value
+                    if (wanted && (st == Status.Connected || st == Status.Connecting)) enterWaitingForNetwork()
                 }
             }
         }
@@ -195,8 +229,7 @@ class OutrunVpnService : VpnService() {
         val changed = lastNet != null && lastNet != network
         val recovered = lastNet == null && netLost
         lastNet = network
-        waitingNet = false
-        if (!wanted) return
+        if (!wanted) { waitingNet = false; return }
         runCatching { setUnderlyingNetworks(arrayOf(network)) }
         if (changed || recovered) {
             netLost = false
@@ -204,10 +237,11 @@ class OutrunVpnService : VpnService() {
             netJob?.cancel()
             netJob = scope.launch {
                 delay(NET_DEBOUNCE_MS)
+                waitingNet = false
                 notificationManager.notify(NOTIFICATION_ID, notification(getString(R.string.app_name), "Network changed, reconnecting…"))
                 launchConnect(link)
             }
-        } else netLost = false
+        } else { netLost = false; waitingNet = false }
     }
 
     /** While connected, probes the tunnel once a minute; after [HEALTH_FAILS] failures in a row it reconnects (and falls back if needed). */
@@ -330,6 +364,12 @@ class OutrunVpnService : VpnService() {
 
             if (!verifyProxy(port)) error("Server is not responding")
 
+            currentCoroutineContext().ensureActive()
+            if (!hasUnderlyingNetwork()) {   // the network dropped while connecting: wait instead of reporting Connected
+                netLost = true
+                enterWaitingForNetwork()
+                return
+            }
             VpnState.socksPort.value = port
             VpnState.connectedAt.value = System.currentTimeMillis()
             VpnState.status.value = Status.Connected
@@ -352,6 +392,12 @@ class OutrunVpnService : VpnService() {
                 runCatching { pfd?.close() }
             } else {
                 Log.w(TAG, "connect failed: ${e.javaClass.simpleName}")
+                if (wanted && e !is NoVpnPermission && !hasUnderlyingNetwork()) {
+                    // Failed because there is no network at all: not the server's fault, so no fallback and no error. Wait for it to return.
+                    netLost = true
+                    enterWaitingForNetwork()
+                    return
+                }
                 val next = if (e !is NoVpnPermission && wanted && tried.size < MAX_FALLBACKS) fallbackLink(tried + link) else null
                 if (next != null) {
                     notificationManager.notify(
@@ -409,12 +455,15 @@ class OutrunVpnService : VpnService() {
                     VpnState.sessionUp.value = sessUp; VpnState.sessionDown.value = sessDown
                 }
                 if (++ticks % 10 == 0) flushUsage()
-                if (VpnState.status.value == Status.Connected) {
-                    notificationManager.notify(
+                when (VpnState.status.value) {
+                    Status.Connected -> notificationManager.notify(
                         NOTIFICATION_ID,
-                        if (waitingNet) notification("Connected · $currentName", "Waiting for network…")
-                        else notification("Connected · $currentName", "↓ ${rate(VpnState.downBytesPerSec.value)}   ↑ ${rate(VpnState.upBytesPerSec.value)}"),
+                        notification("Connected · $currentName", "↓ ${rate(VpnState.downBytesPerSec.value)}   ↑ ${rate(VpnState.upBytesPerSec.value)}"),
                     )
+                    Status.WaitingForNetwork -> notificationManager.notify(
+                        NOTIFICATION_ID, notification(getString(R.string.app_name), "Waiting for network…"),
+                    )
+                    else -> {}
                 }
             }
         }

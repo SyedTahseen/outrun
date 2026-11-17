@@ -174,3 +174,12 @@ Lines: 9sp monospace `textNorm` (`Type.LogLine`) in a LazyColumn instead of one 
 | Kill switch | hero tile, 28sp heading, "tap the gear icon" | promo image, 20sp heading, inline cog icon, 16dp button gaps, "(LAN)" | `KillSwitchInfo.kt` |
 | Theme | follows the system only | Settings > General > Theme (Light / Dark / Device theme), three picture + radio tiles; applies instantly (`Palette.dark` is snapshot state) and re-tints the system bars | `ThemeSettings.kt` |
 Not matched: no "Learn more" link in the split tunneling description (Outrun has no help page); the Mode dialog uses `AppDialog` (20sp bold title) where Proton uses a 16sp bold title.
+
+## Network loss: WaitingForNetwork
+
+| Aspect | Outrun | Proton | Source |
+|---|---|---|---|
+| No underlying network while the VPN is wanted | `Status.WaitingForNetwork` (spinner, neutral overlay, "Waiting for network", Cancel button); tunnel stays up so nothing leaks; reconnects when a network returns | `VpnState.WaitingForNetwork` | `VpnBackend.kt`, `WireguardBackend.kt`, `VpnStatusView.kt` |
+| Notification / widget / tile | "Waiting for network…" / amber + "Waiting for network" / "Waiting for network" | `loaderReconnectNoNetwork`, `WidgetVpnStatus.WaitingForNetwork` | `NotificationHelper.kt`, `WidgetStateUpdater.kt` |
+| Connect tapped with no network | Waits instead of failing / trying fallback servers | Same | `WireguardBackend.kt` |
+| "Network" definition | Any connected non-VPN network (no internet validation) | `activeNetworkInfo.isConnected` | `NetworkManagerImpl.kt` |

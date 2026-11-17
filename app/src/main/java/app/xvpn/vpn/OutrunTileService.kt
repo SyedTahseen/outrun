@@ -45,6 +45,7 @@ class OutrunTileService : TileService() {
             tile.subtitle = when (status) {
                 Status.Connected -> name ?: "Connected"
                 Status.Connecting -> "Connecting…"
+                Status.WaitingForNetwork -> "Waiting for network"
                 Status.Disconnected -> "Off"
             }
         }
