@@ -94,6 +94,38 @@ jobs:
           archive: false
           if-no-files-found: error
 
+      - name: Send APKs to Telegram bot
+        if: github.event_name != 'pull_request'
+        continue-on-error: true
+        env:
+          TG_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TG_CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [ -z "$TG_TOKEN" ] || [ -z "$TG_CHAT" ]; then
+            echo "TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID not set, skipping"
+            exit 0
+          fi
+          api="https://api.telegram.org/bot${TG_TOKEN}"
+          for f in dist/*.apk; do
+            size=$(stat -c%s "$f")
+            caption="Outrun VPN ${GITHUB_REF_NAME} (${GITHUB_SHA::7})
+          $(basename "$f")"
+            if [ "$size" -gt 49000000 ]; then
+              # Telegram bots can't upload files over 50 MB, so send a link instead
+              curl -sS -X POST "$api/sendMessage" \
+                -d chat_id="$TG_CHAT" \
+                --data-urlencode text="$caption
+          Too big for Telegram ($((size/1000000)) MB). Download from: $RUN_URL"
+            else
+              curl -sS -X POST "$api/sendDocument" \
+                -F chat_id="$TG_CHAT" \
+                -F document=@"$f" \
+                -F caption="$caption"
+            fi
+            echo
+          done
+
       - name: Attach APK to release (tags only)
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
