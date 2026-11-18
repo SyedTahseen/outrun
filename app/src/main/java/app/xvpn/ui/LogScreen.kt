@@ -22,18 +22,21 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import app.xvpn.data.AppLog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.withContext
 
-private suspend fun readLogs(): List<String> = withContext(Dispatchers.IO) {
-    runCatching {
-        val p = ProcessBuilder("logcat", "-d", "-t", "400", "-v", "time").redirectErrorStream(true).start()
+private suspend fun readLogs(ctx: Context): List<String> = withContext(Dispatchers.IO) {
+    val events = AppLog.tail(ctx).ifEmpty { listOf("No events yet.") }
+    val system = runCatching {
+        val p = ProcessBuilder("logcat", "-d", "-t", "200", "-v", "time", "*:W").redirectErrorStream(true).start()
         val text = p.inputStream.bufferedReader().use { it.readText() }
         p.destroy()
-        text.trim().ifEmpty { "No log entries yet." }.lines()
-    }.getOrElse { listOf("Couldn't read logs: ${it.message}") }
+        text.trim().ifEmpty { "No warnings." }.lines()
+    }.getOrElse { listOf("Couldn't read system log: ${it.message}") }
+    events + "" + "--- Android warnings and errors ---" + system
 }
 
 @Composable
@@ -41,7 +44,7 @@ fun LogScreen(info: String, onBack: () -> Unit) {
     val ctx = LocalContext.current
     var lines by remember { mutableStateOf<List<String>?>(null) }
     LaunchedEffect(Unit) {
-        while (true) { lines = readLogs(); delay(2000) }
+        while (true) { lines = readLogs(ctx); delay(2000) }
     }
 
     val listState = rememberLazyListState()

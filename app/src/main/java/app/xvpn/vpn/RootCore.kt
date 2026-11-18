@@ -1,6 +1,7 @@
 package app.xvpn.vpn
 
 import android.content.Context
+import app.xvpn.data.AppLog
 import org.json.JSONObject
 import java.io.File
 import java.net.HttpURLConnection
@@ -84,12 +85,16 @@ class RootCore(private val context: Context) {
             "HOME=${q(dir.absolutePath)} DISABLE_NFTABLES=1 nohup ${q(bin.absolutePath)} run -c ${q(cfg.absolutePath)} -D ${q(dir.absolutePath)} > core.log 2>&1 &",
             "echo \$! > core.pid",
         ).joinToString("\n")
+        AppLog.i(context, "root", "starting sing-box as root")
         val r = RootShell.run(script)
         if (!r.ok) error("Root shell: ${r.out.ifEmpty { "failed to start sing-box" }}")
 
         waitReady(port)
+        AppLog.i(context, "root", "core ready, TUN $IFACE is up, traffic stats via ${if (clashPort > 0) "clash api" else "interface counters"}")
         flushConnections()
         running = true
+        seenLog = 0
+        startLogPump()
         useClash = clashPort > 0
         if (useClash) startTraffic(clashPort)
     }
@@ -157,7 +162,31 @@ class RootCore(private val context: Context) {
         running = false
         trafficThread = null
         RootShell.run(stopScript(dir), 20_000)
+        drainLog()
+        AppLog.i(context, "root", "core stopped")
         flushConnections()
+    }
+
+    private var seenLog = 0
+
+    /** sing-box's output goes to a root-owned file, so it is read through the root shell and copied into the app log. */
+    @Synchronized
+    private fun drainLog() {
+        val log = q(File(dir, "core.log").absolutePath)
+        val r = RootShell.run("n=\$(wc -l < $log 2>/dev/null); echo \$n; [ \"\$n\" -gt $seenLog ] && tail -n +${seenLog + 1} $log", 5_000)
+        val lines = r.out.lines()
+        val n = lines.firstOrNull()?.trim()?.toIntOrNull() ?: return
+        lines.drop(1).filter { it.isNotBlank() }.forEach { AppLog.i(context, "core", it) }
+        seenLog = n
+    }
+
+    private fun startLogPump() {
+        thread(isDaemon = true, name = "root-log") {
+            while (running) {
+                runCatching { drainLog() }
+                runCatching { Thread.sleep(3000) }
+            }
+        }
     }
 
     /**

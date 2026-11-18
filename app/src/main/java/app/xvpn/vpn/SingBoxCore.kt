@@ -2,6 +2,7 @@ package app.xvpn.vpn
 
 import android.content.Context
 import android.os.Build
+import app.xvpn.data.AppLog
 import java.io.File
 import java.net.InetAddress
 import java.net.InetSocketAddress
@@ -36,6 +37,7 @@ class SingBoxCore(private val context: Context, private val dirName: String = "s
             runCatching {
                 p.inputStream.bufferedReader().forEachLine {
                     synchronized(tail) { tail.addLast(it); while (tail.size > 20) tail.removeFirst() }
+                    AppLog.i(context, "core", it)
                 }
             }
         }

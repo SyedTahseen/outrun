@@ -19,6 +19,7 @@ import android.os.ParcelFileDescriptor
 import android.util.Log
 import app.xvpn.MainActivity
 import app.xvpn.R
+import app.xvpn.data.AppLog
 import app.xvpn.data.Choices
 import app.xvpn.data.ConfigBuilder
 import app.xvpn.data.LinkParser
@@ -141,6 +142,7 @@ class OutrunVpnService : VpnService() {
 
     private fun begin(link: String) {
         wanted = true
+        AppLog.i(this, "service", "start requested (${if (Store(this).rootMode) "root" else "vpn service"} mode)")
         fg(notification(getString(R.string.app_name), "Connecting…"))
         registerNetworkWatch()
         if (hasUnderlyingNetwork()) launchConnect(link)
@@ -165,6 +167,7 @@ class OutrunVpnService : VpnService() {
 
     @Synchronized
     private fun enterWaitingForNetwork() {
+        AppLog.i(this, "net", "no usable network, waiting")
         waitingNet = true
         netJob?.cancel(); netJob = null
         connectJob?.cancel()
@@ -258,6 +261,7 @@ class OutrunVpnService : VpnService() {
         runCatching { setUnderlyingNetworks(arrayOf(best)) }
         if (rootCore != null && changed && !recovered) { netLost = false; waitingNet = false; return }
         if (changed || recovered) {
+            AppLog.i(this, "net", if (recovered) "network back" else "network changed")
             netLost = false
             val link = currentLink ?: return
             netJob?.cancel()
@@ -279,6 +283,7 @@ class OutrunVpnService : VpnService() {
                 if (waitingNet || VpnState.status.value != Status.Connected) { fails = 0; continue }
                 val ok = withContext(Dispatchers.IO) { PROBE_URLS.any { probe(port, it) } }
                 fails = if (ok) 0 else fails + 1
+                if (!ok) AppLog.i(this@OutrunVpnService, "health", "probe failed ($fails/$HEALTH_FAILS)")
                 if (fails == 1) lastNet?.let { n -> runCatching { getSystemService(ConnectivityManager::class.java)?.reportNetworkConnectivity(n, false) } }
                 if (fails >= HEALTH_FAILS) {
                     val link = currentLink ?: return@launch
@@ -330,6 +335,15 @@ class OutrunVpnService : VpnService() {
         var tunStarted = false
         try {
             val profile = LinkParser.parse(link) ?: error("Invalid link")
+            Store(this).let { st ->
+                AppLog.i(
+                    this, "service",
+                    "connecting to \"${profile.name}\" (${LinkParser.protocolOf(link)}), mode=${if (st.rootMode) "root" else "vpn"}, " +
+                        "split=${if (st.splitEnabled) st.splitMode else "off"}, lan=${st.lanAccess}, ipv6=${st.ipv6Mode}, mtu=${st.mtu}, " +
+                        "dns=${if (st.customDnsEnabled) "custom" else if (st.netShield) "netshield" else "default"}" +
+                        if (tried.isNotEmpty()) ", fallback #${tried.size}" else "",
+                )
+            }
 
             val port = SingBoxCore.freePort()
             val settings = Store(this)
@@ -408,6 +422,7 @@ class OutrunVpnService : VpnService() {
             VpnState.connectedAt.value = System.currentTimeMillis()
             VpnState.status.value = Status.Connected
             OutrunWidget.refresh(this)
+            AppLog.i(this, "service", "connected to \"${profile.name}\"")
             currentName = profile.name
             sessionStart = System.currentTimeMillis(); sessUp = 0; sessDown = 0; pendUp = 0; pendDown = 0
             VpnState.sessionUp.value = 0; VpnState.sessionDown.value = 0
@@ -427,6 +442,7 @@ class OutrunVpnService : VpnService() {
                 runCatching { pfd?.close() }
             } else {
                 Log.w(TAG, "connect failed: ${e.javaClass.simpleName}")
+                AppLog.i(this, "service", "connect failed: ${e.javaClass.simpleName}: ${e.message}")
                 if (wanted && e !is NoVpnPermission && !hasUnderlyingNetwork()) {
                     netLost = true
                     enterWaitingForNetwork()
@@ -548,6 +564,7 @@ class OutrunVpnService : VpnService() {
     }
 
     private fun shutdown() {
+        AppLog.i(this, "service", "disconnect")
         wanted = false
         unregisterNetworkWatch()
         connectJob?.cancel()
