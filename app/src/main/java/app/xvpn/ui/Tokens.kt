@@ -34,6 +34,8 @@ object Radius {
 
 object Sizes {
     val Control = 48.dp
+    // Proton's filter chips are Material 3 Buttons with the default 40dp min height (ButtonDefaults.MinHeight).
+    val Chip = 40.dp
     val Field = 56.dp
     val Button = 48.dp
     val Row = 64.dp
@@ -71,7 +73,8 @@ object Sizes {
 
 object Elevation {
     val Menu = 3.dp
-    val Button = 2.dp
+    // Proton uses ButtonDefaults.buttonElevation() (Material 3), which is 0dp at rest.
+    val Button = 0.dp
 }
 
 object Type {
@@ -86,6 +89,7 @@ object Type {
     val Heading = style(20, FontWeight.Bold, 24, 0.01f)
     val Subheadline = style(20, FontWeight.Normal, 24, 0.01f)
     val Body = style(16, FontWeight.Normal, 24, 0.03f)
+    val BodyBold = style(16, FontWeight.Bold, 24, 0.03f)
     val BodyMedium = style(16, FontWeight.Medium, 24, 0.03f)
     val Small = style(14, FontWeight.Normal, 20, 0.02f)
     val SmallMedium = style(14, FontWeight.Medium, 20, 0.02f)

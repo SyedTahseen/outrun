@@ -60,11 +60,8 @@ fun OutrunTheme(content: @Composable () -> Unit) {
         bodyLarge = Type.Body, bodyMedium = Type.Body, bodySmall = Type.Body,
         labelLarge = Type.Label, labelMedium = Type.Label, labelSmall = Type.Label,
     )
-    val shapes = Shapes(
-        extraSmall = RoundedCornerShape(Radius.Badge), small = RoundedCornerShape(Radius.Small),
-        medium = RoundedCornerShape(Radius.Control), large = RoundedCornerShape(Radius.Card),
-        extraLarge = RoundedCornerShape(Radius.Sheet),
-    )
+    // Proton's ProtonTheme3 does not pass shapes to Material 3, so M3 components use the stock M3 shapes.
+    val shapes = Shapes()
     MaterialTheme(colorScheme = scheme, typography = typography, shapes = shapes) {
         AppIndication {
             CompositionLocalProvider(
@@ -113,6 +110,8 @@ internal fun ComponentActivity.applySystemBars(dark: Boolean, navigationBarFromB
         statusBarStyle = SystemBarStyle.auto(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT) { dark },
         navigationBarStyle = SystemBarStyle.auto(navigationBarColor, navigationBarColor) { dark },
     )
+    // Same as Proton's enableEdgeToEdgeVpn(): no forced scrim behind the 3-button navigation bar.
+    if (android.os.Build.VERSION.SDK_INT >= 29) window.isNavigationBarContrastEnforced = false
     window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(C.Bg.toArgb()))
 }
 

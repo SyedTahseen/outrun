@@ -101,6 +101,7 @@ import app.xvpn.ui.StatsScreen
 import app.xvpn.ui.appVersionName
 import app.xvpn.ui.ProtonIcons
 import app.xvpn.ui.axisTransition
+import app.xvpn.ui.panelTransition
 import app.xvpn.ui.rememberTick
 import app.xvpn.ui.setUpEdgeToEdge
 import app.xvpn.ui.AppSnackbarHost
@@ -386,7 +387,13 @@ private fun App() {
         Box(Modifier.fillMaxSize()) {
             AnimatedContent(
                 targetState = screen,
-                transitionSpec = { axisTransition(forward = targetState.ordinal > initialState.ordinal) },
+                transitionSpec = {
+                    when {
+                        targetState == Screen.Stats -> panelTransition(entering = true)
+                        initialState == Screen.Stats -> panelTransition(entering = false)
+                        else -> axisTransition(forward = targetState.ordinal > initialState.ordinal)
+                    }
+                },
                 modifier = Modifier.fillMaxSize(),
                 label = "screen",
             ) { s ->

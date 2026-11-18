@@ -185,7 +185,8 @@ fun HomeScreen(
                             targetState = selected?.let { Flags.clean(it.name) } ?: "No server selected",
                             transitionSpec = { fadeTransition() }, label = "serverName",
                         ) { name ->
-                            Text(name, style = Type.BodyMedium, color = C.Text, maxLines = 1)
+                            // Proton: body1Medium.copy(fontSize = 18.sp)
+                            Text(name, style = Type.BodyMedium.copy(fontSize = 18.sp), color = C.Text, maxLines = 1)
                         }
                         AnimatedContent(
                             targetState = when {

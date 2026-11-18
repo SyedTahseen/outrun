@@ -82,7 +82,6 @@ fun FeaturePage(
         HeaderSurface(scrolled) {
             HeaderBar(backEdge = true) {
                 IconAction(ProtonIcons.ArrowLeft, "Back", onClick = onBack)
-                Spacer(Modifier.width(Space.Sm))
                 if (fraction > 0f) Text(title, style = Type.BodyMedium, color = C.Text.copy(alpha = fraction), maxLines = 1)
             }
         }
@@ -96,7 +95,8 @@ fun LazyListScope.featureHeader(imageRes: Int, title: String, description: Strin
         Image(painterResource(imageRes), null, Modifier.padding(start = Space.Gutter, end = Space.Gutter, top = Space.Lg))
     }
     item {
-        Text(title, style = Type.Heading, color = C.Text, modifier = Modifier.padding(start = Space.Gutter, end = Space.Gutter, top = Space.Lg))
+        // Proton: ProtonTheme.typography.subheadline (20sp regular).
+        Text(title, style = Type.Subheadline, color = C.Text, modifier = Modifier.padding(start = Space.Gutter, end = Space.Gutter, top = Space.Lg))
     }
     item {
         Text(
@@ -159,7 +159,7 @@ fun SplitTunnelingPage(
         }
     }
     if (modeDialog) {
-        AppDialog(title = "Mode", onDismiss = { modeDialog = false }, dismissLabel = null) {
+        AppDialog(title = "Mode", onDismiss = { modeDialog = false }, dismissLabel = null, compactTitle = true) {
             ChoiceRow("Exclude", "Selected apps and IP addresses are excluded from VPN connection.", !including) { onMode(false); modeDialog = false }
             ChoiceRow("Include", "Only selected apps and IP addresses connect through VPN, all other traffic is unprotected.", including) { onMode(true); modeDialog = false }
         }

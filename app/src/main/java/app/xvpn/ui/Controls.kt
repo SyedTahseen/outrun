@@ -22,6 +22,8 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Switch
@@ -72,7 +74,7 @@ fun AppButton(
     val onCardOutline = style == ButtonStyle.OutlineCard
     val container by animateColorAsState(
         when {
-            !enabled && style == ButtonStyle.Primary -> C.SolidDisabled
+            !enabled && style == ButtonStyle.Primary -> C.PrimaryDisabled
             !enabled && style == ButtonStyle.Secondary -> C.Card
             style == ButtonStyle.Primary -> C.Primary
             style == ButtonStyle.Secondary -> C.Control
@@ -96,14 +98,13 @@ fun AppButton(
     val borderColor = when {
         onCardOutline -> C.Border
         !enabled -> if (style == ButtonStyle.Outline) C.Disabled else C.PrimaryDisabled
-        style == ButtonStyle.OutlineAccent -> C.Primary
+        style == ButtonStyle.OutlineAccent -> C.Accent
         else -> C.Text
     }
+    CompositionLocalProvider(LocalContentColor provides content) {
     Box(
         modifier
             .height(if (large) Sizes.Button else Sizes.Control)
-            // Proton's solid button is a Material Button with its default 2dp resting elevation.
-            .then(if (enabled && style == ButtonStyle.Primary) Modifier.shadow(Elevation.Button, shape) else Modifier)
             .pressable(shape, Press.Control, enabled) { tick(); onClick() }
             .background(container)
             .then(if (outlined) Modifier.border(Sizes.Border, borderColor, shape) else Modifier)
@@ -114,6 +115,7 @@ fun AppButton(
         if (trailingIcon != null) Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
             Icon(trailingIcon, null, tint = content, modifier = Modifier.size(Sizes.Icon))
         }
+    }
     }
 }
 
@@ -142,12 +144,13 @@ fun SelectableBox(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     onLongClick: (() -> Unit)? = null,
+    height: Dp = Sizes.Control,
     content: @Composable BoxScope.() -> Unit,
 ) {
     val tick = rememberTick()
     val bg by animateColorAsState(if (selected) C.Primary else C.Control, tween(Motion.Medium), label = "selectBg")
     Box(
-        modifier.height(Sizes.Control)
+        modifier.height(height)
             .pressable(RoundedCornerShape(Radius.Control), Press.Control, enabled, onLongClick = onLongClick) { if (!selected) tick(); onClick() }
             .background(bg),
         contentAlignment = Alignment.Center,
@@ -160,7 +163,7 @@ fun SelectChip(
     label: String, selected: Boolean, modifier: Modifier = Modifier, enabled: Boolean = true,
     onLongClick: (() -> Unit)? = null, onClick: () -> Unit,
 ) {
-    SelectableBox(selected, onClick, modifier, enabled, onLongClick) {
+    SelectableBox(selected, onClick, modifier, enabled, onLongClick, height = Sizes.Chip) {
         val base = if (selected) C.OnPrimary else C.Text
         Text(
             label, style = Type.Small, maxLines = 1,

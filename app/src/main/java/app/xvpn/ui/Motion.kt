@@ -104,6 +104,13 @@ fun axisTransition(forward: Boolean, distance: Float = 0f): ContentTransform = C
     fadeIn(tween(700)), fadeOut(tween(700)), 0f, SizeTransform(clip = false),
 )
 
+/** Proton's addToGraphWithSlideAnim: a vertical slide, 400ms, for panels such as the connection details. */
+fun panelTransition(entering: Boolean): ContentTransform = if (entering) {
+    ContentTransform(slideInVertically(tween(400)) { it }, ExitTransition.None, 1f, SizeTransform(clip = false))
+} else {
+    ContentTransform(EnterTransition.None, slideOutVertically(tween(400)) { it }, -1f, SizeTransform(clip = false))
+}
+
 fun fadeTransition(): ContentTransform = ContentTransform(
     fadeIn(tween(Motion.Short, delayMillis = Motion.Overlap / 2, easing = Motion.Enter)),
     fadeOut(tween(Motion.Fast)),

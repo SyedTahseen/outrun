@@ -26,6 +26,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -130,7 +133,7 @@ fun FastestFlag() {
 
 @Composable
 fun HeaderSurface(scrolled: Boolean = false, content: @Composable ColumnScope.() -> Unit) {
-    val bg by animateColorAsState(if (scrolled) C.Header else C.Bg, tween(Motion.Medium), label = "headerSurface")
+    val bg by animateColorAsState(if (scrolled) C.Header else C.Bg, label = "headerSurface")
     Column(Modifier.fillMaxWidth().background(bg), content = content)
 }
 
@@ -166,7 +169,6 @@ fun ScreenHeaderContent(
         if (onBack != null) {
             HeaderBar(backEdge = true) {
                 IconAction(ProtonIcons.ArrowLeft, "Back", onClick = onBack)
-                Spacer(Modifier.width(Space.Sm))
                 Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
                     if (title != null) Text(
                         title, style = Type.BodyMedium, color = C.Text, maxLines = 1,
@@ -189,11 +191,11 @@ fun ScreenHeaderContent(
                     verticalAlignment = Alignment.CenterVertically, content = actions,
                 )
                 Row(
-                    Modifier.align(Alignment.BottomStart).padding(start = Space.Gutter, end = Space.Gutter * 3, bottom = if (scrolled) Space.Lg else Space.Xxl),
+                    Modifier.align(Alignment.BottomStart).padding(start = Space.Gutter, end = Space.Gutter * 3, bottom = if (scrolled) 15.dp else Space.Xxl),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     if (title != null) Text(
-                        title, style = Type.Headline.copy(fontSize = size.sp, lineHeight = (size * 1.2f).sp), color = C.Text, maxLines = 1,
+                        title, style = Type.Headline.copy(fontSize = size.sp), color = C.Text, maxLines = 1,
                         modifier = Modifier.weight(1f, fill = false),
                     )
                     if (titleTrailing != null) {
@@ -238,17 +240,20 @@ fun ListRow(icon: ImageVector, title: String, subtitle: String? = null, external
 
 @Composable
 fun ChoiceRow(label: String, note: String, selected: Boolean, onClick: () -> Unit) {
+    // Mirrors Proton's SettingsRadioItemSmall: body2 title and description, trailing radio, 12dp vertical padding.
     Row(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(Radius.Control)).clickable(onClick = onClick)
-            .padding(horizontal = Space.Xs, vertical = Space.Md),
+        Modifier.fillMaxWidth().selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
+            .padding(vertical = Space.Md),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        AppRadio(selected)
-        Spacer(Modifier.width(Space.Lg))
         Column(Modifier.weight(1f)) {
-            Text(label, style = Type.Body, color = C.Text)
-            Text(note, style = Type.Small, color = C.Muted, maxLines = 4)
+            Text(label, style = Type.Small, color = C.Text)
+            if (note.isNotEmpty()) {
+                Spacer(Modifier.height(Space.Xs))
+                Text(note, style = Type.Small, color = C.Muted, maxLines = 4)
+            }
         }
+        Box(Modifier.padding(start = Space.Sm)) { AppRadio(selected) }
     }
 }
 
@@ -306,21 +311,23 @@ fun AppDialog(
     onConfirm: () -> Unit = {},
     confirmColor: Color = C.Accent,
     dismissLabel: String? = "Cancel",
+    compactTitle: Boolean = false,
     content: @Composable ColumnScope.() -> Unit = {},
 ) {
     Dialog(onDismissRequest = onDismiss) {
         // Proton's ProtonAlert is a stock Material 3 AlertDialog: platform dialog transition, no custom scale/alpha.
         val shape = RoundedCornerShape(Radius.Sheet)
         Column(
-            Modifier.fillMaxWidth().clip(shape).background(C.Card).padding(Space.Xxl),
+            Modifier.fillMaxWidth().widthIn(min = 280.dp, max = 560.dp).clip(shape).background(C.Card).padding(Space.Xxl),
         ) {
             if (title != null) {
-                Text(title, style = Type.Heading, color = C.Text)
-                Spacer(Modifier.height(Space.Lg))
+                // ProtonAlert titles are headline (20 bold); ProtonBasicAlert choice dialogs use body1Bold (16 bold).
+                Text(title, style = if (compactTitle) Type.BodyBold else Type.Heading, color = C.Text)
+                Spacer(Modifier.height(if (compactTitle) Space.Md else Space.Lg))
             }
             content()
             Spacer(Modifier.height(Space.Xxl))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Space.Sm, Alignment.End)) {
                 if (dismissLabel != null) TextAction(dismissLabel, onDismiss)
                 if (confirmLabel != null) TextAction(confirmLabel, onConfirm, color = confirmColor)
             }

@@ -484,11 +484,14 @@ private fun MenuPage(
             }
 
             Spacer(Modifier.height(Space.Xxl))
-            Text(
-                "App version: $version", style = Type.Small, color = C.Muted, textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            TextAction("Third party licenses", { ctx.openUrl(LICENSE_URL) }, Modifier.align(Alignment.CenterHorizontally))
+            // Same block as Proton's settings footer: caption-weak version, accent caption link, one 8dp-rounded click target.
+            Column(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(Radius.Control)).clickable { ctx.openUrl(LICENSE_URL) }.padding(Space.Lg),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text("App version: $version", style = Type.Caption, color = C.Muted)
+                Text("Third party licenses", style = Type.Caption, color = C.Accent, modifier = Modifier.padding(top = Space.Sm))
+            }
             Spacer(Modifier.height(Space.Xxl))
         }
     }
@@ -539,7 +542,7 @@ private fun ReconnectDialog() {
         ) {
             androidx.compose.material3.Checkbox(
                 checked = dontShowAgain, onCheckedChange = { dontShowAgain = it },
-                colors = androidx.compose.material3.CheckboxDefaults.colors(checkedColor = C.Accent, uncheckedColor = C.Muted, checkmarkColor = C.OnPrimary),
+                colors = androidx.compose.material3.CheckboxDefaults.colors(checkedColor = C.Accent, uncheckedColor = C.TextHint, checkmarkColor = C.OnPrimary),
             )
             Text("Don\u2019t show again", style = Type.Small, color = C.Muted)
         }
