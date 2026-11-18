@@ -175,7 +175,7 @@ private fun App() {
     val status by VpnState.status.collectAsState()
     val socks by VpnState.socksPort.collectAsState()
     LaunchedEffect(Unit) {
-        if (store.rootMode && VpnState.status.value == Status.Disconnected &&
+        if (VpnState.status.value == Status.Disconnected &&
             withContext(Dispatchers.IO) { RootCore.isRunning(ctx) }
         ) {
             if (VpnState.status.value == Status.Disconnected) OutrunVpnService.adopt(ctx)

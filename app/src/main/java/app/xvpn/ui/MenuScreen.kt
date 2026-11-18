@@ -123,6 +123,9 @@ import app.xvpn.widget.OutrunWidget
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.foundation.layout.PaddingValues
 import kotlinx.coroutines.flow.filter
+import android.app.Activity
+import android.net.VpnService
+import app.xvpn.vpn.OutrunVpnService
 import app.xvpn.vpn.RootShell
 import app.xvpn.vpn.Status
 import app.xvpn.vpn.VpnState
@@ -202,6 +205,19 @@ private fun MenuPage(
     var lan by remember { mutableStateOf(store.lanAccess) }
     var mtu by remember { mutableStateOf(store.mtu) }
     var rootOn by remember { mutableStateOf(store.rootMode) }
+    fun applyRootMode(on: Boolean) {
+        val live = VpnState.status.value != Status.Disconnected
+        rootOn = on; store.rootMode = on
+        if (live) {
+            OutrunVpnService.applyMode(ctx)
+            Snack.show(if (on) "Switching to root mode\u2026" else "Switching to the VPN service\u2026")
+        }
+    }
+    // Root mode never asked for the system VPN consent, so switching back while connected has to ask before the root core is stopped.
+    val vpnConsent = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { r ->
+        if (r.resultCode == Activity.RESULT_OK) applyRootMode(false)
+        else Snack.show("VPN permission is needed to switch to the VPN service", SnackType.Warning)
+    }
     var bootOn by remember { mutableStateOf(store.autoConnectBoot) }
     val uiScope = rememberCoroutineScope()
 
@@ -259,18 +275,17 @@ private fun MenuPage(
                 ) { on -> bootOn = on; store.autoConnectBoot = on }
                 SettingsToggleItem(
                     "Root mode", rootOn,
-                    "Needs a rooted device. Sends all traffic through the VPN using root instead of Android\u2019s VPN service, so there is no VPN permission prompt or key icon. Applies the next time you connect.",
+                    "Needs a rooted device. Sends all traffic through the VPN using root instead of Android\u2019s VPN service, so there is no VPN permission prompt or key icon. If you are connected, the connection switches right away.",
                 ) { on ->
                     if (!on) {
-                        rootOn = false; store.rootMode = false
-                        if (VpnState.status.value != Status.Disconnected) Snack.show("Reconnect to switch back to the VPN service", SnackType.Warning)
+                        val consent = if (VpnState.status.value != Status.Disconnected) VpnService.prepare(ctx) else null
+                        if (consent != null) vpnConsent.launch(consent) else applyRootMode(false)
                     } else uiScope.launch {
                         Snack.show("Waiting for root access\u2026")
                         val ok = withContext(Dispatchers.IO) { RootShell.granted() }
                         if (ok) {
-                            rootOn = true; store.rootMode = true
                             Snack.show("Root access granted", SnackType.Success)
-                            if (VpnState.status.value != Status.Disconnected) Snack.show("Reconnect to use root mode", SnackType.Warning)
+                            applyRootMode(true)
                         } else Snack.show("Root access was not granted", SnackType.Error)
                     }
                 }

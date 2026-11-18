@@ -54,6 +54,7 @@ class OutrunVpnService : VpnService() {
         const val ACTION_STOP = "app.xvpn.STOP"
         const val ACTION_NEXT = "app.xvpn.NEXT"
         const val ACTION_ADOPT = "app.xvpn.ADOPT"
+        const val ACTION_APPLY_MODE = "app.xvpn.APPLY_MODE"
         const val EXTRA_LINK = "link"
         const val EXTRA_BOOT = "boot"
         private const val TAG = "OutrunVpnService"
@@ -78,6 +79,11 @@ class OutrunVpnService : VpnService() {
             Intent(ctx, OutrunVpnService::class.java).setAction(ACTION_ADOPT)
         )
 
+        /** Root mode was switched on or off while connected: reconnect the current server in the newly chosen mode. */
+        fun applyMode(ctx: Context) = ctx.startService(
+            Intent(ctx, OutrunVpnService::class.java).setAction(ACTION_APPLY_MODE)
+        )
+
         fun stop(ctx: Context) = ctx.startService(
             Intent(ctx, OutrunVpnService::class.java).setAction(ACTION_STOP)
         )
@@ -94,6 +100,8 @@ class OutrunVpnService : VpnService() {
     private var currentName: String = ""
 
     @Volatile private var wanted = false
+    /** Mode the foreground notification / current session was set up for; null when no session. */
+    private var sessionRoot: Boolean? = null
     private var healthJob: Job? = null
     private var netJob: Job? = null
     private var netCallback: ConnectivityManager.NetworkCallback? = null
@@ -112,9 +120,9 @@ class OutrunVpnService : VpnService() {
     private val notificationManager: NotificationManager get() = getSystemService(NotificationManager::class.java)
 
     /** Root mode has no VPN profile, which Android 14 requires for the systemExempted type, so it uses specialUse. */
-    private fun fg(n: Notification) {
+    private fun fg(n: Notification, root: Boolean = Store(this).rootMode) {
         if (Build.VERSION.SDK_INT >= 34) {
-            val type = if (Store(this).rootMode) ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+            val type = if (root) ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
             else ServiceInfo.FOREGROUND_SERVICE_TYPE_SYSTEM_EXEMPTED
             startForeground(NOTIFICATION_ID, n, type)
         } else startForeground(NOTIFICATION_ID, n)
@@ -131,6 +139,7 @@ class OutrunVpnService : VpnService() {
             ACTION_STOP -> shutdown()
             ACTION_NEXT -> switchNext()
             ACTION_ADOPT -> adopt()
+            ACTION_APPLY_MODE -> applyMode()
             ACTION_START -> {
                 val link = intent.getStringExtra(EXTRA_LINK) ?: return START_NOT_STICKY
                 begin(link, intent.getBooleanExtra(EXTRA_BOOT, false))
@@ -150,7 +159,8 @@ class OutrunVpnService : VpnService() {
 
     private fun adopt() {
         wanted = true
-        fg(notification(getString(R.string.app_name), "Reconnecting…"))
+        sessionRoot = true
+        fg(notification(getString(R.string.app_name), "Reconnecting…"), root = true)
         scope.launch {
             val rc = RootCore(this@OutrunVpnService)
             val port = runCatching { rc.attach() }.getOrNull()
@@ -184,6 +194,7 @@ class OutrunVpnService : VpnService() {
     private fun begin(link: String, boot: Boolean = false) {
         wanted = true
         val root = Store(this).rootMode
+        sessionRoot = root
         AppLog.i(this, "service", "start requested (${if (root) "root" else "vpn service"} mode${if (boot) ", after boot" else ""})")
         fg(notification(getString(R.string.app_name), "Connecting…"))
         registerNetworkWatch()
@@ -263,6 +274,21 @@ class OutrunVpnService : VpnService() {
         val all = store.links().filter { LinkParser.parse(it) != null && it !in exclude }
         val favs = all.filter { it in store.favorites }
         return (favs.ifEmpty { all }).firstOrNull()
+    }
+
+    /** Switches the live connection to whatever mode is now saved in settings. */
+    private fun applyMode() {
+        val link = currentLink
+        if (!wanted || link == null) { stopSelf(); return }
+        // While waiting for a network the old session is still held; the reconnect on recovery reads the new mode.
+        if (waitingNet) return
+        val root = Store(this).rootMode
+        AppLog.i(this, "service", "switching to ${if (root) "root" else "vpn service"} mode")
+        notificationManager.notify(
+            NOTIFICATION_ID,
+            notification(getString(R.string.app_name), "Switching to ${if (root) "root mode" else "the VPN service"}…"),
+        )
+        launchConnect(link)
     }
 
     private fun switchNext() {
@@ -412,6 +438,11 @@ class OutrunVpnService : VpnService() {
 
             val port = SingBoxCore.freePort()
             val settings = Store(this)
+            if (sessionRoot != settings.rootMode) {
+                sessionRoot = settings.rootMode
+                // Android 14 ties the foreground type to the mode (specialUse for root, systemExempted for the VPN service).
+                runCatching { fg(notification(getString(R.string.app_name), "Connecting…"), settings.rootMode) }
+            }
             if (settings.rootMode) {
                 rc = RootCore(this)
                 rootCore = rc
@@ -419,6 +450,11 @@ class OutrunVpnService : VpnService() {
                 rc.start(ConfigBuilder.buildRoot(link, port, rootDns(settings), rootTun(settings, clash)), port, clash)
                 currentCoroutineContext().ensureActive()
             } else {
+                // A root core from an earlier app process (or an earlier mode) would keep routing underneath the VPN service.
+                if (RootCore.isRunning(this)) {
+                    AppLog.i(this, "service", "stopping a leftover root core")
+                    runCatching { RootCore(this).stop() }
+                }
                 x = SingBoxCore(this)
                 core = x
                 val dns = settings.dnsServers()
@@ -494,6 +530,9 @@ class OutrunVpnService : VpnService() {
             if (Build.VERSION.SDK_INT >= 29 && rc == null) {
                 VpnState.alwaysOn.value = isAlwaysOn
                 VpnState.lockdown.value = isLockdownEnabled
+            } else if (rc != null) {
+                VpnState.alwaysOn.value = false
+                VpnState.lockdown.value = false
             }
             notificationManager.notify(NOTIFICATION_ID, notification("Connected · ${profile.name}", "↓ 0 KB/s   ↑ 0 KB/s"))
             startStats()
@@ -631,6 +670,7 @@ class OutrunVpnService : VpnService() {
     private fun shutdown() {
         AppLog.i(this, "service", "disconnect")
         wanted = false
+        sessionRoot = null
         unregisterNetworkWatch()
         connectJob?.cancel()
         teardownSession(async = true)
