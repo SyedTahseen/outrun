@@ -88,6 +88,7 @@ class RootCore(private val context: Context) {
         if (!r.ok) error("Root shell: ${r.out.ifEmpty { "failed to start sing-box" }}")
 
         waitReady(port)
+        flushConnections()
         running = true
         useClash = clashPort > 0
         if (useClash) startTraffic(clashPort)
@@ -156,5 +157,23 @@ class RootCore(private val context: Context) {
         running = false
         trafficThread = null
         RootShell.run(stopScript(dir), 20_000)
+        flushConnections()
+    }
+
+    /**
+     * Without a VpnService Android does not reset apps' open sockets when the route changes, so a browser keeps using
+     * its old (direct or proxied) connections until restarted. Clear tracked connections, kill established TCP
+     * sockets and drop the DNS cache; each step is best effort because tools differ between ROMs.
+     */
+    private fun flushConnections() {
+        RootShell.run(
+            listOf(
+                "conntrack -F >/dev/null 2>&1",
+                "ss -t -K state established >/dev/null 2>&1",
+                "ndc resolver flushdefaultif >/dev/null 2>&1",
+                "true",
+            ).joinToString("\n"),
+            10_000,
+        )
     }
 }
