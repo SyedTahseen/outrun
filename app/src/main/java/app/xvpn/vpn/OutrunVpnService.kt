@@ -53,6 +53,7 @@ class OutrunVpnService : VpnService() {
         const val ACTION_START = "app.xvpn.START"
         const val ACTION_STOP = "app.xvpn.STOP"
         const val ACTION_NEXT = "app.xvpn.NEXT"
+        const val ACTION_ADOPT = "app.xvpn.ADOPT"
         const val EXTRA_LINK = "link"
         private const val TAG = "OutrunVpnService"
         private const val VERIFY_TIMEOUT_MS = 20_000L
@@ -70,6 +71,11 @@ class OutrunVpnService : VpnService() {
 
         /** Root mode runs its own TUN, so the system VPN consent dialog is not needed. */
         fun needsPermission(ctx: Context): Boolean = !Store(ctx).rootMode && VpnService.prepare(ctx) != null
+
+        /** Root mode only: take over a core that kept running after the app was force-stopped. */
+        fun adopt(ctx: Context) = ctx.startForegroundService(
+            Intent(ctx, OutrunVpnService::class.java).setAction(ACTION_ADOPT)
+        )
 
         fun stop(ctx: Context) = ctx.startService(
             Intent(ctx, OutrunVpnService::class.java).setAction(ACTION_STOP)
@@ -123,6 +129,7 @@ class OutrunVpnService : VpnService() {
         when (intent?.action) {
             ACTION_STOP -> shutdown()
             ACTION_NEXT -> switchNext()
+            ACTION_ADOPT -> adopt()
             ACTION_START -> {
                 val link = intent.getStringExtra(EXTRA_LINK) ?: return START_NOT_STICKY
                 begin(link)
@@ -138,6 +145,39 @@ class OutrunVpnService : VpnService() {
             }
         }
         return START_NOT_STICKY
+    }
+
+    private fun adopt() {
+        wanted = true
+        fg(notification(getString(R.string.app_name), "Reconnecting…"))
+        scope.launch {
+            val rc = RootCore(this@OutrunVpnService)
+            val port = runCatching { rc.attach() }.getOrNull()
+            val link = Store(this@OutrunVpnService).selected?.takeIf { LinkParser.parse(it) != null }
+            if (port == null || link == null) {
+                if (port != null) runCatching { rc.stop() }
+                AppLog.i(this@OutrunVpnService, "service", "no running root core to take over")
+                shutdown()
+                return@launch
+            }
+            val profile = LinkParser.parse(link) ?: return@launch
+            rootCore = rc
+            currentLink = link
+            currentName = profile.name
+            VpnState.activeLink.value = link
+            canSwitch = nextLink() != null
+            registerNetworkWatch()
+            VpnState.socksPort.value = port
+            VpnState.connectedAt.value = System.currentTimeMillis()
+            VpnState.status.value = Status.Connected
+            sessionStart = System.currentTimeMillis(); sessUp = 0; sessDown = 0; pendUp = 0; pendDown = 0
+            VpnState.sessionUp.value = 0; VpnState.sessionDown.value = 0
+            OutrunWidget.refresh(this@OutrunVpnService)
+            AppLog.i(this@OutrunVpnService, "service", "took over the running root core for \"${profile.name}\"")
+            notificationManager.notify(NOTIFICATION_ID, notification("Connected · ${profile.name}", "↓ 0 KB/s   ↑ 0 KB/s"))
+            startStats()
+            startHealth(port)
+        }
     }
 
     private fun begin(link: String) {

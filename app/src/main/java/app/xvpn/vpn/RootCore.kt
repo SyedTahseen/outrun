@@ -23,6 +23,18 @@ class RootCore(private val context: Context) {
 
         private fun q(s: String) = "'" + s.replace("'", "'\\''") + "'"
 
+        /** True when a sing-box core from an earlier app process is still running. Only uses su if a pid file exists. */
+        fun isRunning(context: Context): Boolean {
+            val dir = File(context.filesDir, DIR)
+            if (!File(dir, "core.pid").exists()) return false
+            val pid = q(File(dir, "core.pid").absolutePath)
+            val r = RootShell.run(
+                "P=\$(cat $pid 2>/dev/null); if grep -q libsingbox /proc/\$P/cmdline 2>/dev/null; then echo alive; else rm -f $pid; fi",
+                15_000,
+            )
+            return "alive" in r.out
+        }
+
         private fun stopScript(dir: File): String {
             val pid = q(File(dir, "core.pid").absolutePath)
             return listOf(
@@ -76,6 +88,8 @@ class RootCore(private val context: Context) {
         if (!bin.exists()) error("sing-box binary missing")
         dir.mkdirs()
         val cfg = File(dir, "config.json").apply { writeText(configJson) }
+        File(dir, "core.port").writeText(port.toString())
+        File(dir, "core.clash").writeText(clashPort.toString())
 
         RootShell.run(stopScript(dir), 20_000)
 
@@ -97,6 +111,23 @@ class RootCore(private val context: Context) {
         startLogPump()
         useClash = clashPort > 0
         if (useClash) startTraffic(clashPort)
+    }
+
+    /** Re-attaches to a core that outlived the app process. Returns its SOCKS port, or null if it is not usable. */
+    fun attach(): Int? {
+        val port = runCatching { File(dir, "core.port").readText().trim().toInt() }.getOrNull() ?: return null
+        val clash = runCatching { File(dir, "core.clash").readText().trim().toInt() }.getOrDefault(0)
+        if (!isRunning(context)) return null
+        val ok = runCatching { Socket().use { it.connect(InetSocketAddress("127.0.0.1", port), 500) } }.isSuccess
+        if (!ok) return null
+        val log = q(File(dir, "core.log").absolutePath)
+        seenLog = RootShell.run("wc -l < $log 2>/dev/null", 5_000).out.trim().toIntOrNull() ?: 0
+        running = true
+        useClash = clash > 0
+        startLogPump()
+        if (useClash) startTraffic(clash)
+        AppLog.i(context, "root", "re-attached to a running core")
+        return port
     }
 
     private fun lastLog(): String {

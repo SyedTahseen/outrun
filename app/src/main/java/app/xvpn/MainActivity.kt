@@ -107,6 +107,7 @@ import app.xvpn.ui.Snack
 import app.xvpn.ui.SnackType
 import app.xvpn.ui.largeScreenContentPadding
 import app.xvpn.vpn.OutrunVpnService
+import app.xvpn.vpn.RootCore
 import app.xvpn.vpn.Status
 import app.xvpn.vpn.VpnState
 import app.xvpn.widget.OutrunWidget
@@ -173,6 +174,13 @@ private fun App() {
     var pendingSub by remember { mutableStateOf<String?>(null) }
     val status by VpnState.status.collectAsState()
     val socks by VpnState.socksPort.collectAsState()
+    LaunchedEffect(Unit) {
+        if (store.rootMode && VpnState.status.value == Status.Disconnected &&
+            withContext(Dispatchers.IO) { RootCore.isRunning(ctx) }
+        ) {
+            if (VpnState.status.value == Status.Disconnected) OutrunVpnService.adopt(ctx)
+        }
+    }
     val real by NetInfo.real.collectAsState()
     val proxy by NetInfo.proxy.collectAsState()
     var showStats by remember { mutableStateOf(false) }
