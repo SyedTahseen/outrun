@@ -3,7 +3,6 @@ package app.xvpn.vpn
 import android.app.PendingIntent
 import android.content.Intent
 import android.graphics.drawable.Icon
-import android.net.VpnService
 import android.os.Build
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
@@ -59,7 +58,7 @@ class OutrunTileService : TileService() {
         }
         val store = Store(this)
         val link = (store.selected ?: store.profiles().firstOrNull()?.link)?.takeIf { LinkParser.parse(it) != null }
-        if (link == null || VpnService.prepare(this) != null) openApp() else OutrunVpnService.start(this, link)
+        if (link == null || OutrunVpnService.needsPermission(this)) openApp() else OutrunVpnService.start(this, link)
     }
 
     private fun openApp() {

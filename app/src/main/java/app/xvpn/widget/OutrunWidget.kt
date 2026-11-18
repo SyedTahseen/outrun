@@ -7,7 +7,6 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
-import android.net.VpnService
 import android.os.Bundle
 import android.view.View
 import android.widget.RemoteViews
@@ -89,7 +88,7 @@ class OutrunWidget : AppWidgetProvider() {
             )
 
             views.setOnClickPendingIntent(R.id.widget_root, openApp(ctx, 0))
-            val needsApp = status == Status.Disconnected && (profile == null || VpnService.prepare(ctx) != null)
+            val needsApp = status == Status.Disconnected && (profile == null || OutrunVpnService.needsPermission(ctx))
             views.setOnClickPendingIntent(
                 R.id.widget_power,
                 if (needsApp) openApp(ctx, 1) else PendingIntent.getBroadcast(
@@ -113,7 +112,7 @@ class OutrunWidget : AppWidgetProvider() {
                     OutrunVpnService.stop(ctx)
                 } else {
                     val link = Store(ctx).selected
-                    if (link == null || VpnService.prepare(ctx) != null) {
+                    if (link == null || OutrunVpnService.needsPermission(ctx)) {
                         ctx.startActivity(
                             Intent(ctx, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
                         )

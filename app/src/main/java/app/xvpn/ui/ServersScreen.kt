@@ -354,7 +354,7 @@ private fun SubscriptionBar(info: SubInfo?, host: String, onCopy: () -> Unit) {
     }
     val expColor = when { expired -> C.Red; days <= 7 -> C.Amber; else -> C.Muted }
     val hasUsage = info != null && (info.total > 0 || info.used > 0)
-    Column(Modifier.fillMaxWidth().background(C.Header)) {
+    Column(Modifier.fillMaxWidth().background(C.Card)) {
         Row(
             Modifier.fillMaxWidth().padding(start = Space.Gutter, end = Space.Xs, top = Space.Sm, bottom = Space.Sm),
             verticalAlignment = Alignment.CenterVertically,
@@ -422,7 +422,7 @@ private fun ServerRow(
 ) {
     var menu by remember { mutableStateOf(false) }
 
-    Column(modifier.fillMaxWidth().background(C.Surface)) {
+    Column(modifier.fillMaxWidth().background(C.Bg)) {
         Row(
             Modifier.fillMaxWidth().clickable(onClick = onConnect).heightIn(min = Sizes.ServerRow)
                 .padding(start = Space.Gutter, end = Space.Xs),
@@ -454,7 +454,7 @@ private fun ServerRow(
 
 @Composable
 private fun FastestRow(testing: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    Column(modifier.fillMaxWidth().background(C.Surface)) {
+    Column(modifier.fillMaxWidth().background(C.Bg)) {
         Row(
             Modifier.fillMaxWidth().clickable(enabled = !testing, onClick = onClick).heightIn(min = Sizes.ServerRow)
                 .padding(start = Space.Gutter, end = Space.Gutter),

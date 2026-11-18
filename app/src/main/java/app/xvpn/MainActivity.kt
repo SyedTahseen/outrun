@@ -85,9 +85,7 @@ import app.xvpn.data.LinkParser
 import app.xvpn.data.NetInfo
 import app.xvpn.data.RealDelay
 import app.xvpn.data.Store
-import app.xvpn.ui.AmbientBackdrop
 import app.xvpn.ui.C
-import app.xvpn.ui.Palette
 import app.xvpn.ui.OutrunApp
 import app.xvpn.ui.HomeScreen
 import app.xvpn.ui.MenuScreen
@@ -270,7 +268,7 @@ private fun App() {
 
     fun connect(link: String) {
         selectedLink = link; store.selected = link
-        val intent = VpnService.prepare(ctx)
+        val intent = if (store.rootMode) null else VpnService.prepare(ctx)
         if (intent != null) vpnPermission.launch(intent) else OutrunVpnService.start(ctx, link)
     }
 
@@ -355,7 +353,7 @@ private fun App() {
 
     var serversScrolled by remember { mutableStateOf(false) }
     val statusStripColor by animateColorAsState(
-        if ((tab == Tab.Servers || tab == Tab.Menu) && serversScrolled) C.Header else C.Surface,
+        if ((tab == Tab.Servers || tab == Tab.Menu) && serversScrolled) C.Header else C.Bg,
         tween(Motion.Medium), label = "statusStrip",
     )
 
@@ -364,7 +362,6 @@ private fun App() {
     val dockInset by animateDpAsState(if (dockHidden) 0.dp else Sizes.Dock, tween(Motion.Medium, easing = Motion.Standard), label = "dockInset")
 
     Box(Modifier.fillMaxSize().background(C.Bg).imePadding()) {
-        if (Palette.spark) AmbientBackdrop()
         Box(Modifier.fillMaxSize()) {
             AnimatedContent(
                 targetState = screen,
@@ -466,10 +463,7 @@ private fun App() {
             enter = slideInVertically(tween(Motion.Medium, easing = Motion.Standard)) { it } + fadeIn(tween(Motion.Medium)),
             exit = slideOutVertically(tween(Motion.Medium, easing = Motion.Standard)) { it } + fadeOut(tween(Motion.Fast)),
         ) {
-            NavigationBar(
-                containerColor = if (Palette.spark) C.Bg else C.Card,
-                tonalElevation = 0.dp,
-            ) {
+            NavigationBar(containerColor = C.Card, tonalElevation = 0.dp) {
                 Tab.entries.forEach { t ->
                     val selected = t == tab
                     NavigationBarItem(

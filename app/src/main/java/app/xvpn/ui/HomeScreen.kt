@@ -131,12 +131,11 @@ fun HomeScreen(
     Box(Modifier.fillMaxSize()) {
         WorldMap(
             target = cam, countryCode = camCode, dotColor = tone,
-            modifier = Modifier.fillMaxSize().then(if (Palette.spark) Modifier.backdropSource(isMap = true).bottomFade() else Modifier),
-            centerY = 0.46f,
+            modifier = Modifier.fillMaxSize(), centerY = 0.46f,
             pin = when { on -> MapPin.Connected; connecting -> MapPin.Connecting; else -> MapPin.Selected },
         )
 
-        if (!Palette.spark) Box(Modifier.fillMaxWidth().height(200.dp).background(Brush.verticalGradient(listOf(overlay, overlay.copy(alpha = 0f)))))
+        Box(Modifier.fillMaxWidth().height(200.dp).background(Brush.verticalGradient(listOf(overlay, overlay.copy(alpha = 0f)))))
 
         Column(
             Modifier.align(Alignment.TopCenter).widthIn(max = 480.dp).fillMaxWidth().statusBarsPadding().padding(horizontal = Space.Gutter),
@@ -160,13 +159,11 @@ fun HomeScreen(
 
         Column(
             Modifier.align(Alignment.BottomCenter).fillMaxWidth()
-                .then(
-                    if (Palette.spark) Modifier else Modifier.drawBehind {
-                        val gradientBottom = 100.dp.toPx()
-                        drawRect(Brush.verticalGradient(listOf(Color.Transparent, bg), startY = 0f, endY = gradientBottom), size = androidx.compose.ui.geometry.Size(size.width, gradientBottom))
-                        drawRect(bg, topLeft = androidx.compose.ui.geometry.Offset(0f, gradientBottom))
-                    },
-                )
+                .drawBehind {
+                    val gradientBottom = 100.dp.toPx()
+                    drawRect(Brush.verticalGradient(listOf(Color.Transparent, bg), startY = 0f, endY = gradientBottom), size = androidx.compose.ui.geometry.Size(size.width, gradientBottom))
+                    drawRect(bg, topLeft = androidx.compose.ui.geometry.Offset(0f, gradientBottom))
+                }
                 .padding(top = 68.dp).padding(horizontal = Space.Gutter),
         ) {
             AnimatedContent(
@@ -176,7 +173,7 @@ fun HomeScreen(
             ) { caption ->
                 Text(caption, style = Type.Small, color = C.Text, modifier = Modifier.padding(vertical = Space.Xxl).fillMaxWidth())
             }
-            AppCard(Modifier.fillMaxWidth(), bordered = true, glass = true) {
+            AppCard(Modifier.fillMaxWidth(), bordered = true) {
                 Row(
                     Modifier.fillMaxWidth().heightIn(min = 42.dp).then(if (on) Modifier.pressable(RoundedCornerShape(Radius.Small), Press.Card, onClick = onOpenStats) else Modifier),
                     verticalAlignment = Alignment.Top,
@@ -270,9 +267,7 @@ private fun RecentRow(p: Profile, onClick: () -> Unit) {
 private fun StatusChip(content: @Composable () -> Unit) {
     val shape = RoundedCornerShape(Radius.Control)
     Row(
-        Modifier.clip(shape)
-            .then(if (Palette.spark) Modifier.glass(shape, strong = true) else Modifier.background(C.CardOverlay).translucentBorder(shape))
-            .padding(horizontal = Space.Sm, vertical = Space.Xs),
+        Modifier.clip(shape).background(C.CardOverlay).translucentBorder(shape).padding(horizontal = Space.Sm, vertical = Space.Xs),
         verticalAlignment = Alignment.CenterVertically,
     ) { content() }
 }
@@ -357,7 +352,7 @@ private fun ProtectedHeader(time: String, up: Long, down: Long) {
             Spacer(Modifier.width(Space.Sm))
             Text("Protected", style = Type.Heading, color = C.Green)
         }
-        AppCard(Modifier.fillMaxWidth().padding(top = Space.Sm), containerColor = C.CardOverlay, translucentBorder = true, glass = true) {
+        AppCard(Modifier.fillMaxWidth().padding(top = Space.Sm), containerColor = C.CardOverlay, translucentBorder = true) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text("Connected for", style = Type.Small, color = C.Muted)

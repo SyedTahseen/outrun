@@ -6,6 +6,7 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.graphics.drawable.Icon
 import android.net.ConnectivityManager
 import android.net.IpPrefix
@@ -42,6 +43,7 @@ import java.io.File
 import java.net.InetAddress
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.concurrent.thread
 
 private class NoVpnPermission : Exception("VPN permission was not granted")
 
@@ -65,6 +67,9 @@ class OutrunVpnService : VpnService() {
             Intent(ctx, OutrunVpnService::class.java).setAction(ACTION_START).putExtra(EXTRA_LINK, link)
         )
 
+        /** Root mode runs its own TUN, so the system VPN consent dialog is not needed. */
+        fun needsPermission(ctx: Context): Boolean = !Store(ctx).rootMode && VpnService.prepare(ctx) != null
+
         fun stop(ctx: Context) = ctx.startService(
             Intent(ctx, OutrunVpnService::class.java).setAction(ACTION_STOP)
         )
@@ -75,6 +80,7 @@ class OutrunVpnService : VpnService() {
     private var connectJob: Job? = null
     private var tun: ParcelFileDescriptor? = null
     private var core: SingBoxCore? = null
+    private var rootCore: RootCore? = null
 
     private var currentLink: String? = null
     private var currentName: String = ""
@@ -97,6 +103,15 @@ class OutrunVpnService : VpnService() {
 
     private val notificationManager: NotificationManager get() = getSystemService(NotificationManager::class.java)
 
+    /** Root mode has no VPN profile, which Android 14 requires for the systemExempted type, so it uses specialUse. */
+    private fun fg(n: Notification) {
+        if (Build.VERSION.SDK_INT >= 34) {
+            val type = if (Store(this).rootMode) ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+            else ServiceInfo.FOREGROUND_SERVICE_TYPE_SYSTEM_EXEMPTED
+            startForeground(NOTIFICATION_ID, n, type)
+        } else startForeground(NOTIFICATION_ID, n)
+    }
+
     override fun onCreate() {
         super.onCreate()
         notificationManager
@@ -115,7 +130,7 @@ class OutrunVpnService : VpnService() {
                 val link = Store(this).selected?.takeIf { LinkParser.parse(it) != null }
                 if (link != null) begin(link)
                 else {
-                    startForeground(NOTIFICATION_ID, notification(getString(R.string.app_name), "Select a server in the app"))
+                    fg(notification(getString(R.string.app_name), "Select a server in the app"))
                     stopForeground(STOP_FOREGROUND_REMOVE)
                     stopSelf()
                 }
@@ -126,7 +141,7 @@ class OutrunVpnService : VpnService() {
 
     private fun begin(link: String) {
         wanted = true
-        startForeground(NOTIFICATION_ID, notification(getString(R.string.app_name), "Connecting…"))
+        fg(notification(getString(R.string.app_name), "Connecting…"))
         registerNetworkWatch()
         if (hasUnderlyingNetwork()) launchConnect(link)
         else {
@@ -241,6 +256,7 @@ class OutrunVpnService : VpnService() {
         lastNet = best
         if (!wanted) { waitingNet = false; return }
         runCatching { setUnderlyingNetworks(arrayOf(best)) }
+        if (rootCore != null && changed && !recovered) { netLost = false; waitingNet = false; return }
         if (changed || recovered) {
             netLost = false
             val link = currentLink ?: return
@@ -301,7 +317,7 @@ class OutrunVpnService : VpnService() {
         VpnState.status.value = Status.Connecting
         OutrunWidget.refresh(this)
 
-        val hadSession = tun != null || core != null
+        val hadSession = tun != null || core != null || rootCore != null
         teardownSession()
         currentLink = link
         if (tried.isEmpty()) Store(this).selected = link
@@ -309,67 +325,76 @@ class OutrunVpnService : VpnService() {
         canSwitch = nextLink() != null
         if (hadSession) delay(300)
         var x: SingBoxCore? = null
+        var rc: RootCore? = null
         var pfd: ParcelFileDescriptor? = null
         var tunStarted = false
         try {
             val profile = LinkParser.parse(link) ?: error("Invalid link")
 
             val port = SingBoxCore.freePort()
-            x = SingBoxCore(this)
-            core = x
             val settings = Store(this)
-            val dns = settings.dnsServers()
-            val mtu = settings.mtu
-            x.start(ConfigBuilder.build(link, port, settings.resolverDns()), port)
-            currentCoroutineContext().ensureActive()
+            if (settings.rootMode) {
+                rc = RootCore(this)
+                rootCore = rc
+                val clash = if (rc.hasClashApi()) SingBoxCore.freePort() else 0
+                rc.start(ConfigBuilder.buildRoot(link, port, rootDns(settings), rootTun(settings, clash)), port, clash)
+                currentCoroutineContext().ensureActive()
+            } else {
+                x = SingBoxCore(this)
+                core = x
+                val dns = settings.dnsServers()
+                val mtu = settings.mtu
+                x.start(ConfigBuilder.build(link, port, settings.resolverDns()), port)
+                currentCoroutineContext().ensureActive()
 
-            val b = Builder()
-                .setSession(profile.name)
-                .setMtu(mtu)
-                .addAddress(Tun2Socks.TUN_IPV4, 30)
-            val v6 = settings.ipv6Mode != "block"
-            if (v6) b.addAddress(Tun2Socks.TUN_IPV6, 126)
-            dns.forEach { b.addDnsServer(it) }
+                val b = Builder()
+                    .setSession(profile.name)
+                    .setMtu(mtu)
+                    .addAddress(Tun2Socks.TUN_IPV4, 30)
+                val v6 = settings.ipv6Mode != "block"
+                if (v6) b.addAddress(Tun2Socks.TUN_IPV6, 126)
+                dns.forEach { b.addDnsServer(it) }
 
-            val include = settings.splitEnabled && settings.splitMode == "include"
-            val exclude = settings.splitEnabled && !include
-            val incApps = if (include) settings.splitIncludeApps.filter { it != packageName } else emptyList()
-            val incIps = if (include) settings.splitIncludeIps else emptyList()
-            if (incIps.isEmpty() && settings.lanAccess) {
-                LanRoutes.ipv4.forEach { (addr, len) -> b.addRoute(addr, len) }
-                b.addRoute(LanRoutes.IPV6_ADDRESS, LanRoutes.IPV6_PREFIX)
-            } else if (incIps.isEmpty()) { b.addRoute("0.0.0.0", 0); b.addRoute("::", 0) }
-            else incIps.forEach { ip ->
-                runCatching { b.addRoute(ip.substringBefore('/'), prefixLength(ip)) }
-            }
-            if (exclude && Build.VERSION.SDK_INT >= 33) settings.splitExcludeIps.forEach { ip ->
-                runCatching {
-                    b.excludeRoute(IpPrefix(InetAddress.getByName(ip.substringBefore('/')), prefixLength(ip)))
+                val include = settings.splitEnabled && settings.splitMode == "include"
+                val exclude = settings.splitEnabled && !include
+                val incApps = if (include) settings.splitIncludeApps.filter { it != packageName } else emptyList()
+                val incIps = if (include) settings.splitIncludeIps else emptyList()
+                if (incIps.isEmpty() && settings.lanAccess) {
+                    LanRoutes.ipv4.forEach { (addr, len) -> b.addRoute(addr, len) }
+                    b.addRoute(LanRoutes.IPV6_ADDRESS, LanRoutes.IPV6_PREFIX)
+                } else if (incIps.isEmpty()) { b.addRoute("0.0.0.0", 0); b.addRoute("::", 0) }
+                else incIps.forEach { ip ->
+                    runCatching { b.addRoute(ip.substringBefore('/'), prefixLength(ip)) }
                 }
-            }
-
-            if (incApps.isNotEmpty()) incApps.forEach { pkg -> runCatching { b.addAllowedApplication(pkg) } }
-            else {
-                if (exclude) settings.splitApps.forEach { pkg ->
-                    if (pkg != packageName) runCatching { b.addDisallowedApplication(pkg) }
+                if (exclude && Build.VERSION.SDK_INT >= 33) settings.splitExcludeIps.forEach { ip ->
+                    runCatching {
+                        b.excludeRoute(IpPrefix(InetAddress.getByName(ip.substringBefore('/')), prefixLength(ip)))
+                    }
                 }
-                b.addDisallowedApplication(packageName)
-            }
-            pfd = b.establish() ?: throw NoVpnPermission()
-            tun = pfd
-            currentCoroutineContext().ensureActive()
 
-            val cfg = File(filesDir, "tun2socks.yml").apply {
-                writeText(Tun2Socks.yaml(port, mtu, v6))
+                if (incApps.isNotEmpty()) incApps.forEach { pkg -> runCatching { b.addAllowedApplication(pkg) } }
+                else {
+                    if (exclude) settings.splitApps.forEach { pkg ->
+                        if (pkg != packageName) runCatching { b.addDisallowedApplication(pkg) }
+                    }
+                    b.addDisallowedApplication(packageName)
+                }
+                pfd = b.establish() ?: throw NoVpnPermission()
+                tun = pfd
+                currentCoroutineContext().ensureActive()
+
+                val cfg = File(filesDir, "tun2socks.yml").apply {
+                    writeText(Tun2Socks.yaml(port, mtu, v6))
+                }
+                var started = Tun2Socks.TProxyStartService(cfg.absolutePath, pfd.fd)
+                if (!started) {
+                    runCatching { Tun2Socks.TProxyStopService() }
+                    delay(400)
+                    started = Tun2Socks.TProxyStartService(cfg.absolutePath, pfd.fd)
+                }
+                if (!started) error("tun2socks failed to start")
+                tunStarted = true
             }
-            var started = Tun2Socks.TProxyStartService(cfg.absolutePath, pfd.fd)
-            if (!started) {
-                runCatching { Tun2Socks.TProxyStopService() }
-                delay(400)
-                started = Tun2Socks.TProxyStartService(cfg.absolutePath, pfd.fd)
-            }
-            if (!started) error("tun2socks failed to start")
-            tunStarted = true
 
             if (!verifyProxy(port)) error("Server is not responding")
 
@@ -386,7 +411,7 @@ class OutrunVpnService : VpnService() {
             currentName = profile.name
             sessionStart = System.currentTimeMillis(); sessUp = 0; sessDown = 0; pendUp = 0; pendDown = 0
             VpnState.sessionUp.value = 0; VpnState.sessionDown.value = 0
-            if (Build.VERSION.SDK_INT >= 29) {
+            if (Build.VERSION.SDK_INT >= 29 && rc == null) {
                 VpnState.alwaysOn.value = isAlwaysOn
                 VpnState.lockdown.value = isLockdownEnabled
             }
@@ -398,6 +423,7 @@ class OutrunVpnService : VpnService() {
             if (!currentCoroutineContext().isActive) {
                 if (tunStarted) runCatching { Tun2Socks.TProxyStopService() }
                 runCatching { x?.stop() }
+                runCatching { rc?.stop() }
                 runCatching { pfd?.close() }
             } else {
                 Log.w(TAG, "connect failed: ${e.javaClass.simpleName}")
@@ -419,6 +445,29 @@ class OutrunVpnService : VpnService() {
                 }
             }
         }
+    }
+
+    private fun rootDns(settings: Store): String {
+        val list = settings.dnsServers()
+        return list.firstOrNull { ':' !in it } ?: list.first()
+    }
+
+    private fun rootTun(settings: Store, clashPort: Int): ConfigBuilder.RootTun {
+        val include = settings.splitEnabled && settings.splitMode == "include"
+        val exclude = settings.splitEnabled && !include
+        val incApps = if (include) settings.splitIncludeApps.filter { it != packageName } else emptyList()
+        val excApps = if (exclude) settings.splitApps.filter { it != packageName } else emptyList()
+        return ConfigBuilder.RootTun(
+            iface = RootCore.IFACE,
+            mtu = settings.mtu,
+            blockIpv6 = settings.ipv6Mode == "block",
+            lan = settings.lanAccess,
+            includePackages = incApps,
+            excludePackages = excApps + packageName,
+            includeIps = if (include) settings.splitIncludeIps else emptyList(),
+            excludeIps = if (exclude) settings.splitExcludeIps else emptyList(),
+            clashPort = clashPort,
+        )
     }
 
     private suspend fun verifyProxy(port: Int): Boolean {
@@ -444,6 +493,7 @@ class OutrunVpnService : VpnService() {
         statsJob?.cancel()
         statsJob = scope.launch {
             fun read(): Pair<Long, Long> {
+                rootCore?.let { return runCatching { it.totals() }.getOrDefault(0L to 0L) }
                 val s = runCatching { Tun2Socks.TProxyGetStats() }.getOrNull()
                 return if (s != null && s.size >= 4) s[1] to s[3] else 0L to 0L
             }
@@ -477,11 +527,16 @@ class OutrunVpnService : VpnService() {
         }
     }
 
-    private fun teardownSession() {
+    /** [async] is for shutdown on the main thread: stopping the root core can take a second or two. */
+    private fun teardownSession(async: Boolean = false) {
         statsJob?.cancel(); statsJob = null
         healthJob?.cancel(); healthJob = null
         finishSession()
-        runCatching { Tun2Socks.TProxyStopService() }
+        val rc = rootCore
+        rootCore = null
+        if (rc != null) {
+            if (async) thread(name = "root-stop") { runCatching { rc.stop() } } else runCatching { rc.stop() }
+        } else runCatching { Tun2Socks.TProxyStopService() }
         runCatching { core?.stop() }
         core = null
         runCatching { tun?.close() }
@@ -496,7 +551,7 @@ class OutrunVpnService : VpnService() {
         wanted = false
         unregisterNetworkWatch()
         connectJob?.cancel()
-        teardownSession()
+        teardownSession(async = true)
         VpnState.status.value = Status.Disconnected
         VpnState.activeLink.value = null
         VpnState.sessionUp.value = 0; VpnState.sessionDown.value = 0
@@ -510,6 +565,7 @@ class OutrunVpnService : VpnService() {
     override fun onDestroy() {
         finishSession()
         runCatching { core?.stop() }
+        rootCore?.let { rc -> rootCore = null; thread(name = "root-stop") { runCatching { rc.stop() } } }
         scope.cancel()
         super.onDestroy()
     }

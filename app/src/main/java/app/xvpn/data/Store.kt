@@ -197,6 +197,10 @@ class Store(context: Context) {
         get() = prefs.getBoolean("lan_access", false)
         set(v) = prefs.edit().putBoolean("lan_access", v).apply()
 
+    var rootMode: Boolean
+        get() = prefs.getBoolean("root_mode", false)
+        set(v) = prefs.edit().putBoolean("root_mode", v).apply()
+
     var mtu: Int
         get() = prefs.getInt("mtu", Choices.MTU_DEFAULT).coerceIn(1280, 1500)
         set(v) = prefs.edit().putInt("mtu", v.coerceIn(1280, 1500)).apply()

@@ -109,7 +109,7 @@ fun LazyListScope.featureHeader(imageRes: Int, title: String, description: Strin
 @Composable
 fun FeatureToggle(label: String, checked: Boolean, modifier: Modifier = Modifier, onChange: (Boolean) -> Unit) {
     Row(
-        modifier.clip(RoundedCornerShape(Space.Lg)).cardSurface(RoundedCornerShape(Space.Lg))
+        modifier.clip(RoundedCornerShape(Space.Lg)).background(C.Card)
             .toggleable(value = checked, onValueChange = onChange, role = Role.Switch)
             .padding(horizontal = Space.Xl, vertical = Space.Lg),
         horizontalArrangement = Arrangement.spacedBy(Space.Sm),
@@ -243,10 +243,6 @@ fun ThemePage(selected: String, onSelect: (String) -> Unit, onBack: () -> Unit) 
                 ThemeTile("Light", R.drawable.theme_light, selected == AppTheme.LIGHT, Modifier.weight(1f)) { onSelect(AppTheme.LIGHT) }
                 ThemeTile("Dark", R.drawable.theme_dark, selected == AppTheme.DARK, Modifier.weight(1f)) { onSelect(AppTheme.DARK) }
                 ThemeTile("Device theme", R.drawable.theme_auto, selected == AppTheme.SYSTEM, Modifier.weight(1f)) { onSelect(AppTheme.SYSTEM) }
-            }
-            Row(Modifier.padding(horizontal = Space.Gutter).height(IntrinsicSize.Max)) {
-                ThemeTile("Spark", R.drawable.theme_spark, selected == AppTheme.SPARK, Modifier.weight(1f)) { onSelect(AppTheme.SPARK) }
-                Spacer(Modifier.weight(2f))
             }
         }
     }

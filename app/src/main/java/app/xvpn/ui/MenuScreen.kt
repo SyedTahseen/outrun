@@ -91,6 +91,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -122,7 +123,11 @@ import app.xvpn.widget.OutrunWidget
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.foundation.layout.PaddingValues
 import kotlinx.coroutines.flow.filter
+import app.xvpn.vpn.RootShell
+import app.xvpn.vpn.Status
+import app.xvpn.vpn.VpnState
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 private class AppInfo(val label: String, val pkg: String)
@@ -196,6 +201,8 @@ private fun MenuPage(
     var blockAdult by remember { mutableStateOf(store.blockAdult) }
     var lan by remember { mutableStateOf(store.lanAccess) }
     var mtu by remember { mutableStateOf(store.mtu) }
+    var rootOn by remember { mutableStateOf(store.rootMode) }
+    val uiScope = rememberCoroutineScope()
 
     var themeMode by remember { mutableStateOf(store.themeMode) }
     var splitMode by remember { mutableStateOf(store.splitMode) }
@@ -245,6 +252,23 @@ private fun MenuPage(
                     "MTU", "$mtu",
                     "The largest packet the VPN sends. Lower it if some sites or apps stall or time out only while connected.",
                 ) { page = "mtu" }
+                SettingsToggleItem(
+                    "Root mode", rootOn,
+                    "Needs a rooted device. Sends all traffic through the VPN using root instead of Android\u2019s VPN service, so there is no VPN permission prompt or key icon. Applies the next time you connect.",
+                ) { on ->
+                    if (!on) {
+                        rootOn = false; store.rootMode = false
+                        if (VpnState.status.value != Status.Disconnected) Snack.show("Reconnect to switch back to the VPN service", SnackType.Warning)
+                    } else uiScope.launch {
+                        Snack.show("Waiting for root access\u2026")
+                        val ok = withContext(Dispatchers.IO) { RootShell.granted() }
+                        if (ok) {
+                            rootOn = true; store.rootMode = true
+                            Snack.show("Root access granted", SnackType.Success)
+                            if (VpnState.status.value != Status.Disconnected) Snack.show("Reconnect to use root mode", SnackType.Warning)
+                        } else Snack.show("Root access was not granted", SnackType.Error)
+                    }
+                }
             }
             return
         }
@@ -300,7 +324,7 @@ private fun MenuPage(
                 if (conflict) {
                     Column(
                         Modifier.padding(horizontal = Space.Gutter, vertical = Space.Md).fillMaxWidth()
-                            .clip(RoundedCornerShape(Radius.Control)).cardSurface(RoundedCornerShape(Radius.Control)).padding(Space.Lg),
+                            .clip(RoundedCornerShape(Radius.Control)).background(C.Card).padding(Space.Lg),
                     ) {
                         Text("NetShield is unavailable", style = Type.BodyMedium, color = C.Text)
                         Spacer(Modifier.height(Space.Sm))
@@ -412,7 +436,7 @@ private fun MenuPage(
             }
             ListRow(
                 ProtonIcons.CircleHalfFilled, "Theme",
-                when (themeMode) { AppTheme.LIGHT -> "Light"; AppTheme.DARK -> "Dark"; AppTheme.SPARK -> "Spark"; else -> "Device theme" },
+                when (themeMode) { AppTheme.LIGHT -> "Light"; AppTheme.DARK -> "Dark"; else -> "Device theme" },
             ) { page = "theme" }
             ListRow(
                 ProtonIcons.Mobile, "Widget",

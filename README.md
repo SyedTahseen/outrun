@@ -77,6 +77,23 @@ been granted yet, the power button opens the app instead.
 - **LAN connections**: keeps 10/8, 172.16/12, 192.168/16, link-local and multicast outside the tunnel (works on every Android version, not only 13+). Off by default.
 - **MTU** (Advanced settings): 1500 (default) down to 1280.
 
+## Root mode (Settings -> Advanced settings -> Root mode)
+
+For rooted phones (Magisk / KernelSU / APatch). Instead of Android's VpnService, the same sing-box binary runs as root with its
+own TUN (`auto_route` + `auto_redirect`), so there is no VPN permission prompt and no key icon, and it can run next to another VPN.
+
+- Turning the switch on asks for root once (the `su` prompt). It applies the next time you connect; reconnect to switch.
+- DNS is hijacked at the TUN and answered through the proxy (VpnService mode instead hands the resolver to Android).
+- Split tunneling (apps and IPs), LAN connections, IPv6 off and MTU all carry over. Excluding IP addresses has no Android 13 limit here.
+- Interface name is `outrun0`. The core's pid, config and log live in `files/singbox-root/`. Stopping sends SIGTERM so sing-box removes
+  its own routes and firewall rules; if it has to be killed, the app removes the leftover `ip rule` / `iptables` entries itself.
+- Speed numbers come from sing-box's Clash API when the binary has it, otherwise from the TUN counters (TCP that auto_redirect
+  bypasses the TUN with is then not counted).
+- The leak test reads Android's VPN network, which does not exist in root mode, so its routing/DNS lines show warnings.
+- Android's iptables is used (`DISABLE_NFTABLES=1`), as stock Android kernels usually have no nftables.
+- Not tested on a device: written without a compiler or a rooted phone, like the rest of the project. If connecting fails the error
+  shows the last lines of sing-box's log.
+
 All of the above was written without a compiler, like the rest of the project, so expect small fixes on the first build.
 
 ## sing-box limitations

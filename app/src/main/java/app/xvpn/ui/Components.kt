@@ -42,7 +42,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -71,21 +70,15 @@ fun AppCard(
     onClick: (() -> Unit)? = null,
     bordered: Boolean = false,
     translucentBorder: Boolean = false,
-    glass: Boolean = false,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val shape = RoundedCornerShape(Radius.Card)
-    val spark = Palette.spark
     Column(
         modifier
             .then(if (onClick != null) Modifier.pressable(shape, Press.Card, onClick = onClick) else Modifier.clip(shape))
-            .then(
-                if (spark && glass) Modifier.glass(shape, strong = containerColor == C.CardOverlay)
-                else if (spark) Modifier.cardSurface(shape)
-                else Modifier.background(containerColor),
-            )
-            .then(if (bordered && !spark) Modifier.border(1.dp, C.Border, shape) else Modifier)
-            .then(if (translucentBorder && !spark) Modifier.translucentBorder(shape) else Modifier)
+            .background(containerColor)
+            .then(if (bordered) Modifier.border(1.dp, C.Border, shape) else Modifier)
+            .then(if (translucentBorder) Modifier.translucentBorder(shape) else Modifier)
             .padding(padding),
         content = content,
     )
@@ -96,7 +89,7 @@ fun Modifier.translucentBorder(shape: androidx.compose.ui.graphics.Shape): Modif
 
 @Composable
 fun HairlineDivider(modifier: Modifier = Modifier) {
-    HorizontalDivider(modifier, thickness = Dp.Hairline, color = if (Palette.spark) C.Divider else C.Border)
+    HorizontalDivider(modifier, thickness = Dp.Hairline, color = C.Border)
 }
 
 @Composable
@@ -137,7 +130,7 @@ fun FastestFlag() {
 
 @Composable
 fun HeaderSurface(scrolled: Boolean = false, content: @Composable ColumnScope.() -> Unit) {
-    val bg by animateColorAsState(if (scrolled) C.Header else C.Surface, tween(Motion.Medium), label = "headerSurface")
+    val bg by animateColorAsState(if (scrolled) C.Header else C.Bg, tween(Motion.Medium), label = "headerSurface")
     Column(Modifier.fillMaxWidth().background(bg), content = content)
 }
 
@@ -316,14 +309,13 @@ fun AppDialog(
     content: @Composable ColumnScope.() -> Unit = {},
 ) {
     Dialog(onDismissRequest = onDismiss) {
-      CompositionLocalProvider(LocalBackdrop provides null) {
         val enter = remember { Animatable(0f) }
         LaunchedEffect(Unit) { enter.animateTo(1f, tween(Motion.Short, easing = Motion.Enter)) }
         val shape = RoundedCornerShape(Radius.Sheet)
         Column(
             Modifier.fillMaxWidth()
                 .graphicsLayer { alpha = enter.value; scaleX = 0.92f + 0.08f * enter.value; scaleY = 0.92f + 0.08f * enter.value }
-                .clip(shape).dialogSurface(shape).padding(Space.Xxl),
+                .clip(shape).background(C.Card).padding(Space.Xxl),
         ) {
             Text(title, style = Type.Heading, color = C.Text)
             Spacer(Modifier.height(Space.Lg))
@@ -334,7 +326,6 @@ fun AppDialog(
                 if (confirmLabel != null) TextAction(confirmLabel, onConfirm, color = confirmColor)
             }
         }
-      }
     }
 }
 

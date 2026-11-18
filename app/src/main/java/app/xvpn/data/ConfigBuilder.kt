@@ -76,6 +76,79 @@ object ConfigBuilder {
         return root.toString()
     }
 
+    class RootTun(
+        val iface: String,
+        val mtu: Int,
+        val blockIpv6: Boolean,
+        val lan: Boolean,
+        val includePackages: List<String>,
+        val excludePackages: List<String>,
+        val includeIps: List<String>,
+        val excludeIps: List<String>,
+        val clashPort: Int,
+    )
+
+    private val lanV4 = listOf("10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "169.254.0.0/16", "224.0.0.0/3")
+    private val lanV6 = listOf("fc00::/7", "fe80::/10", "ff00::/8")
+
+    /**
+     * Config for root mode: sing-box owns the TUN (no VpnService). DNS is hijacked at the TUN and answered through
+     * the proxy, because without a VpnService nothing points apps at a resolver that is reachable through it.
+     * The SOCKS inbound stays, so the connection check, health probe and tests work the same as in VPN mode.
+     */
+    fun buildRoot(link: String, socksPort: Int, dns: String, o: RootTun): String {
+        val proxy = outbound(link)
+        val endpoint = isEndpoint(proxy)
+
+        val outs = JSONArray()
+        if (!endpoint) outs.put(proxy)
+        outs.put(directOutbound())
+
+        val tun = JSONObject()
+            .put("type", "tun").put("tag", "tun-in").put("interface_name", o.iface)
+            .put("address", JSONArray().put("172.19.0.1/30").put("fdfe:dcba:9876::1/126"))
+            .put("mtu", o.mtu)
+            .put("auto_route", true)
+            .put("auto_redirect", true)
+        if (o.includePackages.isNotEmpty()) tun.put("include_package", JSONArray(o.includePackages))
+        else if (o.excludePackages.isNotEmpty()) tun.put("exclude_package", JSONArray(o.excludePackages))
+        if (o.includeIps.isNotEmpty()) tun.put("route_address", JSONArray(o.includeIps))
+        val excluded = (if (o.lan && o.includeIps.isEmpty()) lanV4 + lanV6 else emptyList()) + o.excludeIps
+        if (excluded.isNotEmpty()) tun.put("route_exclude_address", JSONArray(excluded))
+
+        val rules = JSONArray()
+            .put(JSONObject().put("action", "sniff"))
+            .put(JSONObject().put("protocol", "dns").put("action", "hijack-dns"))
+        if (o.blockIpv6) rules.put(JSONObject().put("ip_version", 6).put("action", "reject"))
+
+        val dnsObj = dnsBlock(dns, viaProxy = true)
+        val resolver: Any = if (o.blockIpv6) {
+            dnsObj.put("strategy", "ipv4_only")
+            JSONObject().put("server", "dns-direct").put("strategy", "ipv4_only")
+        } else "dns-direct"
+
+        val root = JSONObject()
+            .put("log", JSONObject().put("level", "warn"))
+            .put("dns", dnsObj)
+            .put("inbounds", JSONArray().put(socksInbound("socks-in", socksPort)).put(tun))
+            .put("outbounds", outs)
+            .put(
+                "route", JSONObject()
+                    .put("rules", rules)
+                    .put("final", "proxy")
+                    .put("auto_detect_interface", true)
+                    .put("default_domain_resolver", resolver)
+            )
+        if (endpoint) root.put("endpoints", JSONArray().put(proxy))
+        if (o.clashPort > 0) {
+            root.put(
+                "experimental",
+                JSONObject().put("clash_api", JSONObject().put("external_controller", "127.0.0.1:${o.clashPort}")),
+            )
+        }
+        return root.toString()
+    }
+
     private fun host(u: URI) = u.host.trim('[', ']')
 
     private fun vless(link: String): JSONObject {

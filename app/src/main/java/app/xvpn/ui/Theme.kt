@@ -33,12 +33,11 @@ fun OutrunApp(content: @Composable () -> Unit) {
 
 @Composable
 fun OutrunTheme(content: @Composable () -> Unit) {
-    Palette.spark = AppTheme.isSpark()
     val dark = AppTheme.isDark(isSystemInDarkTheme())
     Palette.dark = dark
     val activity = LocalContext.current as? ComponentActivity
     val firstRun = remember { booleanArrayOf(true) }
-    LaunchedEffect(dark, Palette.spark) { if (firstRun[0]) firstRun[0] = false else activity?.applySystemBars(dark) }
+    LaunchedEffect(dark) { if (firstRun[0]) firstRun[0] = false else activity?.applySystemBars(dark) }
     val scheme = if (dark) {
         darkColorScheme(
             primary = C.Primary, onPrimary = C.OnPrimary,
@@ -74,13 +73,11 @@ fun OutrunTheme(content: @Composable () -> Unit) {
     )
     MaterialTheme(colorScheme = scheme, typography = typography, shapes = shapes) {
         AppIndication {
-            BackdropHost {
-                CompositionLocalProvider(
-                    LocalContentColor provides C.Text,
-                    LocalTextSelectionColors provides TextSelectionColors(handleColor = C.Accent, backgroundColor = C.Accent.copy(alpha = 0.3f)),
-                    content = content,
-                )
-            }
+            CompositionLocalProvider(
+                LocalContentColor provides C.Text,
+                LocalTextSelectionColors provides TextSelectionColors(handleColor = C.Accent, backgroundColor = C.Accent.copy(alpha = 0.3f)),
+                content = content,
+            )
         }
     }
 }
@@ -92,7 +89,6 @@ object AppTheme {
     const val SYSTEM = "system"
     const val LIGHT = "light"
     const val DARK = "dark"
-    const val SPARK = "spark"
 
     var mode by mutableStateOf(SYSTEM)
         private set
@@ -104,9 +100,7 @@ object AppTheme {
         mode = value
     }
 
-    fun isDark(systemDark: Boolean): Boolean = when (mode) { LIGHT -> false; DARK, SPARK -> true; else -> systemDark }
-
-    fun isSpark(): Boolean = mode == SPARK
+    fun isDark(systemDark: Boolean): Boolean = when (mode) { LIGHT -> false; DARK -> true; else -> systemDark }
 }
 
 private fun Context.systemDark() =
@@ -114,7 +108,6 @@ private fun Context.systemDark() =
 
 internal fun ComponentActivity.setUpEdgeToEdge(navigationBarFromBg: Boolean = false) {
     AppTheme.load(this)
-    Palette.spark = AppTheme.isSpark()
     val dark = AppTheme.isDark(systemDark())
     Palette.dark = dark
     applySystemBars(dark, navigationBarFromBg)
