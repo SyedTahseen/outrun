@@ -21,7 +21,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -245,12 +244,8 @@ fun HomeScreen(
             }
             AnimatedVisibility(visible = status == Status.Disconnected && recents.isNotEmpty()) {
                 Column {
-                    // Proton: body2Regular + textWeak, 16dp horizontal / 8dp vertical padding (the gutter already gives the 16dp).
-                    Text("Recents", style = Type.Small, color = C.Muted, modifier = Modifier.fillMaxWidth().padding(vertical = Space.Sm))
-                    recents.forEachIndexed { i, p ->
-                        RecentRow(p) { onConnectRecent(p) }
-                        if (i < recents.lastIndex) HairlineDivider()
-                    }
+                    Text("Recents", style = Type.Small, color = C.Muted, modifier = Modifier.padding(top = Space.Lg, bottom = Space.Xs))
+                    recents.forEach { p -> RecentRow(p) { onConnectRecent(p) } }
                 }
             }
             Spacer(Modifier.height(Space.Lg))
@@ -260,19 +255,17 @@ fun HomeScreen(
 
 @Composable
 private fun RecentRow(p: Profile, onClick: () -> Unit) {
-    // Proton's ConnectIntentBlankRow: min 64dp, 12dp vertical padding, history icon (16dp, iconWeak) before the flag,
-    // title body1, subtitle body2 + textWeak with 4dp top padding.
     Row(
-        Modifier.fillMaxWidth().heightIn(min = Sizes.Row).clickable(onClick = onClick).padding(vertical = Space.Md),
-        verticalAlignment = Alignment.Top,
+        Modifier.fillMaxWidth().heightIn(min = Sizes.Button).clip(RoundedCornerShape(Radius.Control))
+            .pressable(RoundedCornerShape(Radius.Control), Press.Card, onClick = onClick)
+            .padding(vertical = Space.Xs),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(ProtonIcons.ClockRotateLeft, null, tint = C.Muted, modifier = Modifier.padding(end = Space.Sm).size(Sizes.IconSm))
-            FlagBadge(p.name)
-        }
-        Column(Modifier.weight(1f).padding(start = Space.Lg)) {
+        FlagBadge(p.name)
+        Spacer(Modifier.width(Space.Md))
+        Column(Modifier.weight(1f)) {
             Text(Flags.clean(p.name), style = Type.Body, color = C.Text, maxLines = 1)
-            Text("${p.host}:${p.port}", style = Type.Small, color = C.Muted, maxLines = 1, modifier = Modifier.padding(top = Space.Xs))
+            Text("${p.host}:${p.port}", style = Type.Caption, color = C.Muted, maxLines = 1)
         }
         Icon(ProtonIcons.ArrowRight, null, tint = C.Muted, modifier = Modifier.size(Sizes.Icon))
     }

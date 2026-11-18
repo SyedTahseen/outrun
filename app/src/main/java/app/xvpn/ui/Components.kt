@@ -73,9 +73,10 @@ fun AppCard(
     onClick: (() -> Unit)? = null,
     bordered: Boolean = false,
     translucentBorder: Boolean = false,
+    radius: Dp = Radius.Card,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    val shape = RoundedCornerShape(Radius.Card)
+    val shape = RoundedCornerShape(radius)
     Column(
         modifier
             .then(if (onClick != null) Modifier.pressable(shape, Press.Card, onClick = onClick) else Modifier.clip(shape))
@@ -260,10 +261,17 @@ fun ChoiceRow(label: String, note: String, selected: Boolean, onClick: () -> Uni
 }
 
 @Composable
-fun DetailCard(items: List<Pair<String, String>>, modifier: Modifier = Modifier) {
-    AppCard(modifier, padding = 0.dp) {
+fun DetailCard(
+    items: List<Pair<String, String>>,
+    modifier: Modifier = Modifier,
+    containerColor: Color = C.Card,
+    radius: Dp = Radius.Card,
+    rowPadding: Dp = Space.Md,
+    rowAlignment: Alignment.Vertical = Alignment.Top,
+) {
+    AppCard(modifier, padding = 0.dp, containerColor = containerColor, radius = radius) {
         items.forEachIndexed { i, (label, value) ->
-            Row(Modifier.fillMaxWidth().padding(horizontal = Space.Lg, vertical = Space.Md), verticalAlignment = Alignment.Top) {
+            Row(Modifier.fillMaxWidth().padding(horizontal = Space.Lg, vertical = rowPadding), verticalAlignment = rowAlignment) {
                 Text(label, style = Type.Body, color = C.Muted)
                 Spacer(Modifier.width(Space.Lg))
                 Text(value, style = Type.BodyMedium, color = C.Text, textAlign = TextAlign.End, modifier = Modifier.weight(1f))
