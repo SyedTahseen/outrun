@@ -77,7 +77,7 @@ fun AppCard(
         modifier
             .then(if (onClick != null) Modifier.pressable(shape, Press.Card, onClick = onClick) else Modifier.clip(shape))
             .background(containerColor)
-            .then(if (bordered) Modifier.border(1.dp, C.Border, shape) else Modifier)
+            .then(if (bordered) Modifier.border(Sizes.Border, C.Border, shape) else Modifier)
             .then(if (translucentBorder) Modifier.translucentBorder(shape) else Modifier)
             .padding(padding),
         content = content,
@@ -85,7 +85,7 @@ fun AppCard(
 }
 
 fun Modifier.translucentBorder(shape: androidx.compose.ui.graphics.Shape): Modifier =
-    border(1.dp, Brush.verticalGradient(listOf(C.Text.copy(alpha = 0.08f), C.Text.copy(alpha = 0.02f))), shape)
+    border(Sizes.Border, Brush.verticalGradient(listOf(C.Text.copy(alpha = 0.08f), C.Text.copy(alpha = 0.02f))), shape)
 
 @Composable
 fun HairlineDivider(modifier: Modifier = Modifier) {
@@ -230,7 +230,7 @@ fun ListRow(icon: ImageVector, title: String, subtitle: String? = null, external
         }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.Center) {
             Text(title, style = Type.Body, color = C.Text)
-            if (subtitle != null) Text(subtitle, style = Type.Body, color = C.Muted, maxLines = 2, modifier = Modifier.padding(top = 6.dp))
+            if (subtitle != null) Text(subtitle, style = Type.Body, color = C.Muted, maxLines = 2, modifier = Modifier.padding(top = Space.Xs + Space.Xs / 2))
         }
         if (external) Icon(ProtonIcons.ArrowOutSquare, null, tint = C.Muted, modifier = Modifier.padding(end = Space.Sm).size(Sizes.Icon))
     }
@@ -309,13 +309,10 @@ fun AppDialog(
     content: @Composable ColumnScope.() -> Unit = {},
 ) {
     Dialog(onDismissRequest = onDismiss) {
-        val enter = remember { Animatable(0f) }
-        LaunchedEffect(Unit) { enter.animateTo(1f, tween(Motion.Short, easing = Motion.Enter)) }
+        // Proton's ProtonAlert is a stock Material 3 AlertDialog: platform dialog transition, no custom scale/alpha.
         val shape = RoundedCornerShape(Radius.Sheet)
         Column(
-            Modifier.fillMaxWidth()
-                .graphicsLayer { alpha = enter.value; scaleX = 0.92f + 0.08f * enter.value; scaleY = 0.92f + 0.08f * enter.value }
-                .clip(shape).background(C.Card).padding(Space.Xxl),
+            Modifier.fillMaxWidth().clip(shape).background(C.Card).padding(Space.Xxl),
         ) {
             if (title != null) {
                 Text(title, style = Type.Heading, color = C.Text)

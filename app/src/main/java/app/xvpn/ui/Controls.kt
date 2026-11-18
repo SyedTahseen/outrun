@@ -103,7 +103,7 @@ fun AppButton(
             .height(if (large) Sizes.Button else Sizes.Control)
             .pressable(shape, Press.Control, enabled) { tick(); onClick() }
             .background(container)
-            .then(if (outlined) Modifier.border(1.dp, borderColor, shape) else Modifier)
+            .then(if (outlined) Modifier.border(Sizes.Border, borderColor, shape) else Modifier)
             .padding(horizontal = if (large) Space.Lg else Space.Xxl),
         contentAlignment = Alignment.Center,
     ) {
@@ -212,7 +212,7 @@ fun AppTextField(
 ) {
     var focused by remember { mutableStateOf(false) }
     val border by animateColorAsState(if (isError) C.Red else if (focused) C.Primary else Color.Transparent, tween(Motion.Short), label = "fieldBorder")
-    val borderWidth = if (focused || isError) 2.dp else 1.dp
+    val borderWidth = if (focused || isError) Sizes.Spinner else Sizes.Border
     val shape = RoundedCornerShape(Radius.Control)
     Row(
         modifier.fillMaxWidth()

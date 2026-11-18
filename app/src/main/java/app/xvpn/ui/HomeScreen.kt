@@ -135,14 +135,14 @@ fun HomeScreen(
             pin = when { on -> MapPin.Connected; connecting -> MapPin.Connecting; else -> MapPin.Selected },
         )
 
-        Box(Modifier.fillMaxWidth().height(200.dp).background(Brush.verticalGradient(listOf(overlay, overlay.copy(alpha = 0f)))))
+        Box(Modifier.fillMaxWidth().height(Sizes.StatusOverlay).background(Brush.verticalGradient(listOf(overlay, overlay.copy(alpha = 0f)))))
 
         Column(
-            Modifier.align(Alignment.TopCenter).widthIn(max = 480.dp).fillMaxWidth().statusBarsPadding().padding(horizontal = Space.Gutter),
+            Modifier.align(Alignment.TopCenter).widthIn(max = Sizes.StatusMaxWidth).fillMaxWidth().statusBarsPadding().padding(horizontal = Space.Gutter),
         ) {
             AnimatedContent(
                 targetState = status,
-                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                modifier = Modifier.fillMaxWidth().heightIn(min = Sizes.Button),
                 contentAlignment = Alignment.TopCenter,
                 transitionSpec = { statusTransition(initialState == Status.Connecting && targetState == Status.Connected) },
                 label = "homeHeader",
@@ -160,11 +160,11 @@ fun HomeScreen(
         Column(
             Modifier.align(Alignment.BottomCenter).fillMaxWidth()
                 .drawBehind {
-                    val gradientBottom = 100.dp.toPx()
+                    val gradientBottom = Sizes.ListGradient.toPx()
                     drawRect(Brush.verticalGradient(listOf(Color.Transparent, bg), startY = 0f, endY = gradientBottom), size = androidx.compose.ui.geometry.Size(size.width, gradientBottom))
                     drawRect(bg, topLeft = androidx.compose.ui.geometry.Offset(0f, gradientBottom))
                 }
-                .padding(top = 68.dp).padding(horizontal = Space.Gutter),
+                .padding(top = Sizes.ListTopOffset).padding(horizontal = Space.Gutter),
         ) {
             AnimatedContent(
                 targetState = when { on -> "Browsing safely from"; connecting -> "Connecting to…"; else -> "Selected server" },
@@ -175,7 +175,7 @@ fun HomeScreen(
             }
             AppCard(Modifier.fillMaxWidth(), bordered = true) {
                 Row(
-                    Modifier.fillMaxWidth().heightIn(min = 42.dp).then(if (on) Modifier.pressable(RoundedCornerShape(Radius.Small), Press.Card, onClick = onOpenStats) else Modifier),
+                    Modifier.fillMaxWidth().heightIn(min = Sizes.CardRowMin).then(if (on) Modifier.pressable(RoundedCornerShape(Radius.Small), Press.Card, onClick = onOpenStats) else Modifier),
                     verticalAlignment = Alignment.Top,
                 ) {
                     FlagBadge(selected?.name)
@@ -194,7 +194,7 @@ fun HomeScreen(
                                 else -> "Add one in Servers"
                             },
                             transitionSpec = { fadeTransition() }, label = "serverSub",
-                        ) { sub -> Text(sub, style = Type.Small, color = C.Muted, maxLines = 1, modifier = Modifier.padding(top = 2.dp)) }
+                        ) { sub -> Text(sub, style = Type.Small, color = C.Muted, maxLines = 1, modifier = Modifier.padding(top = Space.Xs / 2)) }
                     }
                     AnimatedVisibility(
                         visible = on,
@@ -248,7 +248,7 @@ fun HomeScreen(
 @Composable
 private fun RecentRow(p: Profile, onClick: () -> Unit) {
     Row(
-        Modifier.fillMaxWidth().heightIn(min = 48.dp).clip(RoundedCornerShape(Radius.Control))
+        Modifier.fillMaxWidth().heightIn(min = Sizes.Button).clip(RoundedCornerShape(Radius.Control))
             .pressable(RoundedCornerShape(Radius.Control), Press.Card, onClick = onClick)
             .padding(vertical = Space.Xs),
         verticalAlignment = Alignment.CenterVertically,
@@ -294,7 +294,7 @@ private fun WaitingForNetworkHeader() {
         Box(Modifier.padding(Space.Sm).size(Sizes.IconLg), contentAlignment = Alignment.Center) {
             CircularProgressIndicator(
                 modifier = Modifier.size(Sizes.IconLg), color = C.Text, trackColor = Color.Transparent,
-                strokeWidth = 2.dp,
+                strokeWidth = Sizes.Spinner,
             )
         }
         Text("Waiting for network", style = Type.BodyMedium, color = C.Text, textAlign = TextAlign.Center, modifier = Modifier.padding(Space.Sm))
@@ -307,7 +307,7 @@ private fun ConnectingHeader(real: IpInfo?) {
         Box(Modifier.padding(Space.Sm).size(Sizes.IconLg), contentAlignment = Alignment.Center) {
             CircularProgressIndicator(
                 modifier = Modifier.size(Sizes.IconLg), color = C.Text, trackColor = Color.Transparent,
-                strokeWidth = 2.dp,
+                strokeWidth = Sizes.Spinner,
             )
         }
         Text("Protecting your digital identity", style = Type.BodyMedium, color = C.Text, textAlign = TextAlign.Center, modifier = Modifier.padding(Space.Sm))

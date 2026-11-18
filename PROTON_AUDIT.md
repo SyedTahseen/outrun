@@ -175,11 +175,18 @@ Lines: 9sp monospace `textNorm` (`Type.LogLine`) in a LazyColumn instead of one 
 | Theme | follows the system only | Settings > General > Theme (Light / Dark / Device theme), three picture + radio tiles; applies instantly (`Palette.dark` is snapshot state) and re-tints the system bars | `ThemeSettings.kt` |
 Not matched: no "Learn more" link in the split tunneling description (Outrun has no help page); the Mode dialog uses `AppDialog` (20sp bold title) where Proton uses a 16sp bold title.
 
-## Network loss: WaitingForNetwork
+## Pass 15: re-verification against `proton-main` (android-app-master) and `protoncore_android-main`
+Re-checked every `C.*` colour against proton-core `Colors.kt` (all dark and light values match), radii 4/8/12 against `Dimension.kt`, spacing 4/8/16/24/32/40, 48dp min button height, and the type scale / letter spacing against `Typography.kt`. No colour, radius or type deviations were found.
+| Area | Before | Now |
+|---|---|---|
+| Hard-coded dp in screens (status overlay 200, status max width 480, list offset 68, list gradient 100, card row 42, settings row 56, 1dp borders, 2dp spinner/focus, 16dp icon) | literals in Home / Settings / Components / Controls / Servers | `Sizes.StatusOverlay/StatusMaxWidth/ListTopOffset/ListGradient/CardRowMin/SettingRowMin/Border/Spinner/IconSm` |
+| Log page share failure | system `Toast` | `Snack.show(..., SnackType.Error)` with `AppSnackbarHost` in `LogScreen` (the log is its own Activity, so it needs its own host) |
+| Widget container / power button radius | 9dp (old Outrun value) | 12dp / 8dp (`Radius.Card` / `Radius.Control`) |
+| Widget "off" globe ring gradient | 5A5866 / 3A3944 | 5B576B / 3B3747 (`C.Disabled` / `C.Border`) |
+| `DESIGN.md` | card radius 16, no Heading/Overline | 12, full type scale |
+| Removed | a "Network loss" table copied from another project (referenced files that do not exist here) | |
+Second check, directly against `android-app-master` source (not the old audit): `BottomBarView` (caption-strong labels, textAccent/textWeak, 0.32 indicator over backgroundSecondary, filled/outline icons), `ProtonButton`/`VpnButton` (48dp, shapes.medium, 16x12 / 24x12 padding, 1dp outline, disabled colours), `ProtonSnackbar` (12dp margin, shapes.medium, solid status fills, defaultSmall / defaultSmallStrong), `VpnDivider` (hairline separatorNorm), `VpnStatusView` (32dp icon, 2dp spinner, 8/16dp paddings), `SettingsItemScaffold` / `SettingRowWithIcon` (16dp vertical, 4dp gap, 6dp value top padding, 8dp trailing icon padding), `ProtonAlert` (backgroundSecondary, 28dp default shape, 24dp padding, 14sp body). All matched the code except one:
+| Dialog enter | custom 0.92 -> 1 scale + alpha (200 ms) | none: platform dialog transition, as the stock M3 `AlertDialog` in `ProtonAlert` |
+Open: Proton's wide dialog caps at 480dp + 16dp margin (`wideDialog`); Outrun dialogs use the platform default width.
 
-| Aspect | Outrun | Proton | Source |
-|---|---|---|---|
-| No underlying network while the VPN is wanted | `Status.WaitingForNetwork` (spinner, neutral overlay, "Waiting for network", Cancel button); tunnel stays up so nothing leaks; reconnects when a network returns | `VpnState.WaitingForNetwork` | `VpnBackend.kt`, `WireguardBackend.kt`, `VpnStatusView.kt` |
-| Notification / widget / tile | "Waiting for network…" / amber + "Waiting for network" / "Waiting for network" | `loaderReconnectNoNetwork`, `WidgetVpnStatus.WaitingForNetwork` | `NotificationHelper.kt`, `WidgetStateUpdater.kt` |
-| Connect tapped with no network | Waits instead of failing / trying fallback servers | Same | `WireguardBackend.kt` |
-| "Network" definition | Any connected non-VPN network (no internet validation) | `activeNetworkInfo.isConnected` | `NetworkManagerImpl.kt` |
+Still not compiled (no Android SDK or network in this environment): run `./gradlew assembleDebug`.

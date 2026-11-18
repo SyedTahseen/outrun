@@ -2,7 +2,7 @@ package app.xvpn.ui
 
 import android.content.Context
 import android.content.Intent
-import android.widget.Toast
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -20,6 +20,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import app.xvpn.data.AppLog
@@ -57,6 +58,7 @@ fun LogScreen(info: String, onBack: () -> Unit) {
         if (pinned && l.isNotEmpty()) listState.scrollToItem(l.lastIndex)
     }
 
+    Box(Modifier.fillMaxSize()) {
     Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
         ScreenHeader("Log", onBack = onBack) {
             IconAction(ProtonIcons.ArrowUpFromSquare, "Share logs") {
@@ -75,11 +77,13 @@ fun LogScreen(info: String, onBack: () -> Unit) {
             }
         }
     }
+    AppSnackbarHost(Modifier.align(Alignment.BottomCenter).navigationBarsPadding())
+    }
 }
 
 private fun shareLogs(ctx: Context, info: String, lines: List<String>) {
     val send = Intent(Intent.ACTION_SEND).setType("text/plain")
         .putExtra(Intent.EXTRA_SUBJECT, "Outrun VPN logs").putExtra(Intent.EXTRA_TEXT, info + "\n\n" + lines.joinToString("\n"))
     runCatching { ctx.startActivity(Intent.createChooser(send, "Share logs")) }
-        .onFailure { Toast.makeText(ctx, "Couldn't share logs", Toast.LENGTH_SHORT).show() }
+        .onFailure { Snack.show("Couldn't share logs", SnackType.Error) }
 }

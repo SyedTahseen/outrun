@@ -13,8 +13,8 @@ All UI lives in `app/src/main/java/app/xvpn/ui`. Screens contain **no** color li
 
 ## Rules
 - **Spacing**: only `Space.*`. Every screen has a 16dp `Gutter`.
-- **Type**: `Display 30 · Headline 28 · Title 22 · Subtitle 18 · Body 16 · Small 14 · Caption/Label 12`. Screen title = Headline, sub-page title = Title, section heading = `SectionHeader` (accent), form label = `FieldLabel` (muted).
-- **Shapes** (Proton `ProtonTheme.shapes`): buttons/chips/inputs/menus 8 · cards 16 · dialogs/sheets 28 (Material default) · flags 4. Cards are flat `Card` fills (the selected-server card on Home adds a 1dp `Border`, like Proton's connection card); bars (header strip, dock) are flat `Card`; menus use the Material default 3dp shadow.
+- **Type**: `Display 30 · Headline 28 · Heading 20 · Title 22 · Subtitle 18 · Body 16 · Small 14 · Caption/Label 12 · Overline 10` (Proton `ProtonTypography`: letter spacing 0.03em body/caption, 0.02em small, 0.45sp headline). Screen title = Headline, sub-page title = Title, section heading = `SectionHeader` (accent), form label = `FieldLabel` (muted).
+- **Shapes** (Proton `ProtonTheme.shapes`): buttons/chips/inputs/menus 8 · cards 12 (`ExtraLargeCornerRadius`) · dialogs/sheets 28 (Material default) · flags 4. Cards are flat `Card` fills (the selected-server card on Home adds a 1dp `Border`, like Proton's connection card); bars (header strip, dock) are flat `Card`; menus use the Material default 3dp shadow.
 - **Feedback**: Material ripple only, like Proton. `Press.*` scale tokens and `rememberTick` haptics are kept but neutralised (1f / no-op). Color changes animate.
 - **Reference**: values tagged `[PV]` in `Colors.kt` come from the Proton VPN source. See `PROTON_AUDIT.md` for the full audit and what is still open.
 - **Add a screen**: `ScreenHeader` → content using the components above. If you need a new color/size/style, add a token first.

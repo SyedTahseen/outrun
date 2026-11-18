@@ -262,7 +262,7 @@ fun ServersScreen(
             enter = expandVertically(tween(Motion.Medium)) + fadeIn(tween(Motion.Medium)),
             exit = shrinkVertically(tween(Motion.Medium)) + fadeOut(tween(Motion.Fast)),
         ) {
-            LinearProgressIndicator(Modifier.fillMaxWidth().height(2.dp), color = C.Accent, trackColor = C.Control)
+            LinearProgressIndicator(Modifier.fillMaxWidth().height(Sizes.Spinner), color = C.Accent, trackColor = C.Control)
         }
         Box(Modifier.weight(1f).fillMaxWidth()) {
             Crossfade(targetState = shown.isEmpty(), animationSpec = tween(Motion.Medium), label = "serversList") { empty ->

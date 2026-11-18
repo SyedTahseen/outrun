@@ -283,7 +283,7 @@ fun SettingsValueItem(name: String, value: String, description: String?, onClick
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(name, style = Type.Body, color = C.Text, modifier = Modifier.weight(1f))
             Text(value, style = Type.Small, color = C.Muted)
-            Icon(ProtonIcons.ChevronRight, null, tint = C.Muted, modifier = Modifier.padding(start = Space.Xs).size(16.dp))
+            Icon(ProtonIcons.ChevronRight, null, tint = C.Muted, modifier = Modifier.padding(start = Space.Xs).size(Sizes.IconSm))
         }
     }
 }
@@ -346,7 +346,7 @@ fun CustomDnsPage(
             }
             itemsIndexed(servers, key = { _, s -> s }) { i, server ->
                 Row(
-                    Modifier.fillMaxWidth().padding(start = Space.Lg).heightIn(min = 56.dp).animateItem(),
+                    Modifier.fillMaxWidth().padding(start = Space.Lg).heightIn(min = Sizes.SettingRowMin).animateItem(),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(server, style = Type.Body, color = C.Text, modifier = Modifier.weight(1f))

@@ -54,6 +54,14 @@ object Sizes {
     val FlagArea = 30.dp
     val FlagWidth = 30.dp
     val FlagHeight = 20.dp
+    val StatusOverlay = 200.dp
+    val StatusMaxWidth = 480.dp
+    val ListTopOffset = 68.dp
+    val ListGradient = 100.dp
+    val CardRowMin = 42.dp
+    val SettingRowMin = 56.dp
+    val Border = 1.dp
+    val Spinner = 2.dp
 
     val SpeedRing = 170.dp
     val SpeedChart = 96.dp
