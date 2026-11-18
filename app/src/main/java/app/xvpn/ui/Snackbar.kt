@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.shape.RoundedCornerShape
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.collectLatest
 
 enum class SnackType { Success, Warning, Error, Norm }
 
@@ -36,7 +37,8 @@ private data class AppSnackVisuals(
 fun AppSnackbarHost(modifier: Modifier = Modifier) {
     val state = remember { SnackbarHostState() }
     LaunchedEffect(Unit) {
-        Snack.events.collect { (msg, type) ->
+        // collectLatest: a new message replaces the one on screen instead of queueing behind its ~4s display time.
+        Snack.events.collectLatest { (msg, type) ->
             state.currentSnackbarData?.dismiss()
             state.showSnackbar(AppSnackVisuals(msg, type))
         }

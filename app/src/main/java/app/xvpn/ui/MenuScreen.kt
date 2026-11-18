@@ -210,7 +210,7 @@ private fun MenuPage(
         rootOn = on; store.rootMode = on
         if (live) {
             OutrunVpnService.applyMode(ctx)
-            Snack.show(if (on) "Switching to root mode\u2026" else "Switching to the VPN service\u2026")
+            Snack.show("Switching VPN mode")
         }
     }
     // Root mode never asked for the system VPN consent, so switching back while connected has to ask before the root core is stopped.
@@ -281,10 +281,9 @@ private fun MenuPage(
                         val consent = if (VpnState.status.value != Status.Disconnected) VpnService.prepare(ctx) else null
                         if (consent != null) vpnConsent.launch(consent) else applyRootMode(false)
                     } else uiScope.launch {
-                        Snack.show("Waiting for root access\u2026")
                         val ok = withContext(Dispatchers.IO) { RootShell.granted() }
                         if (ok) {
-                            Snack.show("Root access granted", SnackType.Success)
+                            if (VpnState.status.value == Status.Disconnected) Snack.show("Root access granted", SnackType.Success)
                             applyRootMode(true)
                         } else Snack.show("Root access was not granted", SnackType.Error)
                     }

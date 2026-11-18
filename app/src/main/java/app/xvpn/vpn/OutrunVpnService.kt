@@ -286,7 +286,7 @@ class OutrunVpnService : VpnService() {
         AppLog.i(this, "service", "switching to ${if (root) "root" else "vpn service"} mode")
         notificationManager.notify(
             NOTIFICATION_ID,
-            notification(getString(R.string.app_name), "Switching to ${if (root) "root mode" else "the VPN service"}…"),
+            notification(getString(R.string.app_name), "Switching VPN mode…"),
         )
         launchConnect(link)
     }
