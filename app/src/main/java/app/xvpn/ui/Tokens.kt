@@ -71,6 +71,7 @@ object Sizes {
 
 object Elevation {
     val Menu = 3.dp
+    val Button = 2.dp
 }
 
 object Type {
@@ -79,13 +80,11 @@ object Type {
         fontFamily = Font, fontSize = size.sp, fontWeight = weight, lineHeight = line.sp, letterSpacing = spacingEm.em,
     )
 
-    val Display = style(30, FontWeight.Bold, 36)
     val Headline = TextStyle(
         fontFamily = Font, fontSize = 28.sp, fontWeight = FontWeight.Bold, lineHeight = 34.sp, letterSpacing = 0.45.sp,
     )
     val Heading = style(20, FontWeight.Bold, 24, 0.01f)
-    val Title = style(22, FontWeight.SemiBold, 28)
-    val Subtitle = style(18, FontWeight.SemiBold, 24)
+    val Subheadline = style(20, FontWeight.Normal, 24, 0.01f)
     val Body = style(16, FontWeight.Normal, 24, 0.03f)
     val BodyMedium = style(16, FontWeight.Medium, 24, 0.03f)
     val Small = style(14, FontWeight.Normal, 20, 0.02f)

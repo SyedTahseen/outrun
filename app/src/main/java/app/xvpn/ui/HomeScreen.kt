@@ -185,7 +185,7 @@ fun HomeScreen(
                             targetState = selected?.let { Flags.clean(it.name) } ?: "No server selected",
                             transitionSpec = { fadeTransition() }, label = "serverName",
                         ) { name ->
-                            Text(name, style = Type.Subtitle.copy(fontWeight = FontWeight.Medium), color = C.Text, maxLines = 1)
+                            Text(name, style = Type.BodyMedium, color = C.Text, maxLines = 1)
                         }
                         AnimatedContent(
                             targetState = when {
@@ -356,7 +356,7 @@ private fun ProtectedHeader(time: String, up: Long, down: Long) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text("Connected for", style = Type.Small, color = C.Muted)
-                    Text(time, style = Type.Subtitle, color = C.Text)
+                    Text(time, style = Type.Heading, color = C.Text)
                 }
                 Speed(ProtonIcons.ArrowDown, C.Green, fmtKb(down))
                 Spacer(Modifier.width(Space.Lg))

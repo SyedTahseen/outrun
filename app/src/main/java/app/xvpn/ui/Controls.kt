@@ -36,6 +36,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
@@ -71,7 +72,7 @@ fun AppButton(
     val onCardOutline = style == ButtonStyle.OutlineCard
     val container by animateColorAsState(
         when {
-            !enabled && style == ButtonStyle.Primary -> C.PrimaryDisabled
+            !enabled && style == ButtonStyle.Primary -> C.SolidDisabled
             !enabled && style == ButtonStyle.Secondary -> C.Card
             style == ButtonStyle.Primary -> C.Primary
             style == ButtonStyle.Secondary -> C.Control
@@ -84,7 +85,7 @@ fun AppButton(
     val large = size == ButtonSize.Large
     val outlined = outlinedStyle
     val content = when {
-        !enabled && onCardOutline -> C.Shade50
+        !enabled && onCardOutline -> C.TextHint
         !enabled && outlined -> if (style == ButtonStyle.Outline) C.Disabled else C.PrimaryDisabled
         !enabled && style == ButtonStyle.Secondary -> C.Disabled
         !enabled -> C.OnPrimary.copy(alpha = 0.5f)
@@ -95,12 +96,14 @@ fun AppButton(
     val borderColor = when {
         onCardOutline -> C.Border
         !enabled -> if (style == ButtonStyle.Outline) C.Disabled else C.PrimaryDisabled
-        style == ButtonStyle.OutlineAccent -> C.Accent
+        style == ButtonStyle.OutlineAccent -> C.Primary
         else -> C.Text
     }
     Box(
         modifier
             .height(if (large) Sizes.Button else Sizes.Control)
+            // Proton's solid button is a Material Button with its default 2dp resting elevation.
+            .then(if (enabled && style == ButtonStyle.Primary) Modifier.shadow(Elevation.Button, shape) else Modifier)
             .pressable(shape, Press.Control, enabled) { tick(); onClick() }
             .background(container)
             .then(if (outlined) Modifier.border(Sizes.Border, borderColor, shape) else Modifier)
@@ -192,7 +195,7 @@ fun AppSwitch(checked: Boolean, onChange: ((Boolean) -> Unit)?) {
 fun AppRadio(selected: Boolean) {
     RadioButton(
         selected = selected, onClick = null,
-        colors = RadioButtonDefaults.colors(selectedColor = C.Primary, unselectedColor = C.Shade50),
+        colors = RadioButtonDefaults.colors(selectedColor = C.Primary, unselectedColor = C.TextHint),
     )
 }
 
@@ -223,12 +226,12 @@ fun AppTextField(
     ) {
         BasicTextField(
             value = value, onValueChange = onValueChange, singleLine = singleLine,
-            textStyle = Type.Body.copy(color = C.Text), cursorBrush = SolidColor(C.Primary),
+            textStyle = Type.Body.copy(color = C.Text), cursorBrush = SolidColor(if (isError) C.Red else C.Text),
             keyboardOptions = keyboardOptions, keyboardActions = keyboardActions,
             modifier = Modifier.weight(1f).onFocusChanged { focused = it.isFocused },
             decorationBox = { inner ->
                 Box {
-                    if (value.isEmpty()) Text(placeholder, style = Type.Body, color = C.Shade50)
+                    if (value.isEmpty()) Text(placeholder, style = Type.Body, color = C.TextHint)
                     inner()
                 }
             },

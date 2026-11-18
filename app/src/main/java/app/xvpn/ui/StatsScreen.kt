@@ -82,7 +82,7 @@ fun StatsScreen(profile: Profile?, real: IpInfo?, proxy: IpInfo?, onBack: () -> 
                 FlagBadge(profile?.name)
                 Spacer(Modifier.width(Space.Md))
                 Column {
-                    Text(profile?.let { Flags.clean(it.name) } ?: "Server", style = Type.Subtitle, color = C.Text, maxLines = 1)
+                    Text(profile?.let { Flags.clean(it.name) } ?: "Server", style = Type.BodyMedium, color = C.Text, maxLines = 1)
                     Text(
                         listOfNotNull(proxy?.city, proxy?.country).filter { it.isNotBlank() }.joinToString(", "),
                         style = Type.Small, color = C.Muted,
@@ -112,14 +112,14 @@ fun StatsScreen(profile: Profile?, real: IpInfo?, proxy: IpInfo?, onBack: () -> 
                         Text("Download", style = Type.Body, color = C.Green); Spacer(Modifier.width(Space.Xs))
                         Icon(ProtonIcons.ArrowDown, null, tint = C.Green, modifier = Modifier.size(Sizes.IconSm))
                     }
-                    Text(fmtKb(down), style = Type.Title, color = C.Text)
+                    Text(fmtKb(down), style = Type.Heading, color = C.Text)
                 }
                 Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("Upload", style = Type.Body, color = C.Red); Spacer(Modifier.width(Space.Xs))
                         Icon(ProtonIcons.ArrowUp, null, tint = C.Red, modifier = Modifier.size(Sizes.IconSm))
                     }
-                    Text(fmtKb(up), style = Type.Title, color = C.Text)
+                    Text(fmtKb(up), style = Type.Heading, color = C.Text)
                 }
             }
             Spacer(Modifier.height(Space.Sm))

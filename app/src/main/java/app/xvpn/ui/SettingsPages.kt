@@ -362,7 +362,7 @@ fun CustomDnsPage(
                 Text(
                     if (servers.size <= 1) "If your custom DNS server doesn\u2019t work, the standard VPN DNS will be used."
                     else "We\u2019ll try to connect to these servers in order. If none of them work, the VPN DNS will be used.",
-                    style = Type.Small, color = C.Shade50,
+                    style = Type.Small, color = C.TextHint,
                     modifier = Modifier.padding(start = Space.Lg, end = Space.Lg, top = Space.Sm, bottom = Space.Lg),
                 )
             }

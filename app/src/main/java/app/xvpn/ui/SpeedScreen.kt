@@ -341,7 +341,7 @@ private fun StartRing(enabled: Boolean, onClick: () -> Unit) {
             Modifier.size(Sizes.SpeedRing).pressable(CircleShape, 0.94f, enabled = enabled, ripple = false) { tick(); onClick() },
             contentAlignment = Alignment.Center,
         ) {
-            Text("START", style = Type.Subtitle, color = if (enabled) C.Text else Dim)
+            Text("START", style = Type.Heading, color = if (enabled) C.Text else Dim)
         }
     }
 }
@@ -424,7 +424,7 @@ private fun DialGlowLayer(modifier: Modifier, frac: Float, upload: Boolean, stro
 private fun SpeedDial(value: Double, max: Double, upload: Boolean, modifier: Modifier = Modifier) {
     val frac by animateFloatAsState((value / max).toFloat().coerceIn(0f, 1f), tween(Motion.Medium, easing = Motion.Standard), label = "dial")
     val measurer = rememberTextMeasurer()
-    val labelStyle = remember(Palette.dark) { Type.Label.copy(color = C.TextDim, letterSpacing = 0.4.sp) }
+    val labelStyle = remember(Palette.dark) { Type.Label.copy(color = C.Muted, letterSpacing = 0.4.sp) }
     val blurOk = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
     Box(modifier.fillMaxWidth().aspectRatio(2f)) {
         if (blurOk) {
@@ -453,7 +453,7 @@ private fun SpeedDial(value: Double, max: Double, upload: Boolean, modifier: Mod
                 }
             }
 
-            drawArc(color = C.Track, startAngle = 180f, sweepAngle = 180f, useCenter = false, topLeft = topLeft, size = arc, style = Stroke(1.dp.toPx()))
+            drawArc(color = C.Border, startAngle = 180f, sweepAngle = 180f, useCenter = false, topLeft = topLeft, size = arc, style = Stroke(1.dp.toPx()))
             if (sweep > 0.5f) {
                 drawArc(brush = brush, startAngle = 180f, sweepAngle = sweep, useCenter = false, topLeft = topLeft, size = arc, style = Stroke(3.5f.dp.toPx(), cap = StrokeCap.Round))
             }
@@ -563,7 +563,7 @@ private fun StatTile(label: String, labelColor: Color, value: String, unit: Stri
     AppCard(modifier, padding = Space.Md) {
         Text(label, style = Type.Body, color = labelShown)
         Row(verticalAlignment = Alignment.Bottom) {
-            Text(value, style = Type.Title, color = C.Text, maxLines = 1)
+            Text(value, style = Type.Heading, color = C.Text, maxLines = 1)
             Spacer(Modifier.width(Space.Xs))
             Text(unit, style = Type.Caption, color = C.Muted, modifier = Modifier.padding(bottom = Space.Xs))
         }
@@ -576,7 +576,7 @@ private fun BigStat(label: String, labelColor: Color, value: String, unit: Strin
         Text(label, style = Type.Body, color = labelColor)
         Spacer(Modifier.height(Space.Xs))
         Row(verticalAlignment = Alignment.Bottom) {
-            Text(value, style = Type.Title, color = C.Text, maxLines = 1)
+            Text(value, style = Type.Heading, color = C.Text, maxLines = 1)
             Spacer(Modifier.width(Space.Xs))
             Text(unit, style = Type.Caption, color = C.Muted, modifier = Modifier.padding(bottom = Space.Xs))
         }

@@ -38,33 +38,27 @@ fun OutrunTheme(content: @Composable () -> Unit) {
     val activity = LocalContext.current as? ComponentActivity
     val firstRun = remember { booleanArrayOf(true) }
     LaunchedEffect(dark) { if (firstRun[0]) firstRun[0] = false else activity?.applySystemBars(dark) }
-    val scheme = if (dark) {
-        darkColorScheme(
-            primary = C.Primary, onPrimary = C.OnPrimary,
-            secondary = C.Accent, onSecondary = C.OnPrimary,
-            background = C.Bg, onBackground = C.Text,
-            surface = C.Card, onSurface = C.Text,
-            surfaceVariant = C.Control, onSurfaceVariant = C.Muted,
-            surfaceContainer = C.Card, surfaceContainerHigh = C.Card, surfaceContainerHighest = C.Card,
-            outline = C.Outline, outlineVariant = C.Border,
-            error = C.Red, onError = C.OnPrimary,
-        )
-    } else {
-        lightColorScheme(
-            primary = C.Primary, onPrimary = C.OnPrimary,
-            secondary = C.Accent, onSecondary = C.OnPrimary,
-            background = C.Bg, onBackground = C.Text,
-            surface = C.Card, onSurface = C.Text,
-            surfaceVariant = C.Control, onSurfaceVariant = C.Muted,
-            surfaceContainer = C.Card, surfaceContainerHigh = C.Card, surfaceContainerHighest = C.Card,
-            outline = C.Outline, outlineVariant = C.Border,
-            error = C.Red, onError = C.OnPrimary,
-        )
-    }
+    // Mirrors Proton core's ProtonColors.toMaterial3ThemeColors() (surface/background = backgroundNorm,
+    // accents = brandNorm, outline = brandNorm, scrim = blenderNorm). Menus/dialogs keep backgroundSecondary.
+    val scheme = (if (dark) darkColorScheme() else lightColorScheme()).copy(
+        primary = C.Primary, onPrimary = C.OnPrimary,
+        secondary = C.Primary, onSecondary = C.OnPrimary,
+        tertiary = C.BrandDarken20, onTertiary = C.OnPrimary,
+        background = C.Bg, onBackground = C.Text,
+        surface = C.Bg, onSurface = C.Text,
+        surfaceVariant = C.Bg, onSurfaceVariant = C.Text,
+        surfaceContainer = C.Card, surfaceContainerHigh = C.Card, surfaceContainerHighest = C.Card,
+        outline = C.Primary, outlineVariant = C.Primary,
+        error = C.Red, onError = C.Inverted,
+        scrim = C.Scrim,
+    )
+    // Same mapping as Proton core's ProtonTypography.toMaterial3ThemeTypography().
     val typography = Typography(
-        displaySmall = Type.Display, headlineMedium = Type.Headline, titleLarge = Type.Title, titleMedium = Type.Subtitle,
-        bodyLarge = Type.Body, bodyMedium = Type.Small, bodySmall = Type.Caption,
-        labelLarge = Type.ButtonSmall, labelMedium = Type.Label, labelSmall = Type.Caption,
+        displayLarge = Type.Heading, displayMedium = Type.Heading, displaySmall = Type.Heading,
+        headlineLarge = Type.Subheadline, headlineMedium = Type.Subheadline, headlineSmall = Type.Subheadline,
+        titleLarge = Type.BodyMedium, titleMedium = Type.BodyMedium, titleSmall = Type.BodyMedium,
+        bodyLarge = Type.Body, bodyMedium = Type.Body, bodySmall = Type.Body,
+        labelLarge = Type.Label, labelMedium = Type.Label, labelSmall = Type.Label,
     )
     val shapes = Shapes(
         extraSmall = RoundedCornerShape(Radius.Badge), small = RoundedCornerShape(Radius.Small),

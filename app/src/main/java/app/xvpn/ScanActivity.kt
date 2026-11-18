@@ -157,7 +157,7 @@ class ScanActivity : ComponentActivity() {
                     ) {
                         Icon(Icons.Outlined.QrCodeScanner, null, tint = C.Accent, modifier = Modifier.size(56.dp))
                         Spacer(Modifier.height(Space.Lg))
-                        Text("Scan a QR code", style = Type.Subtitle, color = C.Text)
+                        Text("Scan a QR code", style = Type.Heading, color = C.Text)
                         Spacer(Modifier.height(Space.Sm))
                         Text(
                             if (denied) "Camera permission is needed to scan." else "Tap to open the camera and scan",
