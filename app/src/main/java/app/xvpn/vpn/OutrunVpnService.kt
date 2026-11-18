@@ -56,6 +56,7 @@ class OutrunVpnService : VpnService() {
         const val ACTION_NEXT = "app.xvpn.NEXT"
         const val ACTION_ADOPT = "app.xvpn.ADOPT"
         const val ACTION_APPLY_MODE = "app.xvpn.APPLY_MODE"
+        const val ACTION_RECONNECT = "app.xvpn.RECONNECT"
         const val EXTRA_LINK = "link"
         const val EXTRA_BOOT = "boot"
         private const val TAG = "OutrunVpnService"
@@ -83,6 +84,11 @@ class OutrunVpnService : VpnService() {
         /** Root mode was switched on or off while connected: reconnect the current server in the newly chosen mode. */
         fun applyMode(ctx: Context) = ctx.startService(
             Intent(ctx, OutrunVpnService::class.java).setAction(ACTION_APPLY_MODE)
+        )
+
+        /** Reconnects the current server so changed connection settings take effect. */
+        fun reconnect(ctx: Context) = ctx.startService(
+            Intent(ctx, OutrunVpnService::class.java).setAction(ACTION_RECONNECT)
         )
 
         fun stop(ctx: Context) = ctx.startService(
@@ -141,6 +147,7 @@ class OutrunVpnService : VpnService() {
             ACTION_NEXT -> switchNext()
             ACTION_ADOPT -> adopt()
             ACTION_APPLY_MODE -> applyMode()
+            ACTION_RECONNECT -> reconnectNow()
             ACTION_START -> {
                 val link = intent.getStringExtra(EXTRA_LINK) ?: return START_NOT_STICKY
                 begin(link, intent.getBooleanExtra(EXTRA_BOOT, false))
@@ -289,6 +296,15 @@ class OutrunVpnService : VpnService() {
             NOTIFICATION_ID,
             notification(getString(R.string.app_name), "Switching ${if (root) "root" else "VPN"} mode…"),
         )
+        launchConnect(link)
+    }
+
+    private fun reconnectNow() {
+        val link = currentLink
+        if (!wanted || link == null) { stopSelf(); return }
+        if (waitingNet) return
+        AppLog.i(this, "service", "reconnecting to apply new settings")
+        notificationManager.notify(NOTIFICATION_ID, notification(getString(R.string.app_name), "Reconnecting…"))
         launchConnect(link)
     }
 

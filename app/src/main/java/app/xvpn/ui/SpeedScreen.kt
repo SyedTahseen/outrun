@@ -157,7 +157,7 @@ fun SpeedScreen(onFullScreenChange: (Boolean) -> Unit = {}, onScrolledChange: (B
             "Download ${mbps(ui.downMbps)} Mbps, Upload ${mbps(ui.upMbps)} Mbps, Ping ${ms(ui.pingMs)} ms, Jitter ${ms(ui.jitterMs)} ms"
         val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text)
         runCatching { ctx.startActivity(Intent.createChooser(send, "Share result").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
-            .onFailure { Snack.show("Couldn't share result", SnackType.Error) }
+            .onFailure { Snack.show("Couldn\u2019t share result", SnackType.Error) }
     }
 
     AnimatedContent(

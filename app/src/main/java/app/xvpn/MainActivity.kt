@@ -80,6 +80,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.xvpn.data.AppLog
 import app.xvpn.data.GeoIp
 import app.xvpn.data.LinkParser
 import app.xvpn.data.NetInfo
@@ -252,7 +253,7 @@ private fun App() {
         }
         val found = LinkParser.parseMany(text)
         val n = store.add(found)
-        if (found.isEmpty()) toast("No valid links found", SnackType.Error) else toast("Added $n server(s)", SnackType.Success)
+        if (found.isEmpty()) toast("No valid links found", SnackType.Error) else toast(if (n == 1) "Server added" else "$n servers added", SnackType.Success)
         reload()
         return found.isNotEmpty()
     }
@@ -265,7 +266,7 @@ private fun App() {
     val fileLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
             val text = runCatching { ctx.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() } }.getOrNull()
-            if (text == null) toast("Couldn't read file", SnackType.Error) else importText(text)
+            if (text == null) toast("Couldn\u2019t read file", SnackType.Error) else importText(text)
         }
     }
 
@@ -283,7 +284,7 @@ private fun App() {
     val rootMissing by VpnState.rootUnavailable.collectAsState()
     LaunchedEffect(rootMissing) {
         if (rootMissing != 0) {
-            Snack.show("Su not available", SnackType.Warning)
+            Snack.show("Root mode is unavailable. Using VPN mode", SnackType.Warning)
             VpnState.rootUnavailable.value = 0
             // 2: the service could not switch by itself (VPN permission not granted yet), so connect from here.
             if (rootMissing == 2) selectedLink?.let { connect(it) }
@@ -332,14 +333,16 @@ private fun App() {
             Handler(Looper.getMainLooper()).post {
                 reload()
                 if (!silent) {
-                    toast(
-                        when {
-                            failed > 0 && failed == list.size -> "Couldn't update: $err"
-                            else -> "Updated: $added new, $removed removed ($total in subscription)" +
-                                (if (failed > 0) ", $failed failed" else "") +
-                                (if (skipped.isNotEmpty()) ". Skipped unsupported: " + skipped.entries.joinToString { "${it.key} ×${it.value}" } else "")
-                        },
-                    )
+                    // Details go to the log; the snackbar stays one short line, like Proton VPN's.
+                    AppLog.i(ctx, "subscription", "update: $added new, $removed removed, $total total, $failed failed" +
+                        (if (err.isNotEmpty()) " ($err)" else "") +
+                        (if (skipped.isNotEmpty()) ", skipped unsupported: " + skipped.entries.joinToString { "${it.key} ×${it.value}" } else ""))
+                    val many = list.size > 1
+                    when {
+                        failed > 0 && failed == list.size -> toast(if (many) "Couldn\u2019t update subscriptions" else "Couldn\u2019t update subscription", SnackType.Error)
+                        failed > 0 -> toast("Some subscriptions couldn\u2019t be updated", SnackType.Warning)
+                        else -> toast(if (many) "Subscriptions updated" else "Subscription updated", SnackType.Success)
+                    }
                 }
             }
         }
@@ -425,7 +428,7 @@ private fun App() {
                             subscriptions = subs, sources = sources,
                             onDeleteSubscription = { url ->
                                 val n = store.removeSubscription(url)
-                                reload(); toast("Deleted subscription and $n server(s)")
+                                reload(); toast(if (n == 1) "Subscription and 1 server deleted" else "Subscription and $n servers deleted")
                             },
                             onToggleFavorite = { p ->
                                 store.favorites = if (p.link in favs) favs - p.link else favs + p.link
@@ -433,12 +436,12 @@ private fun App() {
                             },
                             onCopy = { p ->
                                 copyToClipboard("proxy", p.link)
-                                toast("Copied ${p.name}")
+                                toast("Copied to clipboard")
                             },
                             onAddSubscription = { refreshSubs(listOf(it)) },
                             onDeleteMany = { links ->
                                 val n = store.removeMany(links)
-                                reload(); toast("Deleted $n server${if (n == 1) "" else "s"}")
+                                reload(); toast(if (n == 1) "Server deleted" else "$n servers deleted")
                             },
                             onDeleteAll = { store.clear(); reload(); toast("All servers deleted") },
                             sort = sort, onSortChange = { sort = it; store.sortName = it.name },
@@ -447,7 +450,7 @@ private fun App() {
                             subInfo = subInfo,
                             onCopySubscription = { url ->
                                 copyToClipboard("subscription", url)
-                                toast("Subscription link copied")
+                                toast("Copied to clipboard")
                             },
                         )
                         Screen.Speed -> SpeedScreen(

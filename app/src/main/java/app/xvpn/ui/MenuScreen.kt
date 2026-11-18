@@ -152,6 +152,7 @@ fun MenuScreen(
         transitionSpec = { axisTransition(forward = pageDepth(targetState) >= pageDepth(initialState)) },
         label = "settingsPage",
     ) { shown -> MenuPage(store, debugInfo, onScrolledChange, onFullScreenChange, pageState, scroll, shown) }
+    if (reconnectPrompt.value) ReconnectDialog()
 }
 
 private fun pageDepth(p: String) = when (p) {
@@ -219,7 +220,7 @@ private fun MenuPage(
     // Root mode never asked for the system VPN consent, so switching back while connected has to ask before the root core is stopped.
     val vpnConsent = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { r ->
         if (r.resultCode == Activity.RESULT_OK) applyRootMode(false)
-        else Snack.show("VPN permission is needed to switch to the VPN service", SnackType.Warning)
+        else Snack.show("VPN permission is needed to switch to VPN mode", SnackType.Warning)
     }
     var bootOn by remember { mutableStateOf(store.autoConnectBoot) }
     val uiScope = rememberCoroutineScope()
@@ -243,8 +244,8 @@ private fun MenuPage(
             }
             SplitTunnelingPage(
                 on = splitOn, including = including, appNames = names, ips = if (including) incIps else excIps,
-                onOn = { splitOn = it; store.splitEnabled = it },
-                onMode = { inc -> splitMode = if (inc) "include" else "exclude"; store.splitMode = splitMode },
+                onOn = { splitOn = it; store.splitEnabled = it; notifyReconnect(ctx) },
+                onMode = { inc -> splitMode = if (inc) "include" else "exclude"; store.splitMode = splitMode; notifyReconnect(ctx) },
                 onApps = { page = "apps" }, onIps = { page = "ips" },
                 onBack = { page = "main" }, onScrolledChange = onScrolledChange,
             )
@@ -267,7 +268,7 @@ private fun MenuPage(
                 SettingsToggleItem(
                     "IPv6 support", ipv6 != "block",
                     "Tunnels IPv6 traffic through the VPN. Can enhance compatibility with IPv6 networks. When off, IPv6 is blocked so it can\u2019t bypass servers without IPv6 support.",
-                ) { on -> ipv6 = if (on) "tunnel" else "block"; store.ipv6Mode = ipv6 }
+                ) { on -> ipv6 = if (on) "tunnel" else "block"; store.ipv6Mode = ipv6; notifyReconnect(ctx) }
                 SettingsValueItem(
                     "MTU", "$mtu",
                     "The largest packet the VPN sends. Lower it if some sites or apps stall or time out only while connected.",
@@ -288,25 +289,35 @@ private fun MenuPage(
                         if (ok) {
                             if (VpnState.status.value == Status.Disconnected) Snack.show("Root access granted", SnackType.Success)
                             applyRootMode(true)
-                        } else Snack.show("Root access was not granted", SnackType.Error)
+                        } else Snack.show("Root access wasn\u2019t granted", SnackType.Error)
                     }
                 }
             }
             return
         }
         "lan" -> {
-            LanPage(lan, { lan = it; store.lanAccess = it }, { page = "advanced" }, onScrolledChange)
+            LanPage(lan, { lan = it; store.lanAccess = it; notifyReconnect(ctx) }, { page = "advanced" }, onScrolledChange)
             return
         }
         "dns" -> {
             CustomDnsPage(
                 on = customDnsOn, servers = customDns, netShieldConflict = netShield,
-                onOn = { customDnsOn = it; store.customDnsEnabled = it },
+                onOn = { customDnsOn = it; store.customDnsEnabled = it; notifyReconnect(ctx) },
                 onMove = { from, to ->
                     customDns = customDns.toMutableList().apply { add(to, removeAt(from)) }
                     store.customDnsList = customDns
+                    notifyReconnect(ctx)
                 },
-                onRemove = { s -> customDns = customDns - s; store.customDnsList = customDns; Snack.show("Item removed") },
+                onRemove = { s ->
+                    val at = customDns.indexOf(s)
+                    customDns = customDns - s; store.customDnsList = customDns
+                    Snack.show("Item removed", actionLabel = "Undo", onAction = {
+                        if (s !in customDns) {
+                            customDns = customDns.toMutableList().apply { add(at.coerceIn(0, size), s) }
+                            store.customDnsList = customDns
+                        }
+                    })
+                },
                 onAdd = { page = "dns_add" },
                 onBack = { page = "advanced" }, onScrolledChange = onScrolledChange,
             )
@@ -315,7 +326,7 @@ private fun MenuPage(
         "dns_add" -> {
             AddDnsPage(
                 existing = customDns,
-                onAdd = { customDns = customDns + it; store.customDnsList = customDns; page = "dns" },
+                onAdd = { customDns = customDns + it; store.customDnsList = customDns; notifyReconnect(ctx); page = "dns" },
                 onBack = { page = "dns" },
             )
             return
@@ -352,13 +363,13 @@ private fun MenuPage(
                         Spacer(Modifier.height(Space.Sm))
                         Text("NetShield can not filter out ads, trackers and malware when custom DNS is used.", style = Type.Small, color = C.Muted)
                         Spacer(Modifier.height(Space.Lg))
-                        AppButton("Turn off custom DNS", { customDnsOn = false; store.customDnsEnabled = false }, Modifier.fillMaxWidth(), ButtonStyle.OutlineAccent)
+                        AppButton("Turn off custom DNS", { customDnsOn = false; store.customDnsEnabled = false; notifyReconnect(ctx) }, Modifier.fillMaxWidth(), ButtonStyle.OutlineAccent)
                     }
                 }
-                SwitchCard("NetShield", netShield) { netShield = it; store.netShield = it }
+                SwitchCard("NetShield", netShield) { netShield = it; store.netShield = it; notifyReconnect(ctx) }
                 if (netShield) {
                     Spacer(Modifier.height(Space.Sm))
-                    SwitchCard("Block adult content", blockAdult) { blockAdult = it; store.blockAdult = it }
+                    SwitchCard("Block adult content", blockAdult) { blockAdult = it; store.blockAdult = it; notifyReconnect(ctx) }
                     Text(
                         "NetShield works on domain names, so it can't block ads served from the same domain as the content, and apps that use their own encrypted DNS bypass it.",
                         style = Type.Caption, color = C.Muted,
@@ -378,7 +389,7 @@ private fun MenuPage(
                 Spacer(Modifier.height(Space.Sm))
                 ChoiceList {
                     Choices.mtuChoices.forEach { (v, note) ->
-                        ChoiceRow("$v", note, mtu == v) { mtu = v; store.mtu = v; page = "advanced" }
+                        ChoiceRow("$v", note, mtu == v) { mtu = v; store.mtu = v; notifyReconnect(ctx); page = "advanced" }
                     }
                 }
             }
@@ -406,7 +417,7 @@ private fun MenuPage(
                 listTitle = if (including) "Included apps" else "Excluded apps",
                 note = if (including) "Only these apps connect through the VPN." else "These apps connect directly, bypassing the VPN.",
                 initial = if (including) incApps else excApps,
-                onSave = { if (including) { incApps = it; store.splitIncludeApps = it } else { excApps = it; store.splitApps = it } },
+                onSave = { if (including) { incApps = it; store.splitIncludeApps = it } else { excApps = it; store.splitApps = it }; notifyReconnect(ctx) },
                 onBack = { page = "split" },
             )
             return
@@ -415,7 +426,7 @@ private fun MenuPage(
             IpPage(
                 title = if (including) "Included IP addresses" else "Excluded IP addresses",
                 initial = if (including) incIps else excIps,
-                onSave = { if (including) { incIps = it; store.splitIncludeIps = it } else { excIps = it; store.splitExcludeIps = it } },
+                onSave = { if (including) { incIps = it; store.splitIncludeIps = it } else { excIps = it; store.splitExcludeIps = it }; notifyReconnect(ctx) },
                 onBack = { page = "split" },
             )
             return
@@ -488,12 +499,59 @@ private const val LICENSE_URL = "$REPO_URL/blob/HEAD/LICENSE"
 private const val SUPPORT_EMAIL = "itxtahseen@gmail.com"
 private const val KEY_NOTIF_ASKED = "notif_asked"
 
+private const val KEY_RECONNECT_CHOICE = "reconnect_choice"
+private val reconnectPrompt = mutableStateOf(false)
+
+/**
+ * Same flow as Proton VPN: when a connection setting changes while connected, ask whether to reconnect now.
+ * "Don't show again" remembers the answer (reconnect automatically, or leave it for the next connection).
+ */
+private fun notifyReconnect(ctx: Context) {
+    if (VpnState.status.value == Status.Disconnected) return
+    when (ctx.uiPrefs().getString(KEY_RECONNECT_CHOICE, "ask")) {
+        "reconnect" -> OutrunVpnService.reconnect(ctx)
+        "ignore" -> {}
+        else -> reconnectPrompt.value = true
+    }
+}
+
+@Composable
+private fun ReconnectDialog() {
+    val ctx = LocalContext.current
+    var dontShowAgain by remember { mutableStateOf(false) }
+    fun close(choice: String, reconnect: Boolean) {
+        if (dontShowAgain) ctx.uiPrefs().edit().putString(KEY_RECONNECT_CHOICE, choice).apply()
+        reconnectPrompt.value = false
+        if (reconnect && VpnState.status.value != Status.Disconnected) OutrunVpnService.reconnect(ctx)
+    }
+    AppDialog(
+        title = null,
+        onDismiss = { close("ignore", false) },
+        dismissLabel = "OK",
+        confirmLabel = "Reconnect now",
+        onConfirm = { close("reconnect", true) },
+    ) {
+        Text("New settings will apply next time you connect.", style = Type.Body, color = C.Text)
+        Spacer(Modifier.height(Space.Lg))
+        Row(
+            Modifier.fillMaxWidth().clickable { dontShowAgain = !dontShowAgain },
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            androidx.compose.material3.Checkbox(
+                checked = dontShowAgain, onCheckedChange = { dontShowAgain = it },
+                colors = androidx.compose.material3.CheckboxDefaults.colors(checkedColor = C.Accent, uncheckedColor = C.Muted, checkmarkColor = C.OnPrimary),
+            )
+            Text("Don\u2019t show again", style = Type.Small, color = C.Muted)
+        }
+    }
+}
+
 private fun Context.uiPrefs() = getSharedPreferences("ui", Context.MODE_PRIVATE)
 
-private fun Context.toast(msg: String) = Snack.show(msg)
+private fun Context.toast(msg: String, type: SnackType = SnackType.Norm) = Snack.show(msg, type)
 
 private fun Context.launch(intent: Intent, failMsg: String) {
-    runCatching { startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.onFailure { toast(failMsg) }
+    runCatching { startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.onFailure { toast(failMsg, SnackType.Error) }
 }
 
 private fun Context.openUrl(url: String) = launch(Intent(Intent.ACTION_VIEW, Uri.parse(url)), "No app can open this link")
@@ -506,7 +564,7 @@ private fun Context.openNotificationSettings() {
     } else {
         Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName"))
     }
-    launch(intent, "Couldn't open notification settings")
+    launch(intent, "Couldn\u2019t open notification settings")
 }
 
 private fun Context.widgetCount(): Int =
@@ -519,7 +577,7 @@ private fun Context.requestPinWidget() {
     val requested = supported && runCatching {
         manager.requestPinAppWidget(ComponentName(this, OutrunWidget::class.java), null, null)
     }.getOrDefault(false)
-    if (!requested) toast("Long-press your home screen, then choose Widgets and Outrun VPN")
+    if (!requested) toast("To add the widget, press and hold your home screen, then select Outrun VPN from the widget menu")
 }
 
 private fun Context.emailSupport() {

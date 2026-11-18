@@ -300,7 +300,7 @@ fun PageHeading(title: String, text: String) {
 
 @Composable
 fun AppDialog(
-    title: String,
+    title: String?,
     onDismiss: () -> Unit,
     confirmLabel: String? = null,
     onConfirm: () -> Unit = {},
@@ -317,8 +317,10 @@ fun AppDialog(
                 .graphicsLayer { alpha = enter.value; scaleX = 0.92f + 0.08f * enter.value; scaleY = 0.92f + 0.08f * enter.value }
                 .clip(shape).background(C.Card).padding(Space.Xxl),
         ) {
-            Text(title, style = Type.Heading, color = C.Text)
-            Spacer(Modifier.height(Space.Lg))
+            if (title != null) {
+                Text(title, style = Type.Heading, color = C.Text)
+                Spacer(Modifier.height(Space.Lg))
+            }
             content()
             Spacer(Modifier.height(Space.Xxl))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {

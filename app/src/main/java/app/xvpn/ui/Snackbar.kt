@@ -1,13 +1,16 @@
 package app.xvpn.ui
 
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarData
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.SnackbarVisuals
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -19,16 +22,27 @@ import kotlinx.coroutines.flow.collectLatest
 
 enum class SnackType { Success, Warning, Error, Norm }
 
+internal class SnackEvent(
+    val message: String,
+    val type: SnackType,
+    val actionLabel: String?,
+    val onAction: (() -> Unit)?,
+)
+
 object Snack {
-    internal val events = MutableSharedFlow<Pair<String, SnackType>>(extraBufferCapacity = 8)
-    fun show(message: String, type: SnackType = SnackType.Norm) { events.tryEmit(message to type) }
+    internal val events = MutableSharedFlow<SnackEvent>(extraBufferCapacity = 8)
+
+    /** [actionLabel] adds a text button (Proton VPN uses "Undo" after removing something); [onAction] runs when it is tapped. */
+    fun show(message: String, type: SnackType = SnackType.Norm, actionLabel: String? = null, onAction: (() -> Unit)? = null) {
+        events.tryEmit(SnackEvent(message, type, actionLabel, onAction))
+    }
 }
 
 private data class AppSnackVisuals(
     override val message: String,
+    override val actionLabel: String?,
     val type: SnackType,
 ) : SnackbarVisuals {
-    override val actionLabel: String? = null
     override val withDismissAction: Boolean = false
     override val duration: SnackbarDuration = SnackbarDuration.Short
 }
@@ -38,9 +52,10 @@ fun AppSnackbarHost(modifier: Modifier = Modifier) {
     val state = remember { SnackbarHostState() }
     LaunchedEffect(Unit) {
         // collectLatest: a new message replaces the one on screen instead of queueing behind its ~4s display time.
-        Snack.events.collectLatest { (msg, type) ->
+        Snack.events.collectLatest { e ->
             state.currentSnackbarData?.dismiss()
-            state.showSnackbar(AppSnackVisuals(msg, type))
+            val result = state.showSnackbar(AppSnackVisuals(e.message, e.actionLabel, e.type))
+            if (result == SnackbarResult.ActionPerformed) e.onAction?.invoke()
         }
     }
     SnackbarHost(state, modifier) { data -> AppSnackbar(data) }
@@ -54,11 +69,23 @@ private fun AppSnackbar(data: SnackbarData) {
         SnackType.Error -> C.Red
         else -> C.Text
     }
+    val label = data.visuals.actionLabel
+    val action: (@Composable () -> Unit)? = if (label != null) {
+        @Composable {
+            TextButton(
+                colors = ButtonDefaults.textButtonColors(contentColor = C.Inverted),
+                onClick = { data.performAction() },
+                content = { Text(label, style = Type.SmallMedium) },
+            )
+        }
+    } else null
     Snackbar(
         modifier = Modifier.padding(Space.Md),
+        action = action,
         shape = RoundedCornerShape(Radius.Control),
         containerColor = container,
         contentColor = C.Inverted,
+        actionContentColor = C.Inverted,
         content = { Text(data.visuals.message, style = Type.Small) },
     )
 }
