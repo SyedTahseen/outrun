@@ -142,6 +142,7 @@ fun MenuScreen(
     debugInfo: () -> String,
     onScrolledChange: (Boolean) -> Unit = {},
     onFullScreenChange: (Boolean) -> Unit = {},
+    onDeepChange: (Boolean) -> Unit = {},
 ) {
     val pageState = remember { mutableStateOf("main") }
     val scroll = rememberScrollState()
@@ -151,7 +152,7 @@ fun MenuScreen(
         modifier = Modifier.fillMaxSize(),
         transitionSpec = { axisTransition(forward = pageDepth(targetState) >= pageDepth(initialState)) },
         label = "settingsPage",
-    ) { shown -> MenuPage(store, debugInfo, onScrolledChange, onFullScreenChange, pageState, scroll, shown) }
+    ) { shown -> MenuPage(store, debugInfo, onScrolledChange, onFullScreenChange, onDeepChange, pageState, scroll, shown) }
     if (reconnectPrompt.value) ReconnectDialog()
 }
 
@@ -175,6 +176,7 @@ private fun MenuPage(
     debugInfo: () -> String,
     onScrolledChange: (Boolean) -> Unit,
     onFullScreenChange: (Boolean) -> Unit,
+    onDeepChange: (Boolean) -> Unit,
     pageState: MutableState<String>,
     scroll: ScrollState,
     shown: String,
@@ -332,7 +334,7 @@ private fun MenuPage(
             return
         }
         "usage" -> {
-            UsagePage { page = "main" }
+            UsagePage(onDeepChange) { page = "main" }
             return
         }
         "test" -> {

@@ -48,8 +48,11 @@ import java.util.Date
 import java.util.Locale
 
 @Composable
-internal fun UsagePage(onBack: () -> Unit) {
+internal fun UsagePage(onDeepChange: (Boolean) -> Unit = {}, onBack: () -> Unit) {
     BackHandler(true) { onBack() }
+    // Like Statistics (Proton's connection details), this page sits on backgroundDeep; tell the shell so the
+    // status strip and the area behind the navigation bar follow.
+    DisposableEffect(Unit) { onDeepChange(true); onDispose { onDeepChange(false) } }
     val ctx = LocalContext.current
     var version by remember { mutableIntStateOf(0) }
 
@@ -74,11 +77,12 @@ internal fun UsagePage(onBack: () -> Unit) {
         }
     }
 
-    Column(Modifier.fillMaxSize()) {
-        ScreenHeader("Usage & history", onBack = onBack)
-        Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())) {
+    Column(Modifier.fillMaxSize().background(C.Deep)) {
+        ScreenHeader("Usage & history", onBack = onBack, base = C.Deep)
+        Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = Space.Gutter)) {
+            Spacer(Modifier.height(Space.Lg))
             Row(
-                Modifier.fillMaxWidth().padding(horizontal = Space.Gutter, vertical = Space.Sm),
+                Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(Space.Sm),
             ) {
                 Summary("Today", today, Modifier.weight(1f))
@@ -86,8 +90,8 @@ internal fun UsagePage(onBack: () -> Unit) {
                 Summary("30 days", month, Modifier.weight(1f))
             }
 
-            SectionHeader("Last 14 days")
-            AppCard(Modifier.padding(horizontal = Space.Gutter).fillMaxWidth()) {
+            StatsLabel("Last 14 days")
+            AppCard(Modifier.fillMaxWidth(), containerColor = C.Bg, radius = Radius.Control) {
                 val peak = days.maxOf { it.second + it.third }
                 Canvas(Modifier.fillMaxWidth().height(110.dp)) {
                     val n = days.size
@@ -109,8 +113,8 @@ internal fun UsagePage(onBack: () -> Unit) {
                 }
             }
 
-            SectionHeader("Apps, last 7 days")
-            AppCard(Modifier.padding(horizontal = Space.Gutter).fillMaxWidth(), padding = 0.dp) {
+            StatsLabel("Apps, last 7 days")
+            AppCard(Modifier.fillMaxWidth(), padding = 0.dp, containerColor = C.Bg, radius = Radius.Control) {
                 if (!access) {
                     Text(
                         "Android only shares per-app data with apps that have Usage access. Turn it on for this app to see which apps used data while the VPN was connected.",
@@ -126,7 +130,7 @@ internal fun UsagePage(onBack: () -> Unit) {
                         list == null -> Text("Loading…", style = Type.Small, color = C.Muted, modifier = Modifier.padding(Space.Lg))
                         list.isEmpty() -> Text("No app data for recent sessions.", style = Type.Small, color = C.Muted, modifier = Modifier.padding(Space.Lg))
                         else -> list.take(15).forEachIndexed { i, a ->
-                            Row(Modifier.fillMaxWidth().padding(horizontal = Space.Lg, vertical = Space.Md), verticalAlignment = Alignment.CenterVertically) {
+                            Row(Modifier.fillMaxWidth().padding(horizontal = Space.Lg, vertical = Space.Lg), verticalAlignment = Alignment.CenterVertically) {
                                 Text(a.label, style = Type.Body, color = C.Text, maxLines = 1, modifier = Modifier.weight(1f))
                                 Text(fmtSize(a.bytes), style = Type.Small, color = C.Muted)
                             }
@@ -140,8 +144,8 @@ internal fun UsagePage(onBack: () -> Unit) {
                 }
             }
 
-            SectionHeader("Connection history")
-            AppCard(Modifier.padding(horizontal = Space.Gutter).fillMaxWidth(), padding = 0.dp) {
+            StatsLabel("Connection history")
+            AppCard(Modifier.fillMaxWidth(), padding = 0.dp, containerColor = C.Bg, radius = Radius.Control) {
                 if (sessions.isEmpty()) Text("No connections recorded yet.", style = Type.Small, color = C.Muted, modifier = Modifier.padding(Space.Lg))
                 sessions.take(30).forEachIndexed { i, s ->
                     SessionRow(s)
@@ -152,7 +156,7 @@ internal fun UsagePage(onBack: () -> Unit) {
             if (sessions.isNotEmpty() || today.first + today.second + week.first + week.second > 0) {
                 TextAction(
                     "Clear history", { Usage.clear(ctx); version++ },
-                    Modifier.padding(horizontal = Space.Md, vertical = Space.Sm), color = C.Red,
+                    Modifier.padding(vertical = Space.Sm), color = C.Red,
                 )
             }
             Spacer(Modifier.height(Space.Xxl))
@@ -162,10 +166,10 @@ internal fun UsagePage(onBack: () -> Unit) {
 
 @Composable
 private fun Summary(label: String, v: Pair<Long, Long>, modifier: Modifier) {
-    AppCard(modifier, padding = Space.Md) {
+    AppCard(modifier, padding = Space.Md, containerColor = C.Bg, radius = Radius.Control) {
         Text(label, style = Type.Small, color = C.Muted)
         Spacer(Modifier.height(Space.Xs))
-        Text("↓ ${fmtSize(v.second)}", style = Type.SmallMedium, color = C.Green, maxLines = 1)
+        Text("↓ ${fmtSize(v.second)}", style = Type.SmallMedium, color = C.SuccessSolid, maxLines = 1)
         Text("↑ ${fmtSize(v.first)}", style = Type.SmallMedium, color = C.Red, maxLines = 1)
     }
 }
@@ -173,7 +177,7 @@ private fun Summary(label: String, v: Pair<Long, Long>, modifier: Modifier) {
 @Composable
 private fun SessionRow(s: Session) {
     val fmt = remember { SimpleDateFormat("MMM d, HH:mm", Locale.getDefault()) }
-    Column(Modifier.fillMaxWidth().padding(horizontal = Space.Lg, vertical = Space.Md)) {
+    Column(Modifier.fillMaxWidth().padding(horizontal = Space.Lg, vertical = Space.Lg)) {
         Text(Flags.clean(s.server).ifBlank { "Server" }, style = Type.Body, color = C.Text, maxLines = 1)
         Spacer(Modifier.height(2.dp))
         Row(Modifier.fillMaxWidth()) {

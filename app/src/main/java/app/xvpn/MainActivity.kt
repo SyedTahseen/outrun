@@ -371,11 +371,13 @@ private fun App() {
     val screen = if (statsOn) Screen.Stats else tab.screen()
     val homeVisible = screen == Screen.Home
     var menuFullScreen by remember { mutableStateOf(false) }
+    var menuDeep by remember { mutableStateOf(false) }
+    val menuBg by animateColorAsState(if (menuDeep) C.Deep else C.Bg, tween(700), label = "menuBg")
     val dockHidden = statsOn || menuFullScreen
 
     var serversScrolled by remember { mutableStateOf(false) }
     val statusStripColor by animateColorAsState(
-        if (statsOn) C.Deep else if ((tab == Tab.Servers || tab == Tab.Menu) && serversScrolled) C.Header else C.Bg,
+        if (statsOn || (tab == Tab.Menu && menuDeep)) C.Deep else if ((tab == Tab.Servers || tab == Tab.Menu) && serversScrolled) C.Header else C.Bg,
         tween(Motion.Medium), label = "statusStrip",
     )
 
@@ -400,7 +402,7 @@ private fun App() {
 
                 Box(
                     Modifier.fillMaxSize()
-                        .then(if (s == Screen.Stats) Modifier.background(C.Deep) else Modifier)
+                        .then(if (s == Screen.Stats) Modifier.background(C.Deep) else if (s == Screen.Menu) Modifier.background(menuBg) else Modifier)
                         .then(if (s == Screen.Home) Modifier else Modifier.padding(horizontal = largeScreenContentPadding()))
                         .then(if (s == Screen.Home) Modifier else Modifier.statusBarsPadding())
                         .navigationBarsPadding().padding(bottom = if (s == Screen.Stats) 0.dp else dockInset),
@@ -476,6 +478,7 @@ private fun App() {
                             },
                             onScrolledChange = { serversScrolled = it },
                             onFullScreenChange = { menuFullScreen = it },
+                            onDeepChange = { menuDeep = it },
                         )
                     }
                 }
