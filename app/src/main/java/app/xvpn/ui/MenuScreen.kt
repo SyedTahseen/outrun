@@ -85,6 +85,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -205,12 +206,14 @@ private fun MenuPage(
     var lan by remember { mutableStateOf(store.lanAccess) }
     var mtu by remember { mutableStateOf(store.mtu) }
     var rootOn by remember { mutableStateOf(store.rootMode) }
+    val rootMissing by VpnState.rootUnavailable.collectAsState()
+    LaunchedEffect(rootMissing) { rootOn = store.rootMode }
     fun applyRootMode(on: Boolean) {
         val live = VpnState.status.value != Status.Disconnected
         rootOn = on; store.rootMode = on
         if (live) {
             OutrunVpnService.applyMode(ctx)
-            Snack.show("Switching VPN mode")
+            Snack.show(if (on) "Switching root mode" else "Switching VPN mode")
         }
     }
     // Root mode never asked for the system VPN consent, so switching back while connected has to ask before the root core is stopped.

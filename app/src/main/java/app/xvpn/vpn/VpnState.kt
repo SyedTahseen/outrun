@@ -18,6 +18,9 @@ object VpnState {
 
     val activeLink = MutableStateFlow<String?>(null)
 
+    /** Root mode is on but su is missing or root was revoked. 1 = already fell back to VPN mode, 2 = the UI must reconnect (needs the VPN consent dialog). */
+    val rootUnavailable = MutableStateFlow(0)
+
     val alwaysOn = MutableStateFlow(false)
     val lockdown = MutableStateFlow(false)
 }

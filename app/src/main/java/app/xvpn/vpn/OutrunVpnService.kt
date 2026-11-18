@@ -47,6 +47,7 @@ import java.util.concurrent.ConcurrentHashMap
 import kotlin.concurrent.thread
 
 private class NoVpnPermission : Exception("VPN permission was not granted")
+private class RootUnavailable : Exception("Su not available")
 
 class OutrunVpnService : VpnService() {
     companion object {
@@ -286,7 +287,7 @@ class OutrunVpnService : VpnService() {
         AppLog.i(this, "service", "switching to ${if (root) "root" else "vpn service"} mode")
         notificationManager.notify(
             NOTIFICATION_ID,
-            notification(getString(R.string.app_name), "Switching VPN mode…"),
+            notification(getString(R.string.app_name), "Switching ${if (root) "root" else "VPN"} mode…"),
         )
         launchConnect(link)
     }
@@ -438,6 +439,13 @@ class OutrunVpnService : VpnService() {
 
             val port = SingBoxCore.freePort()
             val settings = Store(this)
+            if (settings.rootMode && !RootShell.granted()) {
+                // Root is gone: use the normal VPN service instead. Without the VPN permission only the UI can ask for it.
+                AppLog.i(this, "service", "su is not available, switching to vpn service mode")
+                settings.rootMode = false
+                if (VpnService.prepare(this) != null) { VpnState.rootUnavailable.value = 2; throw RootUnavailable() }
+                VpnState.rootUnavailable.value = 1
+            }
             if (sessionRoot != settings.rootMode) {
                 sessionRoot = settings.rootMode
                 // Android 14 ties the foreground type to the mode (specialUse for root, systemExempted for the VPN service).
@@ -547,17 +555,24 @@ class OutrunVpnService : VpnService() {
             } else {
                 Log.w(TAG, "connect failed: ${e.javaClass.simpleName}")
                 AppLog.i(this, "service", "connect failed: ${e.javaClass.simpleName}: ${e.message}")
-                if (wanted && e !is NoVpnPermission && !hasUnderlyingNetwork()) {
+                val noRoot = e is RootUnavailable ||
+                    (e.message.orEmpty().let { "su is not available" in it || "root denied" in it })
+                if (wanted && e !is NoVpnPermission && !noRoot && !hasUnderlyingNetwork()) {
                     netLost = true
                     enterWaitingForNetwork()
                     return
                 }
-                val next = if (e !is NoVpnPermission && wanted && tried.size < MAX_FALLBACKS) fallbackLink(tried + link) else null
+                val next = if (e !is NoVpnPermission && !noRoot && wanted && tried.size < MAX_FALLBACKS) fallbackLink(tried + link) else null
                 if (next != null) {
                     notificationManager.notify(
                         NOTIFICATION_ID, notification(getString(R.string.app_name), "Server unreachable, trying ${LinkParser.parse(next)?.name ?: "another server"}…"),
                     )
                     connect(next, tried + link)
+                } else if (noRoot) {
+                    AppLog.i(this, "service", "root access is not available")
+                    Store(this).rootMode = false
+                    if (VpnState.rootUnavailable.value == 0) VpnState.rootUnavailable.value = 2
+                    shutdown()
                 } else {
                     val msg = e.message ?: e.javaClass.simpleName
                     VpnState.error.value = if (tried.isEmpty()) msg else "$msg (tried ${tried.size + 1} servers)"

@@ -280,6 +280,16 @@ private fun App() {
         if (intent != null) vpnPermission.launch(intent) else OutrunVpnService.start(ctx, link)
     }
 
+    val rootMissing by VpnState.rootUnavailable.collectAsState()
+    LaunchedEffect(rootMissing) {
+        if (rootMissing != 0) {
+            Snack.show("Su not available", SnackType.Warning)
+            VpnState.rootUnavailable.value = 0
+            // 2: the service could not switch by itself (VPN permission not granted yet), so connect from here.
+            if (rootMissing == 2) selectedLink?.let { connect(it) }
+        }
+    }
+
     fun connectFastest() {
         if (profiles.isEmpty()) { tab = Tab.Servers; return }
         scope.launch {
