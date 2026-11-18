@@ -55,6 +55,7 @@ class OutrunVpnService : VpnService() {
         const val ACTION_NEXT = "app.xvpn.NEXT"
         const val ACTION_ADOPT = "app.xvpn.ADOPT"
         const val EXTRA_LINK = "link"
+        const val EXTRA_BOOT = "boot"
         private const val TAG = "OutrunVpnService"
         private const val VERIFY_TIMEOUT_MS = 20_000L
         private const val MAX_FALLBACKS = 3
@@ -65,8 +66,8 @@ class OutrunVpnService : VpnService() {
         private const val CHANNEL = "vpn"
         private const val NOTIFICATION_ID = 1
 
-        fun start(ctx: Context, link: String) = ctx.startForegroundService(
-            Intent(ctx, OutrunVpnService::class.java).setAction(ACTION_START).putExtra(EXTRA_LINK, link)
+        fun start(ctx: Context, link: String, boot: Boolean = false) = ctx.startForegroundService(
+            Intent(ctx, OutrunVpnService::class.java).setAction(ACTION_START).putExtra(EXTRA_LINK, link).putExtra(EXTRA_BOOT, boot)
         )
 
         /** Root mode runs its own TUN, so the system VPN consent dialog is not needed. */
@@ -132,7 +133,7 @@ class OutrunVpnService : VpnService() {
             ACTION_ADOPT -> adopt()
             ACTION_START -> {
                 val link = intent.getStringExtra(EXTRA_LINK) ?: return START_NOT_STICKY
-                begin(link)
+                begin(link, intent.getBooleanExtra(EXTRA_BOOT, false))
             }
             else -> {
                 val link = Store(this).selected?.takeIf { LinkParser.parse(it) != null }
@@ -180,11 +181,35 @@ class OutrunVpnService : VpnService() {
         }
     }
 
-    private fun begin(link: String) {
+    private fun begin(link: String, boot: Boolean = false) {
         wanted = true
-        AppLog.i(this, "service", "start requested (${if (Store(this).rootMode) "root" else "vpn service"} mode)")
+        val root = Store(this).rootMode
+        AppLog.i(this, "service", "start requested (${if (root) "root" else "vpn service"} mode${if (boot) ", after boot" else ""})")
         fg(notification(getString(R.string.app_name), "Connecting…"))
         registerNetworkWatch()
+        if (boot && root) {
+            // The root manager can come up a little after BOOT_COMPLETED, so ask for root again for up to a minute.
+            VpnState.status.value = Status.Connecting
+            scope.launch {
+                var ok = false
+                var tries = 0
+                while (!ok && tries < 12 && wanted) {
+                    ok = RootShell.granted(10_000)
+                    if (!ok) { tries++; delay(5_000) }
+                }
+                if (!wanted) return@launch
+                if (!ok) {
+                    AppLog.i(this@OutrunVpnService, "boot", "root access was not available after boot")
+                    VpnState.error.value = "Root access was not available after boot"
+                    shutdown()
+                    return@launch
+                }
+                connectOrWait(link)
+            }
+        } else connectOrWait(link)
+    }
+
+    private fun connectOrWait(link: String) {
         if (hasUnderlyingNetwork()) launchConnect(link)
         else {
             currentLink = link

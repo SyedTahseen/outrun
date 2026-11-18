@@ -202,6 +202,7 @@ private fun MenuPage(
     var lan by remember { mutableStateOf(store.lanAccess) }
     var mtu by remember { mutableStateOf(store.mtu) }
     var rootOn by remember { mutableStateOf(store.rootMode) }
+    var bootOn by remember { mutableStateOf(store.autoConnectBoot) }
     val uiScope = rememberCoroutineScope()
 
     var themeMode by remember { mutableStateOf(store.themeMode) }
@@ -252,6 +253,10 @@ private fun MenuPage(
                     "MTU", "$mtu",
                     "The largest packet the VPN sends. Lower it if some sites or apps stall or time out only while connected.",
                 ) { page = "mtu" }
+                SettingsToggleItem(
+                    "Auto-connect on boot", bootOn,
+                    "Connects the selected server when the phone starts. VPN service mode needs the VPN permission granted once; root mode needs root access. On some phones you must also allow auto-start and unrestricted battery use for this app.",
+                ) { on -> bootOn = on; store.autoConnectBoot = on }
                 SettingsToggleItem(
                     "Root mode", rootOn,
                     "Needs a rooted device. Sends all traffic through the VPN using root instead of Android\u2019s VPN service, so there is no VPN permission prompt or key icon. Applies the next time you connect.",

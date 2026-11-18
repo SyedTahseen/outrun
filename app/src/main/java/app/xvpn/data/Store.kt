@@ -197,6 +197,10 @@ class Store(context: Context) {
         get() = prefs.getBoolean("lan_access", false)
         set(v) = prefs.edit().putBoolean("lan_access", v).apply()
 
+    var autoConnectBoot: Boolean
+        get() = prefs.getBoolean("auto_boot", false)
+        set(v) = prefs.edit().putBoolean("auto_boot", v).apply()
+
     var rootMode: Boolean
         get() = prefs.getBoolean("root_mode", false)
         set(v) = prefs.edit().putBoolean("root_mode", v).apply()
