@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -59,6 +60,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalConfiguration
 import app.xvpn.data.IpInfo
 import app.xvpn.data.Profile
 import app.xvpn.vpn.Status
@@ -92,6 +94,12 @@ fun HomeScreen(
     LaunchedEffect(status) { while (true) { now = System.currentTimeMillis(); delay(1000) } }
 
     val bg = C.Bg
+    // Proton: list gradient is 100dp (offset 68dp) on compact widths and 200dp (offset 100dp) from 600dp up,
+    // and the list gets the extra large-screen horizontal padding.
+    val wide = LocalConfiguration.current.screenWidthDp >= 600
+    val listGradient = if (wide) 200.dp else Sizes.ListGradient
+    val listTopOffset = if (wide) 100.dp else Sizes.ListTopOffset
+    val listExtraPadding = largeScreenContentPadding()
     val on = status == Status.Connected
     val connecting = status == Status.Connecting
     val tone by animateColorAsState(
@@ -160,11 +168,11 @@ fun HomeScreen(
         Column(
             Modifier.align(Alignment.BottomCenter).fillMaxWidth()
                 .drawBehind {
-                    val gradientBottom = Sizes.ListGradient.toPx()
+                    val gradientBottom = listGradient.toPx()
                     drawRect(Brush.verticalGradient(listOf(Color.Transparent, bg), startY = 0f, endY = gradientBottom), size = androidx.compose.ui.geometry.Size(size.width, gradientBottom))
                     drawRect(bg, topLeft = androidx.compose.ui.geometry.Offset(0f, gradientBottom))
                 }
-                .padding(top = Sizes.ListTopOffset).padding(horizontal = Space.Gutter),
+                .padding(top = listTopOffset).padding(horizontal = Space.Gutter + listExtraPadding),
         ) {
             AnimatedContent(
                 targetState = when { on -> "Browsing safely from"; connecting -> "Connecting to…"; else -> "Selected server" },
@@ -237,8 +245,12 @@ fun HomeScreen(
             }
             AnimatedVisibility(visible = status == Status.Disconnected && recents.isNotEmpty()) {
                 Column {
-                    Text("Recents", style = Type.Small, color = C.Muted, modifier = Modifier.padding(top = Space.Lg, bottom = Space.Xs))
-                    recents.forEach { p -> RecentRow(p) { onConnectRecent(p) } }
+                    // Proton: body2Regular + textWeak, 16dp horizontal / 8dp vertical padding (the gutter already gives the 16dp).
+                    Text("Recents", style = Type.Small, color = C.Muted, modifier = Modifier.fillMaxWidth().padding(vertical = Space.Sm))
+                    recents.forEachIndexed { i, p ->
+                        RecentRow(p) { onConnectRecent(p) }
+                        if (i < recents.lastIndex) HairlineDivider()
+                    }
                 }
             }
             Spacer(Modifier.height(Space.Lg))
@@ -248,17 +260,19 @@ fun HomeScreen(
 
 @Composable
 private fun RecentRow(p: Profile, onClick: () -> Unit) {
+    // Proton's ConnectIntentBlankRow: min 64dp, 12dp vertical padding, history icon (16dp, iconWeak) before the flag,
+    // title body1, subtitle body2 + textWeak with 4dp top padding.
     Row(
-        Modifier.fillMaxWidth().heightIn(min = Sizes.Button).clip(RoundedCornerShape(Radius.Control))
-            .pressable(RoundedCornerShape(Radius.Control), Press.Card, onClick = onClick)
-            .padding(vertical = Space.Xs),
-        verticalAlignment = Alignment.CenterVertically,
+        Modifier.fillMaxWidth().heightIn(min = Sizes.Row).clickable(onClick = onClick).padding(vertical = Space.Md),
+        verticalAlignment = Alignment.Top,
     ) {
-        FlagBadge(p.name)
-        Spacer(Modifier.width(Space.Md))
-        Column(Modifier.weight(1f)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(ProtonIcons.ClockRotateLeft, null, tint = C.Muted, modifier = Modifier.padding(end = Space.Sm).size(Sizes.IconSm))
+            FlagBadge(p.name)
+        }
+        Column(Modifier.weight(1f).padding(start = Space.Lg)) {
             Text(Flags.clean(p.name), style = Type.Body, color = C.Text, maxLines = 1)
-            Text("${p.host}:${p.port}", style = Type.Caption, color = C.Muted, maxLines = 1)
+            Text("${p.host}:${p.port}", style = Type.Small, color = C.Muted, maxLines = 1, modifier = Modifier.padding(top = Space.Xs))
         }
         Icon(ProtonIcons.ArrowRight, null, tint = C.Muted, modifier = Modifier.size(Sizes.Icon))
     }

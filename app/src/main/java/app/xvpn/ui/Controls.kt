@@ -75,7 +75,8 @@ fun AppButton(
     val container by animateColorAsState(
         when {
             !enabled && style == ButtonStyle.Primary -> C.PrimaryDisabled
-            !enabled && style == ButtonStyle.Secondary -> C.Card
+            // Proton's VpnWeakSolidButton keeps the solid-button disabled colors (interactionDisabled + 50% white).
+            !enabled && style == ButtonStyle.Secondary -> C.PrimaryDisabled
             style == ButtonStyle.Primary -> C.Primary
             style == ButtonStyle.Secondary -> C.Control
             onCardOutline -> C.Card
@@ -89,7 +90,6 @@ fun AppButton(
     val content = when {
         !enabled && onCardOutline -> C.TextHint
         !enabled && outlined -> if (style == ButtonStyle.Outline) C.Disabled else C.PrimaryDisabled
-        !enabled && style == ButtonStyle.Secondary -> C.Disabled
         !enabled -> C.OnPrimary.copy(alpha = 0.5f)
         style == ButtonStyle.Outline || onCardOutline -> C.Text
         style == ButtonStyle.OutlineAccent -> C.Accent

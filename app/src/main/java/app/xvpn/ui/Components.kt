@@ -132,8 +132,8 @@ fun FastestFlag() {
 }
 
 @Composable
-fun HeaderSurface(scrolled: Boolean = false, content: @Composable ColumnScope.() -> Unit) {
-    val bg by animateColorAsState(if (scrolled) C.Header else C.Bg, label = "headerSurface")
+fun HeaderSurface(scrolled: Boolean = false, base: Color = C.Bg, content: @Composable ColumnScope.() -> Unit) {
+    val bg by animateColorAsState(if (scrolled) C.Header else base, label = "headerSurface")
     Column(Modifier.fillMaxWidth().background(bg), content = content)
 }
 
@@ -152,9 +152,10 @@ fun ScreenHeader(
     onBack: (() -> Unit)? = null,
     scrolled: Boolean = false,
     titleTrailing: (@Composable () -> Unit)? = null,
+    base: Color = C.Bg,
     actions: @Composable RowScope.() -> Unit = {},
 ) {
-    HeaderSurface(scrolled) { ScreenHeaderContent(title, onBack, scrolled, titleTrailing, actions) }
+    HeaderSurface(scrolled, base) { ScreenHeaderContent(title, onBack, scrolled, titleTrailing, actions) }
 }
 
 @Composable
@@ -218,7 +219,8 @@ fun SectionHeader(text: String, modifier: Modifier = Modifier, first: Boolean = 
 
 @Composable
 fun FieldLabel(text: String, modifier: Modifier = Modifier) {
-    Text(text, style = Type.SmallMedium, color = C.Muted, modifier = modifier.padding(top = Space.Xl, bottom = Space.Sm))
+    // Proton's ProtonOutlinedTextField label: captionMedium + textNorm, 8dp gap to the field.
+    Text(text, style = Type.Label, color = C.Text, modifier = modifier.padding(top = Space.Xl, bottom = Space.Sm))
 }
 
 @Composable

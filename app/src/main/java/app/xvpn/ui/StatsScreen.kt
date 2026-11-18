@@ -2,6 +2,7 @@ package app.xvpn.ui
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -74,18 +75,20 @@ fun StatsScreen(profile: Profile?, real: IpInfo?, proxy: IpInfo?, onBack: () -> 
     val sessDown by VpnState.sessionDown.collectAsState()
     val today = remember(now / 5000) { Usage.total(ctx, 1) }
 
-    Column(Modifier.fillMaxSize()) {
-        ScreenHeader("Statistics", onBack = onBack)
+    // Proton's ConnectionDetails sits on backgroundDeep, including its top bar.
+    Column(Modifier.fillMaxSize().background(C.Deep)) {
+        ScreenHeader("Statistics", onBack = onBack, base = C.Deep)
         Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = Space.Gutter)) {
             Spacer(Modifier.height(Space.Sm))
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            // Proton: headline (20 bold) title, 4dp above the subtitle, 16dp icon-to-label gap, min 42dp row.
+            Row(Modifier.heightIn(min = Sizes.CardRowMin), verticalAlignment = Alignment.Top) {
                 FlagBadge(profile?.name)
-                Spacer(Modifier.width(Space.Md))
+                Spacer(Modifier.width(Space.Lg))
                 Column {
-                    Text(profile?.let { Flags.clean(it.name) } ?: "Server", style = Type.BodyMedium, color = C.Text, maxLines = 1)
+                    Text(profile?.let { Flags.clean(it.name) } ?: "Server", style = Type.Heading, color = C.Text, maxLines = 1)
                     Text(
                         listOfNotNull(proxy?.city, proxy?.country).filter { it.isNotBlank() }.joinToString(", "),
-                        style = Type.Small, color = C.Muted,
+                        style = Type.Small, color = C.Muted, modifier = Modifier.padding(top = Space.Xs),
                     )
                 }
             }

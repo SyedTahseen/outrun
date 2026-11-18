@@ -375,7 +375,7 @@ private fun App() {
 
     var serversScrolled by remember { mutableStateOf(false) }
     val statusStripColor by animateColorAsState(
-        if ((tab == Tab.Servers || tab == Tab.Menu) && serversScrolled) C.Header else C.Bg,
+        if (statsOn) C.Deep else if ((tab == Tab.Servers || tab == Tab.Menu) && serversScrolled) C.Header else C.Bg,
         tween(Motion.Medium), label = "statusStrip",
     )
 
@@ -400,6 +400,7 @@ private fun App() {
 
                 Box(
                     Modifier.fillMaxSize()
+                        .then(if (s == Screen.Stats) Modifier.background(C.Deep) else Modifier)
                         .then(if (s == Screen.Home) Modifier else Modifier.padding(horizontal = largeScreenContentPadding()))
                         .then(if (s == Screen.Home) Modifier else Modifier.statusBarsPadding())
                         .navigationBarsPadding().padding(bottom = if (s == Screen.Stats) 0.dp else dockInset),
