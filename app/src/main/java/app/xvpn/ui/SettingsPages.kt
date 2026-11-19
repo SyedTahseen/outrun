@@ -263,46 +263,46 @@ fun ThemePage(
             }
 
             ScreenLabel("Accent")
-            Accents.Presets.chunked(3).forEach { rowItems ->
-                Row(Modifier.padding(horizontal = Space.Gutter).height(IntrinsicSize.Max)) {
-                    rowItems.forEach { p ->
-                        AccentTile(p, p.color == accent, Modifier.weight(1f)) { onAccent(p.color) }
-                    }
-                    // keep tiles in the last row the same width as the others
-                    repeat(3 - rowItems.size) { Spacer(Modifier.weight(1f)) }
-                }
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = Space.Gutter),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Accents.Presets.forEach { p -> AccentSwatch(p, p.color == accent) { onAccent(p.color) } }
             }
 
-            ScreenLabel("Display size")
             val percent = (displayScale * 100f).roundToInt()
-            DisplaySizeStepper(
-                percent,
-                onChange = { onDisplayScale(it.coerceIn(AppTheme.DISPLAY_MIN, AppTheme.DISPLAY_MAX) / 100f) },
-            )
+            Row(
+                Modifier.fillMaxWidth().padding(start = Space.Gutter, end = Space.Gutter, top = Space.Xl),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("Display size", style = Type.Small, color = C.Muted, modifier = Modifier.weight(1f))
+                DisplaySizeStepper(
+                    percent,
+                    onChange = { onDisplayScale(it.coerceIn(AppTheme.DISPLAY_MIN, AppTheme.DISPLAY_MAX) / 100f) },
+                )
+            }
             Text(
                 "Makes text and controls across the app smaller or larger.",
-                style = Type.Small, color = C.Muted, textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = Space.Gutter, vertical = Space.Md),
+                style = Type.Small, color = C.Muted, modifier = Modifier.fillMaxWidth().padding(horizontal = Space.Gutter, vertical = Space.Sm),
             )
             Spacer(Modifier.height(Space.Xxl))
         }
     }
 }
 
-/** Pill with a round "−" and "+" button either side of the current size. */
+/** Compact pill with a small round "−" and "+" button either side of the current size. */
 @Composable
 private fun DisplaySizeStepper(percent: Int, onChange: (Int) -> Unit) {
-    Box(Modifier.fillMaxWidth().padding(horizontal = Space.Gutter), contentAlignment = Alignment.Center) {
-        Row(
-            Modifier.clip(CircleShape).background(C.Card).border(1.dp, C.Outline, CircleShape).padding(4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            StepButton(ProtonIcons.Minus, "Decrease display size", percent > AppTheme.DISPLAY_MIN) { onChange(percent - AppTheme.DISPLAY_STEP) }
-            Box(Modifier.widthIn(min = 96.dp), contentAlignment = Alignment.Center) {
-                Text("$percent%", style = Type.Heading, color = C.Text, maxLines = 1)
-            }
-            StepButton(ProtonIcons.Plus, "Increase display size", percent < AppTheme.DISPLAY_MAX) { onChange(percent + AppTheme.DISPLAY_STEP) }
+    Row(
+        Modifier.clip(CircleShape).background(C.Card).border(1.dp, C.Outline, CircleShape).padding(3.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        StepButton(ProtonIcons.Minus, "Decrease display size", percent > AppTheme.DISPLAY_MIN) { onChange(percent - AppTheme.DISPLAY_STEP) }
+        Box(Modifier.widthIn(min = 52.dp), contentAlignment = Alignment.Center) {
+            Text("$percent%", style = Type.Label, color = C.Text, maxLines = 1)
         }
+        StepButton(ProtonIcons.Plus, "Increase display size", percent < AppTheme.DISPLAY_MAX) { onChange(percent + AppTheme.DISPLAY_STEP) }
     }
 }
 
@@ -310,13 +310,13 @@ private fun DisplaySizeStepper(percent: Int, onChange: (Int) -> Unit) {
 private fun StepButton(icon: ImageVector, description: String, enabled: Boolean, onClick: () -> Unit) {
     val tick = rememberTick()
     Box(
-        Modifier.size(Sizes.Control)
+        Modifier.size(32.dp)
             .pressable(CircleShape, 0.92f, enabled, ripple = false) { tick(); onClick() }
             .background(C.Control)
             .semantics { contentDescription = description },
         contentAlignment = Alignment.Center,
     ) {
-        Icon(icon, null, tint = if (enabled) C.Text else C.Text.copy(alpha = 0.3f), modifier = Modifier.size(Sizes.Icon))
+        Icon(icon, null, tint = if (enabled) C.Text else C.Text.copy(alpha = 0.3f), modifier = Modifier.size(16.dp))
     }
 }
 
@@ -325,10 +325,22 @@ private fun ThemeTile(label: String, imageRes: Int, selected: Boolean, modifier:
     TileScaffold(label, selected, modifier, onClick) { Image(painterResource(imageRes), null) }
 }
 
-/** Same tile as the theme tiles, with a mini phone drawn in the given accent colour. */
+/** Round colour swatch that behaves like a radio button; the selected one gets a ring and a check. */
 @Composable
-private fun AccentTile(preset: AccentPreset, selected: Boolean, modifier: Modifier, onClick: () -> Unit) {
-    TileScaffold(preset.name, selected, modifier, onClick) { AccentPreview(preset.color) }
+private fun AccentSwatch(preset: AccentPreset, selected: Boolean, onClick: () -> Unit) {
+    val tone = if (Palette.dark) AccentSet.of(preset.color).accentDark else preset.color
+    Box(
+        Modifier.size(44.dp)
+            .clip(CircleShape)
+            .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
+            .semantics { contentDescription = preset.name },
+        contentAlignment = Alignment.Center,
+    ) {
+        if (selected) Box(Modifier.size(44.dp).border(2.dp, tone, CircleShape))
+        Box(Modifier.size(32.dp).clip(CircleShape).background(tone), contentAlignment = Alignment.Center) {
+            if (selected) Icon(ProtonIcons.Checkmark, null, tint = Color.White, modifier = Modifier.size(18.dp))
+        }
+    }
 }
 
 @Composable
@@ -343,42 +355,6 @@ private fun TileScaffold(label: String, selected: Boolean, modifier: Modifier, o
         preview()
         Box(Modifier.weight(1f)) { Text(label, style = Type.Small, color = C.Text, textAlign = TextAlign.Center, modifier = Modifier.align(Alignment.Center)) }
         AppRadio(selected)
-    }
-}
-
-/** Mirrors the layout of theme_light / theme_dark (72 x 130): top bar, connect orb, two cards. */
-@Composable
-private fun AccentPreview(accent: Color) {
-    val dark = Palette.dark
-    val tone = if (dark) AccentSet.of(accent).accentDark else accent
-    val frame = if (dark) Color(0xFF3B3747) else Color(0xFFDBD7D3)
-    val screenTop = if (dark) Color(0xFF2E2C38) else Color(0xFFFFFFFF)
-    val screenBottom = if (dark) Color(0xFF201F25) else Color(0xFFECECEC)
-    val card = if (dark) Color(0xFF696678).copy(alpha = 0.5f) else Color(0xFFF5F4F2)
-    val row = if (dark) Color(0xFF696678) else Color.White
-    val footer = if (dark) Color.White else Color(0xFF0C0C14).copy(alpha = 0.25f)
-    Canvas(Modifier.size(72.dp, 130.dp)) {
-        val k = size.width / 72f
-        fun box(l: Float, t: Float, r: Float, b: Float, rad: Float, color: Color) = drawRoundRect(
-            color, Offset(l * k, t * k), Size((r - l) * k, (b - t) * k), CornerRadius(rad * k),
-        )
-        box(0f, 0f, 72f, 130f, 10f, frame)
-        drawRoundRect(
-            Brush.verticalGradient(listOf(screenTop, screenBottom), startY = 4 * k, endY = 126 * k),
-            Offset(4 * k, 4 * k), Size(64 * k, 122 * k), CornerRadius(8 * k),
-        )
-        box(20f, 16f, 52f, 20f, 2f, tone)                       // top bar
-        val c = Offset(36f * k, 44f * k)
-        drawCircle(                                              // orb glow
-            Brush.radialGradient(0.44f to tone.copy(alpha = 0f), 1f to tone.copy(alpha = 0.5f), center = c, radius = 11f * k),
-            radius = 11f * k, center = c,
-        )
-        drawCircle(Color.White, 2.75f * k, c)
-        drawCircle(tone, 1.37f * k, c)
-        box(9f, 70f, 64f, 105f, 5f, card)                        // card
-        box(13f, 76f, 38f, 82f, 3f, tone)                        // short bar in accent
-        box(13f, 89f, 60f, 101f, 3f, row)
-        box(24f, 121f, 48f, 123f, 1f, footer)
     }
 }
 
