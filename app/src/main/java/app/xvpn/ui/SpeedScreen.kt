@@ -290,67 +290,75 @@ private fun ModePicker(selected: TransmitMode, onSelect: (TransmitMode) -> Unit)
     }
 }
 
-// Start button: a filled orb with a swirling conic gradient (magenta / violet / blue / cyan / pearl)
-// and a thin dark power glyph. Same colours in light and dark themes.
+// Start button: a round orb built from soft overlapping colour blobs (magenta, blue, teal, pale lavender,
+// cyan core), fitted to the supplied design, with a shading layer so the lower right falls off to navy.
+// Everything is drawn from gradients, so it stays sharp at any size. Same colours in light and dark themes.
 private const val ORB_BOX = 200
+private const val ORB_ICON = 56
 
-private val OrbStops: Array<Pair<Float, Color>> = arrayOf(
-    0.00f to Color(0xFF1A2BE8),
-    0.10f to Color(0xFF1B30D2),
-    0.18f to Color(0xFF2C5FCF),
-    0.25f to Color(0xFF4FB5C8),
-    0.33f to Color(0xFF7FD0D8),
-    0.42f to Color(0xFFB4D2DC),
-    0.50f to Color(0xFFD3D0E6),
-    0.525f to Color(0xFFCFCBE4),
-    0.535f to Color(0xFFB04CD8),
-    0.62f to Color(0xFFE055E8),
-    0.67f to Color(0xFFC040E0),
-    0.73f to Color(0xFF7A35E0),
-    0.80f to Color(0xFF4A35E8),
-    0.86f to Color(0xFF2535F0),
-    1.00f to Color(0xFF1A2BE8),
+private class OrbBlob(val x: Float, val y: Float, val radius: Float, val color: Color, val alpha: Float)
+
+private val OrbBase = Color(0xFF1C343A)
+private val OrbBlobs = listOf(
+    OrbBlob(-0.2948f, -0.4261f, 1.1575f, Color(0xFFEB22D2), 0.8678f),
+    OrbBlob(0.6126f, -0.0909f, 1.5907f, Color(0xFF0015FF), 0.9322f),
+    OrbBlob(-0.4280f, 0.7707f, 1.4074f, Color(0xFF8AFFE3), 0.6018f),
+    OrbBlob(-0.3302f, 0.0977f, 0.8259f, Color(0xFFECF4EF), 0.9580f),
+    OrbBlob(-0.0331f, 0.2418f, 0.6164f, Color(0xFF08FFFF), 0.3736f),
+    OrbBlob(0.2562f, -0.2157f, 0.6831f, Color(0xFF1F3BFA), 0.6746f),
+    OrbBlob(1.2000f, 0.5594f, 1.1747f, Color(0xFF141536), 0.9340f),
+    OrbBlob(-0.2983f, -0.4952f, 0.6648f, Color(0xFFFF5BFF), 0.4543f),
 )
+private val OrbShade = Color(0xFF00081F)
 private val OrbGlyph = Color(0xFF14142A)
+
+private fun DrawScope.orbBlob(b: OrbBlob, c: Offset, r: Float) {
+    val k = b.color
+    drawCircle(
+        brush = Brush.radialGradient(
+            0.00f to k.copy(alpha = b.alpha),
+            0.25f to k.copy(alpha = b.alpha * 0.88f),
+            0.50f to k.copy(alpha = b.alpha * 0.50f),
+            0.75f to k.copy(alpha = b.alpha * 0.14f),
+            1.00f to k.copy(alpha = 0f),
+            center = Offset(c.x + b.x * r, c.y + b.y * r), radius = b.radius * r,
+        ),
+        radius = r, center = c,
+    )
+}
 
 @Composable
 private fun StartRing(enabled: Boolean, onClick: () -> Unit) {
     val on by animateFloatAsState(if (enabled) 1f else 0.35f, tween(Motion.Medium), label = "orbOn")
     val tick = rememberTick(strong = true)
     Box(Modifier.size(ORB_BOX.dp), contentAlignment = Alignment.Center) {
-        Canvas(
+        Box(
             Modifier
                 .size(Sizes.SpeedRing)
                 .graphicsLayer { alpha = on }
                 .pressable(CircleShape, 0.94f, enabled = enabled, ripple = false) { tick(); onClick() }
                 .semantics { contentDescription = "Start speed test" },
+            contentAlignment = Alignment.Center,
         ) {
-            val c = center
-            val r = size.minDimension / 2f
-            // Conic colour swirl.
-            drawCircle(brush = Brush.sweepGradient(*OrbStops, center = c), radius = r, center = c)
-            // Soft vignette: bright core, darker rim, so it reads as a lit sphere.
-            drawCircle(
-                brush = Brush.radialGradient(
-                    0.0f to Color.Transparent,
-                    0.62f to Color.Transparent,
-                    1.0f to Color.Black.copy(alpha = 0.42f),
-                    center = c, radius = r,
-                ),
-                radius = r, center = c,
-            )
-            // Power glyph (circle with a gap at the top and a short stem).
-            val gr = r * 0.33f
-            val sw = 2.dp.toPx()
-            drawArc(
-                color = OrbGlyph, startAngle = 325f, sweepAngle = 250f, useCenter = false,
-                topLeft = Offset(c.x - gr, c.y - gr), size = Size(gr * 2f, gr * 2f),
-                style = Stroke(sw, cap = StrokeCap.Round),
-            )
-            drawLine(
-                color = OrbGlyph, start = Offset(c.x, c.y - gr), end = Offset(c.x, c.y - gr * 0.35f),
-                strokeWidth = sw, cap = StrokeCap.Round,
-            )
+            Canvas(Modifier.fillMaxSize()) {
+                val c = center
+                val r = size.minDimension / 2f
+                drawCircle(color = OrbBase, radius = r, center = c)
+                OrbBlobs.forEach { orbBlob(it, c, r) }
+                // shading: darkens the rim toward the lower right
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        0.00f to OrbShade.copy(alpha = 0f),
+                        0.55f to OrbShade.copy(alpha = 0f),
+                        0.80f to OrbShade.copy(alpha = 0.0000f),
+                        1.00f to OrbShade.copy(alpha = 0.4172f),
+                        center = Offset(c.x + -0.1887f * r, c.y + -0.4777f * r), radius = 1.4636f * r,
+                    ),
+                    radius = r, center = c,
+                )
+            }
+            // The app's own power icon
+            Icon(ProtonIcons.PowerOff, contentDescription = null, tint = OrbGlyph, modifier = Modifier.size(ORB_ICON.dp))
         }
     }
 }
