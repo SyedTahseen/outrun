@@ -214,7 +214,7 @@ private fun LeakSection() {
 }
 
 @Composable
-internal fun StatsLabel(text: String, onInfo: (() -> Unit)? = null) {
+private fun StatsLabel(text: String, onInfo: (() -> Unit)? = null) {
     // Proton's connection-details HeaderText: body2Regular + textWeak, 16dp above / 8dp below, with an optional
     // 20dp iconHint info icon (4dp start padding) that makes the whole header tappable.
     Row(
