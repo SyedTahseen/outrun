@@ -40,6 +40,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -243,7 +244,12 @@ private fun StartView(
             val topH = (viewport - below).coerceAtLeast(ORB_BOX.dp + Space.Xxl)
             Column(Modifier.fillMaxSize().verticalScroll(scroll)) {
                 Box(Modifier.fillMaxWidth().height(topH), contentAlignment = Alignment.Center) {
-                    StartRing(enabled = !connecting, onClick = onStart)
+                    // The header box has Space.Xxl of empty space under the title text, so the visible
+                    // gap above the button is that much larger. Lift the button by half of it so it
+                    // is centred between the title text and the card's top edge.
+                    Box(Modifier.offset(y = -(Space.Xxl / 2))) {
+                        StartRing(enabled = !connecting, onClick = onStart)
+                    }
                 }
                 Column(Modifier.fillMaxWidth().onSizeChanged { belowPx = it.height }.padding(horizontal = Space.Gutter)) {
                     val note = when {
