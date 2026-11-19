@@ -30,6 +30,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -74,6 +75,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.BlurredEdgeTreatment
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.geometry.Offset
@@ -228,28 +231,39 @@ private fun StartView(
     val scroll = rememberScrollState()
     val scrolled by remember { derivedStateOf { scroll.value > 0 } }
     ReportScrolled(scrolled, onScrolledChange)
+    // Height of the block under the button (note + info card + transmit mode), measured so the
+    // button can sit exactly halfway between the title bar and the info card.
+    var belowPx by remember { mutableIntStateOf(0) }
+    val density = LocalDensity.current
     Column(Modifier.fillMaxSize()) {
         ScreenHeader("Speed test", scrolled = scrolled)
-        Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(scroll).padding(horizontal = Space.Gutter)) {
-            Spacer(Modifier.height(Space.Xxxl))
-            Box(Modifier.align(Alignment.CenterHorizontally)) { StartRing(enabled = !connecting, onClick = onStart) }
-            Spacer(Modifier.height(Space.Xxxl))
-            val note = when {
-                ui.phase == SpeedPhase.Failed -> ("Couldn't finish the test" + (ui.error.takeIf { it.isNotBlank() }?.let { " ($it)" } ?: "") + ". Check your connection and try again.") to C.Red
-                connecting -> "Wait for the VPN to finish connecting." to C.Muted
-                else -> null
+        BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
+            val viewport = maxHeight
+            val below = with(density) { belowPx.toDp() }
+            val topH = (viewport - below).coerceAtLeast(ORB_BOX.dp + Space.Xxl)
+            Column(Modifier.fillMaxSize().verticalScroll(scroll)) {
+                Box(Modifier.fillMaxWidth().height(topH), contentAlignment = Alignment.Center) {
+                    StartRing(enabled = !connecting, onClick = onStart)
+                }
+                Column(Modifier.fillMaxWidth().onSizeChanged { belowPx = it.height }.padding(horizontal = Space.Gutter)) {
+                    val note = when {
+                        ui.phase == SpeedPhase.Failed -> ("Couldn't finish the test" + (ui.error.takeIf { it.isNotBlank() }?.let { " ($it)" } ?: "") + ". Check your connection and try again.") to C.Red
+                        connecting -> "Wait for the VPN to finish connecting." to C.Muted
+                        else -> null
+                    }
+                    if (note != null) {
+                        Text(note.first, style = Type.Small, color = note.second, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(bottom = Space.Sm))
+                    }
+
+                    DetailCard(listOf("Connection" to connection, "Location" to location))
+                    Spacer(Modifier.height(Space.Md))
+
+                    FieldLabel("Transmit Mode")
+                    ModePicker(cfg.mode) { onCfg(cfg.copy(mode = it)) }
+
+                    Spacer(Modifier.height(Space.Xxl))
+                }
             }
-            if (note != null) {
-                Text(note.first, style = Type.Small, color = note.second, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(bottom = Space.Sm))
-            }
-
-            DetailCard(listOf("Connection" to connection, "Location" to location))
-            Spacer(Modifier.height(Space.Md))
-
-            FieldLabel("Transmit Mode")
-            ModePicker(cfg.mode) { onCfg(cfg.copy(mode = it)) }
-
-            Spacer(Modifier.height(Space.Xxl))
         }
     }
 }
@@ -310,7 +324,6 @@ private val OrbBlobs = listOf(
     OrbBlob(-0.2983f, -0.4952f, 0.6648f, Color(0xFFFF5BFF), 0.4543f),
 )
 private val OrbShade = Color(0xFF00081F)
-private val OrbGlyph = Color(0xFF14142A)
 
 private fun DrawScope.orbBlob(b: OrbBlob, c: Offset, r: Float) {
     val k = b.color
@@ -357,8 +370,8 @@ private fun StartRing(enabled: Boolean, onClick: () -> Unit) {
                     radius = r, center = c,
                 )
             }
-            // The app's own power icon
-            Icon(ProtonIcons.PowerOff, contentDescription = null, tint = OrbGlyph, modifier = Modifier.size(ORB_ICON.dp))
+            // The app's own power icon, white like the transmit-mode icons
+            Icon(ProtonIcons.PowerOff, contentDescription = null, tint = C.OnPrimary, modifier = Modifier.size(ORB_ICON.dp))
         }
     }
 }
