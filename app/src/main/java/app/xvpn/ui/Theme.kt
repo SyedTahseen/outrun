@@ -101,7 +101,10 @@ object AppTheme {
     var mode by mutableStateOf(SYSTEM)
         private set
 
-    val DisplaySizes = listOf("Small" to 0.85f, "Default" to 1f, "Large" to 1.15f, "Larger" to 1.3f)
+    /** Display size is shown as a percentage and changes in [DISPLAY_STEP] steps. */
+    const val DISPLAY_MIN = 80
+    const val DISPLAY_MAX = 130
+    const val DISPLAY_STEP = 5
 
     var accent by mutableStateOf(Accents.Default)
         private set
@@ -113,7 +116,7 @@ object AppTheme {
         mode = s.themeMode
         accent = Color(s.accentColor)
         Palette.setAccent(accent)
-        displayScale = s.displayScale.coerceIn(0.7f, 1.5f)
+        displayScale = s.displayScale.coerceIn(DISPLAY_MIN / 100f, DISPLAY_MAX / 100f)
     }
 
     fun setAccent(ctx: Context, value: Color) {

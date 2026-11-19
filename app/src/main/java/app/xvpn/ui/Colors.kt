@@ -30,8 +30,6 @@ object Accents {
         AccentPreset("green", "Green", Color(0xFF15803D)),
         AccentPreset("orange", "Orange", Color(0xFFC2410C)),
         AccentPreset("pink", "Pink", Color(0xFFBE185D)),
-        AccentPreset("red", "Red", Color(0xFFB91C1C)),
-        AccentPreset("slate", "Slate", Color(0xFF475569)),
     )
     fun nameOf(c: Color) = Presets.firstOrNull { it.color == c }?.name ?: "Custom"
 }

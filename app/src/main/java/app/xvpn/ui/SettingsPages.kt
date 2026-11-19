@@ -1,6 +1,7 @@
 package app.xvpn.ui
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -18,6 +19,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyListState
@@ -44,8 +46,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
@@ -62,6 +68,7 @@ import androidx.compose.ui.unit.em
 import app.xvpn.R
 import app.xvpn.data.Choices
 import kotlin.math.min
+import kotlin.math.roundToInt
 
 private fun titleVisibilityFraction(state: LazyListState, titleItemIndex: Int): Float {
     val info = state.layoutInfo.visibleItemsInfo.take(titleItemIndex + 1).firstOrNull { it.index == titleItemIndex }
@@ -255,63 +262,77 @@ fun ThemePage(
                 ThemeTile("Device theme", R.drawable.theme_auto, selected == AppTheme.SYSTEM, Modifier.weight(1f)) { onSelect(AppTheme.SYSTEM) }
             }
 
-            SectionHeader("Accent color")
-            Column(Modifier.padding(horizontal = Space.Gutter), verticalArrangement = Arrangement.spacedBy(Space.Md)) {
-                Accents.Presets.chunked(4).forEach { rowItems ->
-                    Row(Modifier.fillMaxWidth()) {
-                        rowItems.forEach { p ->
-                            AccentSwatch(p, p.color == accent, Modifier.weight(1f)) { onAccent(p.color) }
-                        }
+            ScreenLabel("Accent")
+            Accents.Presets.chunked(3).forEach { rowItems ->
+                Row(Modifier.padding(horizontal = Space.Gutter).height(IntrinsicSize.Max)) {
+                    rowItems.forEach { p ->
+                        AccentTile(p, p.color == accent, Modifier.weight(1f)) { onAccent(p.color) }
                     }
+                    // keep tiles in the last row the same width as the others
+                    repeat(3 - rowItems.size) { Spacer(Modifier.weight(1f)) }
                 }
             }
 
-            SectionHeader("Display size")
-            Column(Modifier.padding(horizontal = Space.Gutter)) {
-                val options = AppTheme.DisplaySizes
-                val index = options.indices.minByOrNull { kotlin.math.abs(options[it].second - displayScale) } ?: 1
-                Segmented(options.map { it.first }, index) { onDisplayScale(options[it].second) }
-                Spacer(Modifier.height(Space.Md))
-                Text(
-                    "Makes text and controls across the app smaller or larger. Applies immediately.",
-                    style = Type.Small, color = C.Muted,
-                )
-                if (index != 1) {
-                    Spacer(Modifier.height(Space.Sm))
-                    Text(
-                        "Reset to default", style = Type.Small, color = C.Accent,
-                        modifier = Modifier.clip(RoundedCornerShape(Radius.Badge)).clickable { onDisplayScale(1f) }.padding(vertical = Space.Xs),
-                    )
-                }
-            }
+            ScreenLabel("Display size")
+            val percent = (displayScale * 100f).roundToInt()
+            DisplaySizeStepper(
+                percent,
+                onChange = { onDisplayScale(it.coerceIn(AppTheme.DISPLAY_MIN, AppTheme.DISPLAY_MAX) / 100f) },
+            )
+            Text(
+                "Makes text and controls across the app smaller or larger.",
+                style = Type.Small, color = C.Muted, textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = Space.Gutter, vertical = Space.Md),
+            )
             Spacer(Modifier.height(Space.Xxl))
         }
     }
 }
 
+/** Pill with a round "−" and "+" button either side of the current size. */
 @Composable
-private fun AccentSwatch(preset: AccentPreset, selected: Boolean, modifier: Modifier, onClick: () -> Unit) {
-    Column(
-        modifier.clip(RoundedCornerShape(Radius.Badge))
-            .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
-            .semantics { contentDescription = preset.name + " accent color" }
-            .padding(vertical = Space.Xs),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(Space.Xs),
-    ) {
-        Box(
-            Modifier.size(52.dp).border(2.dp, if (selected) C.Text else Color.Transparent, CircleShape).padding(5.dp)
-                .clip(CircleShape).background(preset.color),
-            contentAlignment = Alignment.Center,
+private fun DisplaySizeStepper(percent: Int, onChange: (Int) -> Unit) {
+    Box(Modifier.fillMaxWidth().padding(horizontal = Space.Gutter), contentAlignment = Alignment.Center) {
+        Row(
+            Modifier.clip(CircleShape).background(C.Card).border(1.dp, C.Outline, CircleShape).padding(4.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            if (selected) Icon(ProtonIcons.Checkmark, null, tint = C.OnPrimary, modifier = Modifier.size(Sizes.IconSm))
+            StepButton(ProtonIcons.Minus, "Decrease display size", percent > AppTheme.DISPLAY_MIN) { onChange(percent - AppTheme.DISPLAY_STEP) }
+            Box(Modifier.widthIn(min = 96.dp), contentAlignment = Alignment.Center) {
+                Text("$percent%", style = Type.Heading, color = C.Text, maxLines = 1)
+            }
+            StepButton(ProtonIcons.Plus, "Increase display size", percent < AppTheme.DISPLAY_MAX) { onChange(percent + AppTheme.DISPLAY_STEP) }
         }
-        Text(preset.name, style = Type.Caption, color = if (selected) C.Text else C.Muted, maxLines = 1)
+    }
+}
+
+@Composable
+private fun StepButton(icon: ImageVector, description: String, enabled: Boolean, onClick: () -> Unit) {
+    val tick = rememberTick()
+    Box(
+        Modifier.size(Sizes.Control)
+            .pressable(CircleShape, 0.92f, enabled, ripple = false) { tick(); onClick() }
+            .background(C.Control)
+            .semantics { contentDescription = description },
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(icon, null, tint = if (enabled) C.Text else C.Text.copy(alpha = 0.3f), modifier = Modifier.size(Sizes.Icon))
     }
 }
 
 @Composable
 private fun ThemeTile(label: String, imageRes: Int, selected: Boolean, modifier: Modifier, onClick: () -> Unit) {
+    TileScaffold(label, selected, modifier, onClick) { Image(painterResource(imageRes), null) }
+}
+
+/** Same tile as the theme tiles, with a mini phone drawn in the given accent colour. */
+@Composable
+private fun AccentTile(preset: AccentPreset, selected: Boolean, modifier: Modifier, onClick: () -> Unit) {
+    TileScaffold(preset.name, selected, modifier, onClick) { AccentPreview(preset.color) }
+}
+
+@Composable
+private fun TileScaffold(label: String, selected: Boolean, modifier: Modifier, onClick: () -> Unit, preview: @Composable () -> Unit) {
     Column(
         modifier.clip(RoundedCornerShape(Radius.Badge))
             .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
@@ -319,9 +340,45 @@ private fun ThemeTile(label: String, imageRes: Int, selected: Boolean, modifier:
         verticalArrangement = Arrangement.spacedBy(Space.Sm),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Image(painterResource(imageRes), null)
+        preview()
         Box(Modifier.weight(1f)) { Text(label, style = Type.Small, color = C.Text, textAlign = TextAlign.Center, modifier = Modifier.align(Alignment.Center)) }
         AppRadio(selected)
+    }
+}
+
+/** Mirrors the layout of theme_light / theme_dark (72 x 130): top bar, connect orb, two cards. */
+@Composable
+private fun AccentPreview(accent: Color) {
+    val dark = Palette.dark
+    val tone = if (dark) AccentSet.of(accent).accentDark else accent
+    val frame = if (dark) Color(0xFF3B3747) else Color(0xFFDBD7D3)
+    val screenTop = if (dark) Color(0xFF2E2C38) else Color(0xFFFFFFFF)
+    val screenBottom = if (dark) Color(0xFF201F25) else Color(0xFFECECEC)
+    val card = if (dark) Color(0xFF696678).copy(alpha = 0.5f) else Color(0xFFF5F4F2)
+    val row = if (dark) Color(0xFF696678) else Color.White
+    val footer = if (dark) Color.White else Color(0xFF0C0C14).copy(alpha = 0.25f)
+    Canvas(Modifier.size(72.dp, 130.dp)) {
+        val k = size.width / 72f
+        fun box(l: Float, t: Float, r: Float, b: Float, rad: Float, color: Color) = drawRoundRect(
+            color, Offset(l * k, t * k), Size((r - l) * k, (b - t) * k), CornerRadius(rad * k),
+        )
+        box(0f, 0f, 72f, 130f, 10f, frame)
+        drawRoundRect(
+            Brush.verticalGradient(listOf(screenTop, screenBottom), startY = 4 * k, endY = 126 * k),
+            Offset(4 * k, 4 * k), Size(64 * k, 122 * k), CornerRadius(8 * k),
+        )
+        box(20f, 16f, 52f, 20f, 2f, tone)                       // top bar
+        val c = Offset(36f * k, 44f * k)
+        drawCircle(                                              // orb glow
+            Brush.radialGradient(0.44f to tone.copy(alpha = 0f), 1f to tone.copy(alpha = 0.5f), center = c, radius = 11f * k),
+            radius = 11f * k, center = c,
+        )
+        drawCircle(Color.White, 2.75f * k, c)
+        drawCircle(tone, 1.37f * k, c)
+        box(9f, 70f, 64f, 105f, 5f, card)                        // card
+        box(13f, 76f, 38f, 82f, 3f, tone)                        // short bar in accent
+        box(13f, 89f, 60f, 101f, 3f, row)
+        box(24f, 121f, 48f, 123f, 1f, footer)
     }
 }
 
