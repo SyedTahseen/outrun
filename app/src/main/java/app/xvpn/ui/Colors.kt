@@ -9,6 +9,55 @@ object Palette {
     var dark: Boolean
         get() = state.value
         set(v) { if (state.value != v) state.value = v }
+
+    private val accentState = mutableStateOf(AccentSet.of(Accents.Default))
+    /** Every accent-dependent colour in [C] is derived from this one set. */
+    var accentSet: AccentSet
+        get() = accentState.value
+        private set(v) { accentState.value = v }
+    fun setAccent(base: Color) { if (accentSet.primary != base) accentSet = AccentSet.of(base) }
+}
+
+/** A user-selectable accent colour. */
+class AccentPreset(val id: String, val name: String, val color: Color)
+
+object Accents {
+    val Default = Color(0xFF6D4AFF)
+    val Presets = listOf(
+        AccentPreset("purple", "Purple", Default),
+        AccentPreset("blue", "Blue", Color(0xFF2563EB)),
+        AccentPreset("teal", "Teal", Color(0xFF0F766E)),
+        AccentPreset("green", "Green", Color(0xFF15803D)),
+        AccentPreset("orange", "Orange", Color(0xFFC2410C)),
+        AccentPreset("pink", "Pink", Color(0xFFBE185D)),
+    )
+    fun nameOf(c: Color) = Presets.firstOrNull { it.color == c }?.name ?: "Custom"
+}
+
+/**
+ * All the shades the UI needs, derived from one brand colour. For the default purple the original
+ * hand-picked values are kept exactly; other colours use the same recipe (mix with white / darken).
+ */
+class AccentSet(
+    val primary: Color,      // buttons, switches, selected boxes (same in light & dark)
+    val accentDark: Color,   // text/icons accent on dark backgrounds
+    val darken20: Color,
+    val midDark: Color,
+    val deepDark: Color,
+    val tint: Color,         // pale tint used on light backgrounds / disabled solid
+) {
+    companion object {
+        fun of(p: Color): AccentSet {
+            if (p == Accents.Default) return AccentSet(
+                p, Color(0xFF8A6EFF), Color(0xFF4D34B3), Color(0xFF372580), Color(0xFF271B54), Color(0xFFC4B7FF),
+            )
+            fun mix(a: Color, b: Color, t: Float) = Color(
+                a.red + (b.red - a.red) * t, a.green + (b.green - a.green) * t, a.blue + (b.blue - a.blue) * t, 1f,
+            )
+            fun scale(a: Color, k: Float) = Color(a.red * k, a.green * k, a.blue * k, 1f)
+            return AccentSet(p, mix(p, Color.White, 0.20f), scale(p, 0.70f), scale(p, 0.50f), scale(p, 0.34f), mix(p, Color.White, 0.60f))
+        }
+    }
 }
 
 private fun pick(dark: Long, light: Long) = Color(if (Palette.dark) dark else light)
@@ -25,11 +74,11 @@ object C {
     val Outline get() = pick(0xFF4A4658, 0xFFD1CFCD)
     val Scrim get() = pick(0x85000000, 0x7A17181C)
 
-    val Primary = Color(0xFF6D4AFF)
-    val Accent get() = pick(0xFF8A6EFF, 0xFF6D4AFF)
-    val BrandDarken20 = Color(0xFF4D34B3)
-    val AccentMid get() = pick(0xFF372580, 0xFFC4B7FF)
-    val AccentDeep get() = pick(0xFF271B54, 0xFFC4B7FF)
+    val Primary get() = Palette.accentSet.primary
+    val Accent get() = if (Palette.dark) Palette.accentSet.accentDark else Palette.accentSet.primary
+    val BrandDarken20 get() = Palette.accentSet.darken20
+    val AccentMid get() = if (Palette.dark) Palette.accentSet.midDark else Palette.accentSet.tint
+    val AccentDeep get() = if (Palette.dark) Palette.accentSet.deepDark else Palette.accentSet.tint
     val NavPill get() = Accent.copy(alpha = 0.32f).compositeOver(Card)
     val Blue = Color(0xFF2F7BF0)
 
@@ -37,8 +86,8 @@ object C {
     val Muted get() = pick(0xFFA7A4B5, 0xFF706D6B)
     val TextHint get() = pick(0xFF6D697D, 0xFF999693)
     val OnPrimary = Color(0xFFFFFFFF)
-    val PrimaryDisabled get() = pick(0xFF372580, 0xFFC4B7FF)
-    val SolidDisabled = Color(0xFFC4B7FF)
+    val PrimaryDisabled get() = AccentMid
+    val SolidDisabled get() = Palette.accentSet.tint
     val Disabled get() = pick(0xFF5B576B, 0xFFC2BFBC)
     val Inverted get() = pick(0xFF0C0C14, 0xFFFFFFFF)
 

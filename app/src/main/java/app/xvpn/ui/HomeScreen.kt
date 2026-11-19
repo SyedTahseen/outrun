@@ -95,7 +95,7 @@ fun HomeScreen(
     val bg = C.Bg
     // Proton: list gradient is 100dp (offset 68dp) on compact widths and 200dp (offset 100dp) from 600dp up,
     // and the list gets the extra large-screen horizontal padding.
-    val wide = LocalConfiguration.current.screenWidthDp >= 600
+    val wide = appScreenWidthDp() >= 600
     val listGradient = if (wide) 200.dp else Sizes.ListGradient
     val listTopOffset = if (wide) 100.dp else Sizes.ListTopOffset
     val listExtraPadding = largeScreenContentPadding()
