@@ -74,6 +74,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.BlurredEdgeTreatment
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
@@ -288,60 +290,67 @@ private fun ModePicker(selected: TransmitMode, onSelect: (TransmitMode) -> Unit)
     }
 }
 
-private fun ringStops(): Array<Pair<Float, Color>> {
-    val cols = listOf(C.Accent, C.Blue, C.Green, C.Amber, C.Red)
-    return Array(cols.size + 1) { i -> (i / cols.size.toFloat()) to cols[i % cols.size] }
-}
+// Start button: a filled orb with a swirling conic gradient (magenta / violet / blue / cyan / pearl)
+// and a thin dark power glyph. Same colours in light and dark themes.
+private const val ORB_BOX = 200
 
-private const val RING_BOX = 250
-private const val RING_R = 86.5f
-private const val RING_W = 7.5f
-
-@Composable
-private fun RingGlowLayer(modifier: Modifier, stops: Array<Pair<Float, Color>>, strokeDp: Float, alpha: Float) {
-    Canvas(modifier.fillMaxSize()) {
-        drawCircle(
-            brush = Brush.sweepGradient(*stops, center = center),
-            radius = RING_R.dp.toPx(), alpha = alpha, style = Stroke(strokeDp.dp.toPx()),
-        )
-    }
-}
+private val OrbStops: Array<Pair<Float, Color>> = arrayOf(
+    0.00f to Color(0xFF1A2BE8),
+    0.10f to Color(0xFF1B30D2),
+    0.18f to Color(0xFF2C5FCF),
+    0.25f to Color(0xFF4FB5C8),
+    0.33f to Color(0xFF7FD0D8),
+    0.42f to Color(0xFFB4D2DC),
+    0.50f to Color(0xFFD3D0E6),
+    0.525f to Color(0xFFCFCBE4),
+    0.535f to Color(0xFFB04CD8),
+    0.62f to Color(0xFFE055E8),
+    0.67f to Color(0xFFC040E0),
+    0.73f to Color(0xFF7A35E0),
+    0.80f to Color(0xFF4A35E8),
+    0.86f to Color(0xFF2535F0),
+    1.00f to Color(0xFF1A2BE8),
+)
+private val OrbGlyph = Color(0xFF14142A)
 
 @Composable
 private fun StartRing(enabled: Boolean, onClick: () -> Unit) {
-    val on by animateFloatAsState(if (enabled) 1f else 0.35f, tween(Motion.Medium), label = "ringOn")
+    val on by animateFloatAsState(if (enabled) 1f else 0.35f, tween(Motion.Medium), label = "orbOn")
     val tick = rememberTick(strong = true)
-    val stops = remember(Palette.dark) { ringStops() }
-    val blurOk = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
-    Box(Modifier.size(RING_BOX.dp), contentAlignment = Alignment.Center) {
-        if (blurOk) {
-            RingGlowLayer(Modifier.blur(18.dp, BlurredEdgeTreatment.Unbounded), stops, RING_W, 0.45f * on)
-            RingGlowLayer(Modifier.blur(7.dp, BlurredEdgeTreatment.Unbounded), stops, RING_W, 0.7f * on)
-        } else {
-            Canvas(Modifier.fillMaxSize()) {
-                val brush = Brush.sweepGradient(*stops, center = center)
-                val layers = 16
-                for (i in layers downTo 1) {
-                    val reach = 30.dp.toPx() * sqrt(i.toFloat() / layers)
-                    drawCircle(
-                        brush = brush, radius = RING_R.dp.toPx(), alpha = 0.04f * on,
-                        style = Stroke(RING_W.dp.toPx() + 2f * reach),
-                    )
-                }
-            }
-        }
-        Canvas(Modifier.fillMaxSize()) {
-            val r = RING_R.dp.toPx()
-            val w = RING_W.dp.toPx()
-            drawCircle(color = C.Bg, radius = r - w / 2f)
-            val brush = Brush.sweepGradient(*stops, center = center)
-            drawCircle(brush = brush, radius = r, alpha = on, style = Stroke(w))
-        }
-        Box(
-            Modifier.size(Sizes.SpeedRing).pressable(CircleShape, 0.94f, enabled = enabled, ripple = false) { tick(); onClick() },
-            contentAlignment = Alignment.Center,
+    Box(Modifier.size(ORB_BOX.dp), contentAlignment = Alignment.Center) {
+        Canvas(
+            Modifier
+                .size(Sizes.SpeedRing)
+                .graphicsLayer { alpha = on }
+                .pressable(CircleShape, 0.94f, enabled = enabled, ripple = false) { tick(); onClick() }
+                .semantics { contentDescription = "Start speed test" },
         ) {
-            Text("START", style = Type.Heading, color = if (enabled) C.Text else Dim)
+            val c = center
+            val r = size.minDimension / 2f
+            // Conic colour swirl.
+            drawCircle(brush = Brush.sweepGradient(*OrbStops, center = c), radius = r, center = c)
+            // Soft vignette: bright core, darker rim, so it reads as a lit sphere.
+            drawCircle(
+                brush = Brush.radialGradient(
+                    0.0f to Color.Transparent,
+                    0.62f to Color.Transparent,
+                    1.0f to Color.Black.copy(alpha = 0.42f),
+                    center = c, radius = r,
+                ),
+                radius = r, center = c,
+            )
+            // Power glyph (circle with a gap at the top and a short stem).
+            val gr = r * 0.33f
+            val sw = 2.dp.toPx()
+            drawArc(
+                color = OrbGlyph, startAngle = 325f, sweepAngle = 250f, useCenter = false,
+                topLeft = Offset(c.x - gr, c.y - gr), size = Size(gr * 2f, gr * 2f),
+                style = Stroke(sw, cap = StrokeCap.Round),
+            )
+            drawLine(
+                color = OrbGlyph, start = Offset(c.x, c.y - gr), end = Offset(c.x, c.y - gr * 0.35f),
+                strokeWidth = sw, cap = StrokeCap.Round,
+            )
         }
     }
 }
