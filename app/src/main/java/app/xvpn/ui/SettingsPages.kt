@@ -2,6 +2,7 @@ package app.xvpn.ui
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -28,6 +29,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.InlineTextContent
 import androidx.compose.foundation.text.appendInlineContent
 import androidx.compose.foundation.verticalScroll
@@ -43,8 +45,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.Placeholder
 import androidx.compose.ui.text.PlaceholderVerticalAlign
 import androidx.compose.ui.text.SpanStyle
@@ -235,7 +240,12 @@ private fun Bullet(text: String) {
 }
 
 @Composable
-fun ThemePage(selected: String, onSelect: (String) -> Unit, onBack: () -> Unit) {
+fun ThemePage(
+    selected: String, onSelect: (String) -> Unit,
+    accent: Color, onAccent: (Color) -> Unit,
+    displayScale: Float, onDisplayScale: (Float) -> Unit,
+    onBack: () -> Unit,
+) {
     Column(Modifier.fillMaxSize()) {
         ScreenHeader("Theme", onBack)
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
@@ -244,7 +254,59 @@ fun ThemePage(selected: String, onSelect: (String) -> Unit, onBack: () -> Unit) 
                 ThemeTile("Dark", R.drawable.theme_dark, selected == AppTheme.DARK, Modifier.weight(1f)) { onSelect(AppTheme.DARK) }
                 ThemeTile("Device theme", R.drawable.theme_auto, selected == AppTheme.SYSTEM, Modifier.weight(1f)) { onSelect(AppTheme.SYSTEM) }
             }
+
+            SectionHeader("Accent color")
+            Column(Modifier.padding(horizontal = Space.Gutter), verticalArrangement = Arrangement.spacedBy(Space.Md)) {
+                Accents.Presets.chunked(4).forEach { rowItems ->
+                    Row(Modifier.fillMaxWidth()) {
+                        rowItems.forEach { p ->
+                            AccentSwatch(p, p.color == accent, Modifier.weight(1f)) { onAccent(p.color) }
+                        }
+                    }
+                }
+            }
+
+            SectionHeader("Display size")
+            Column(Modifier.padding(horizontal = Space.Gutter)) {
+                val options = AppTheme.DisplaySizes
+                val index = options.indices.minByOrNull { kotlin.math.abs(options[it].second - displayScale) } ?: 1
+                Segmented(options.map { it.first }, index) { onDisplayScale(options[it].second) }
+                Spacer(Modifier.height(Space.Md))
+                Text(
+                    "Makes text and controls across the app smaller or larger. Applies immediately.",
+                    style = Type.Small, color = C.Muted,
+                )
+                if (index != 1) {
+                    Spacer(Modifier.height(Space.Sm))
+                    Text(
+                        "Reset to default", style = Type.Small, color = C.Accent,
+                        modifier = Modifier.clip(RoundedCornerShape(Radius.Badge)).clickable { onDisplayScale(1f) }.padding(vertical = Space.Xs),
+                    )
+                }
+            }
+            Spacer(Modifier.height(Space.Xxl))
         }
+    }
+}
+
+@Composable
+private fun AccentSwatch(preset: AccentPreset, selected: Boolean, modifier: Modifier, onClick: () -> Unit) {
+    Column(
+        modifier.clip(RoundedCornerShape(Radius.Badge))
+            .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
+            .semantics { contentDescription = preset.name + " accent color" }
+            .padding(vertical = Space.Xs),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(Space.Xs),
+    ) {
+        Box(
+            Modifier.size(52.dp).border(2.dp, if (selected) C.Text else Color.Transparent, CircleShape).padding(5.dp)
+                .clip(CircleShape).background(preset.color),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (selected) Icon(ProtonIcons.Checkmark, null, tint = C.OnPrimary, modifier = Modifier.size(Sizes.IconSm))
+        }
+        Text(preset.name, style = Type.Caption, color = if (selected) C.Text else C.Muted, maxLines = 1)
     }
 }
 

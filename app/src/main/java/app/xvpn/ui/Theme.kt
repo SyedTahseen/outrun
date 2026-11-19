@@ -24,7 +24,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 
 @Composable
 fun OutrunApp(content: @Composable () -> Unit) {
@@ -73,8 +77,21 @@ fun OutrunTheme(content: @Composable () -> Unit) {
     }
 }
 
+/**
+ * Display size: scales every dp and sp in the app by [AppTheme.displayScale]. The system font-size
+ * setting is kept on top of it. Windows (dialogs, menus, sheets) inherit LocalDensity, so they scale too.
+ */
 @Composable
-internal fun DesignScale(content: @Composable () -> Unit) = content()
+internal fun DesignScale(content: @Composable () -> Unit) {
+    val base = LocalDensity.current
+    val scale = AppTheme.displayScale
+    val density = remember(base, scale) { Density(base.density * scale, base.fontScale) }
+    CompositionLocalProvider(LocalDensity provides density, content = content)
+}
+
+/** Screen width in app dp, i.e. with the display-size scale taken into account. */
+@Composable
+internal fun appScreenWidthDp(): Float = LocalConfiguration.current.screenWidthDp / AppTheme.displayScale
 
 object AppTheme {
     const val SYSTEM = "system"
@@ -84,7 +101,31 @@ object AppTheme {
     var mode by mutableStateOf(SYSTEM)
         private set
 
-    fun load(ctx: Context) { mode = Store(ctx).themeMode }
+    val DisplaySizes = listOf("Small" to 0.85f, "Default" to 1f, "Large" to 1.15f, "Larger" to 1.3f)
+
+    var accent by mutableStateOf(Accents.Default)
+        private set
+    var displayScale by mutableStateOf(1f)
+        private set
+
+    fun load(ctx: Context) {
+        val s = Store(ctx)
+        mode = s.themeMode
+        accent = Color(s.accentColor)
+        Palette.setAccent(accent)
+        displayScale = s.displayScale.coerceIn(0.7f, 1.5f)
+    }
+
+    fun setAccent(ctx: Context, value: Color) {
+        Store(ctx).accentColor = value.toArgb()
+        accent = value
+        Palette.setAccent(value)
+    }
+
+    fun setDisplayScale(ctx: Context, value: Float) {
+        Store(ctx).displayScale = value
+        displayScale = value
+    }
 
     fun set(ctx: Context, value: String) {
         Store(ctx).themeMode = value
