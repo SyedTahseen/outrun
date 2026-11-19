@@ -10,4 +10,5 @@
     <string name="widget_sub_choose_server">Choose a server</string>
     <string name="widget_sub_connecting">Connecting…</string>
     <string name="widget_sub_waiting_network">Waiting for network</string>
+    <string name="widget_sub_disconnecting">Disconnecting…</string>
 </resources>

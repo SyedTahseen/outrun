@@ -61,13 +61,14 @@ class OutrunWidget : AppWidgetProvider() {
 
             val title = when (status) {
                 Status.Connected -> ctx.getString(R.string.widget_title_on)
-                Status.Connecting, Status.WaitingForNetwork -> ctx.getString(R.string.widget_title_connecting)
+                Status.Connecting, Status.WaitingForNetwork, Status.Disconnecting -> ctx.getString(R.string.widget_title_connecting)
                 Status.Disconnected -> ctx.getString(R.string.widget_title_off)
             }
             val sub = when {
                 profile == null -> ctx.getString(R.string.widget_sub_choose_server)
                 status == Status.Connecting -> ctx.getString(R.string.widget_sub_connecting)
                 status == Status.WaitingForNetwork -> ctx.getString(R.string.widget_sub_waiting_network)
+                status == Status.Disconnecting -> ctx.getString(R.string.widget_sub_disconnecting)
                 status == Status.Disconnected -> profile.name
                 else -> {
                     val host = if (':' in profile.host) "[${profile.host}]" else profile.host
@@ -84,7 +85,7 @@ class OutrunWidget : AppWidgetProvider() {
             )
             views.setInt(
                 R.id.widget_power, "setColorFilter",
-                when (status) { Status.Connected -> GREEN; Status.Connecting, Status.WaitingForNetwork -> AMBER; Status.Disconnected -> WHITE },
+                when (status) { Status.Connected -> GREEN; Status.Connecting, Status.WaitingForNetwork, Status.Disconnecting -> AMBER; Status.Disconnected -> WHITE },
             )
 
             views.setOnClickPendingIntent(R.id.widget_root, openApp(ctx, 0))

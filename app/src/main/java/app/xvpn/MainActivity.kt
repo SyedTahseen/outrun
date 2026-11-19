@@ -12,6 +12,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.net.VpnService
 import android.os.Build
+import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -119,12 +120,34 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.concurrent.thread
 
+/** Bumped each time the notification asks to show the status screen. */
+internal val openStatusRequests = kotlinx.coroutines.flow.MutableStateFlow(0)
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         setUpEdgeToEdge()
+        handleOpenStatus(intent)
         setContent { OutrunApp { App() } }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleOpenStatus(intent)
+    }
+
+    /** Tapping the VPN notification asks for the status (Home) screen, like Proton's "OpenStatus" extra. */
+    private fun handleOpenStatus(intent: Intent?) {
+        if (intent?.getBooleanExtra(EXTRA_OPEN_STATUS, false) == true) {
+            intent.removeExtra(EXTRA_OPEN_STATUS)
+            openStatusRequests.value += 1
+        }
+    }
+
+    companion object {
+        const val EXTRA_OPEN_STATUS = "OpenStatus"
     }
 
     override fun onResume() {
@@ -164,6 +187,8 @@ private fun App() {
 
     remember { if (NetInfo.real.value == null) NetInfo.real.value = store.lastReal }
     var tab by remember { mutableStateOf(Tab.Home) }
+    val openStatus by openStatusRequests.collectAsState()
+    LaunchedEffect(openStatus) { if (openStatus > 0) tab = Tab.Home }
     var profiles by remember { mutableStateOf(store.profiles()) }
     var selectedLink by remember { mutableStateOf(store.selected ?: profiles.firstOrNull()?.link) }
 
@@ -204,7 +229,7 @@ private fun App() {
                 }
             }
 
-            status == Status.Connecting || status == Status.WaitingForNetwork -> NetInfo.proxy.value = null
+            status == Status.Connecting || status == Status.WaitingForNetwork || status == Status.Disconnecting -> NetInfo.proxy.value = null
             status == Status.Connected && socks > 0 -> {
                 for (i in 0 until 5) {
                     val r = withContext(Dispatchers.IO) { GeoIp.lookup(socks) }

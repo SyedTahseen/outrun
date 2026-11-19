@@ -156,7 +156,7 @@ class OutrunVpnService : VpnService() {
                 val link = Store(this).selected?.takeIf { LinkParser.parse(it) != null }
                 if (link != null) begin(link)
                 else {
-                    fg(notification(getString(R.string.app_name), "Select a server in the app"))
+                    fg(notification(NState.Idle, getString(R.string.app_name), "Select a server in the app"))
                     stopForeground(STOP_FOREGROUND_REMOVE)
                     stopSelf()
                 }
@@ -168,7 +168,7 @@ class OutrunVpnService : VpnService() {
     private fun adopt() {
         wanted = true
         sessionRoot = true
-        fg(notification(getString(R.string.app_name), "Reconnecting…"), root = true)
+        fg(notification(NState.Reconnecting, "Reconnecting"), root = true)
         scope.launch {
             val rc = RootCore(this@OutrunVpnService)
             val port = runCatching { rc.attach() }.getOrNull()
@@ -193,7 +193,7 @@ class OutrunVpnService : VpnService() {
             VpnState.sessionUp.value = 0; VpnState.sessionDown.value = 0
             OutrunWidget.refresh(this@OutrunVpnService)
             AppLog.i(this@OutrunVpnService, "service", "took over the running root core for \"${profile.name}\"")
-            notificationManager.notify(NOTIFICATION_ID, notification("Connected · ${profile.name}", "↓ 0 KB/s   ↑ 0 KB/s"))
+            notificationManager.notify(NOTIFICATION_ID, notification(NState.Connected, "Connected to ${profile.name}", trafficLine()))
             startStats()
             startHealth(port)
         }
@@ -204,7 +204,7 @@ class OutrunVpnService : VpnService() {
         val root = Store(this).rootMode
         sessionRoot = root
         AppLog.i(this, "service", "start requested (${if (root) "root" else "vpn service"} mode${if (boot) ", after boot" else ""})")
-        fg(notification(getString(R.string.app_name), "Connecting…"))
+        fg(notification(NState.Connecting, connectingTitle(link)))
         registerNetworkWatch()
         if (boot && root) {
             // The root manager can come up a little after BOOT_COMPLETED, so ask for root again for up to a minute.
@@ -260,7 +260,7 @@ class OutrunVpnService : VpnService() {
         VpnState.downBytesPerSec.value = 0
         VpnState.status.value = Status.WaitingForNetwork
         OutrunWidget.refresh(this)
-        notificationManager.notify(NOTIFICATION_ID, notification(getString(R.string.app_name), "Waiting for network…"))
+        notificationManager.notify(NOTIFICATION_ID, notification(NState.Waiting, "Waiting for usable network"))
     }
 
     private fun launchConnect(link: String) {
@@ -294,7 +294,7 @@ class OutrunVpnService : VpnService() {
         AppLog.i(this, "service", "switching to ${if (root) "root" else "vpn service"} mode")
         notificationManager.notify(
             NOTIFICATION_ID,
-            notification(getString(R.string.app_name), "Switching ${if (root) "root" else "VPN"} mode…"),
+            notification(NState.Reconnecting, "Reconnecting"),
         )
         launchConnect(link)
     }
@@ -304,14 +304,14 @@ class OutrunVpnService : VpnService() {
         if (!wanted || link == null) { stopSelf(); return }
         if (waitingNet) return
         AppLog.i(this, "service", "reconnecting to apply new settings")
-        notificationManager.notify(NOTIFICATION_ID, notification(getString(R.string.app_name), "Reconnecting…"))
+        notificationManager.notify(NOTIFICATION_ID, notification(NState.Reconnecting, "Reconnecting"))
         launchConnect(link)
     }
 
     private fun switchNext() {
         val next = nextLink() ?: return
         val name = LinkParser.parse(next)?.name ?: ""
-        notificationManager.notify(NOTIFICATION_ID, notification(getString(R.string.app_name), "Switching to $name…"))
+        notificationManager.notify(NOTIFICATION_ID, notification(NState.Connecting, connectingTitle(next)))
         wanted = true
         launchConnect(next)
     }
@@ -376,7 +376,7 @@ class OutrunVpnService : VpnService() {
             netJob = scope.launch {
                 delay(NET_DEBOUNCE_MS)
                 waitingNet = false
-                notificationManager.notify(NOTIFICATION_ID, notification(getString(R.string.app_name), "Network changed, reconnecting…"))
+                notificationManager.notify(NOTIFICATION_ID, notification(NState.Reconnecting, "Reconnecting"))
                 launchConnect(link)
             }
         } else { netLost = false; waitingNet = false }
@@ -395,7 +395,7 @@ class OutrunVpnService : VpnService() {
                 if (fails == 1) lastNet?.let { n -> runCatching { getSystemService(ConnectivityManager::class.java)?.reportNetworkConnectivity(n, false) } }
                 if (fails >= HEALTH_FAILS) {
                     val link = currentLink ?: return@launch
-                    notificationManager.notify(NOTIFICATION_ID, notification(getString(R.string.app_name), "Connection lost, reconnecting…"))
+                    notificationManager.notify(NOTIFICATION_ID, notification(NState.Reconnecting, "Reconnecting"))
                     launchConnect(link)
                     return@launch
                 }
@@ -419,9 +419,18 @@ class OutrunVpnService : VpnService() {
         sessionStart = 0L; sessUp = 0; sessDown = 0
     }
 
-    private fun rate(b: Long): String =
-        if (b >= 1_000_000) String.format(Locale.US, "%.1f MB/s", b / 1_000_000.0)
-        else String.format(Locale.US, "%.0f KB/s", b / 1000.0)
+    /** Proton-style sizes: decimal units, two decimals ("0.00 KB/s", "12.34 MB"). */
+    private fun fmtBytes(b: Long, perSecond: Boolean): String {
+        val units = arrayOf("B", "KB", "MB", "GB", "TB")
+        var v = b.toDouble(); var i = 0
+        while (v >= 1000 && i < units.lastIndex) { v /= 1000; i++ }
+        return String.format(Locale.US, "%.2f %s%s", v, units[i], if (perSecond) "/s" else "")
+    }
+
+    /** Same line as Proton's notification: "↓ session | speed  ↑ session | speed". */
+    private fun trafficLine(): String =
+        "↓ ${fmtBytes(sessDown, false)} | ${fmtBytes(VpnState.downBytesPerSec.value, true)}  " +
+            "↑ ${fmtBytes(sessUp, false)} | ${fmtBytes(VpnState.upBytesPerSec.value, true)}"
 
     private fun prefixLength(ip: String): Int = ip.substringAfter('/', if (':' in ip) "128" else "32").toInt()
 
@@ -465,7 +474,7 @@ class OutrunVpnService : VpnService() {
             if (sessionRoot != settings.rootMode) {
                 sessionRoot = settings.rootMode
                 // Android 14 ties the foreground type to the mode (specialUse for root, systemExempted for the VPN service).
-                runCatching { fg(notification(getString(R.string.app_name), "Connecting…"), settings.rootMode) }
+                runCatching { fg(notification(NState.Connecting, connectingTitle(link)), settings.rootMode) }
             }
             if (settings.rootMode) {
                 rc = RootCore(this)
@@ -558,7 +567,7 @@ class OutrunVpnService : VpnService() {
                 VpnState.alwaysOn.value = false
                 VpnState.lockdown.value = false
             }
-            notificationManager.notify(NOTIFICATION_ID, notification("Connected · ${profile.name}", "↓ 0 KB/s   ↑ 0 KB/s"))
+            notificationManager.notify(NOTIFICATION_ID, notification(NState.Connected, "Connected to ${profile.name}", trafficLine()))
             startStats()
             startHealth(port)
             Store(this).pushRecent(link)
@@ -581,7 +590,7 @@ class OutrunVpnService : VpnService() {
                 val next = if (e !is NoVpnPermission && !noRoot && wanted && tried.size < MAX_FALLBACKS) fallbackLink(tried + link) else null
                 if (next != null) {
                     notificationManager.notify(
-                        NOTIFICATION_ID, notification(getString(R.string.app_name), "Server unreachable, trying ${LinkParser.parse(next)?.name ?: "another server"}…"),
+                        NOTIFICATION_ID, notification(NState.Error, "Error", ConnectionErrors.message(ConnectionErrors.classify(e, e is NoVpnPermission), e.message)),
                     )
                     connect(next, tried + link)
                 } else if (noRoot) {
@@ -590,9 +599,10 @@ class OutrunVpnService : VpnService() {
                     if (VpnState.rootUnavailable.value == 0) VpnState.rootUnavailable.value = 2
                     shutdown()
                 } else {
-                    val msg = e.message ?: e.javaClass.simpleName
-                    VpnState.error.value = if (tried.isEmpty()) msg else "$msg (tried ${tried.size + 1} servers)"
-                    shutdown()
+                    val msg = ConnectionErrors.message(ConnectionErrors.classify(e, e is NoVpnPermission), e.message ?: e.javaClass.simpleName)
+                    val full = if (tried.isEmpty()) msg else "$msg (tried ${tried.size + 1} servers)"
+                    VpnState.error.value = full
+                    shutdown(failure = full)
                 }
             }
         }
@@ -667,10 +677,10 @@ class OutrunVpnService : VpnService() {
                 when (VpnState.status.value) {
                     Status.Connected -> notificationManager.notify(
                         NOTIFICATION_ID,
-                        notification("Connected · $currentName", "↓ ${rate(VpnState.downBytesPerSec.value)}   ↑ ${rate(VpnState.upBytesPerSec.value)}"),
+                        notification(NState.Connected, "Connected to $currentName", trafficLine()),
                     )
                     Status.WaitingForNetwork -> notificationManager.notify(
-                        NOTIFICATION_ID, notification(getString(R.string.app_name), "Waiting for network…"),
+                        NOTIFICATION_ID, notification(NState.Waiting, "Waiting for usable network"),
                     )
                     else -> {}
                 }
@@ -679,14 +689,15 @@ class OutrunVpnService : VpnService() {
     }
 
     /** [async] is for shutdown on the main thread: stopping the root core can take a second or two. */
-    private fun teardownSession(async: Boolean = false) {
+    private fun teardownSession(async: Boolean = false): Thread? {
         statsJob?.cancel(); statsJob = null
         healthJob?.cancel(); healthJob = null
         finishSession()
         val rc = rootCore
         rootCore = null
+        var pending: Thread? = null
         if (rc != null) {
-            if (async) thread(name = "root-stop") { runCatching { rc.stop() } } else runCatching { rc.stop() }
+            if (async) pending = thread(name = "root-stop") { runCatching { rc.stop() } } else runCatching { rc.stop() }
         } else runCatching { Tun2Socks.TProxyStopService() }
         runCatching { core?.stop() }
         core = null
@@ -696,21 +707,36 @@ class OutrunVpnService : VpnService() {
         VpnState.downBytesPerSec.value = 0
         VpnState.speedHistory.value = emptyList()
         VpnState.socksPort.value = 0
+        return pending
     }
 
-    private fun shutdown() {
+    private fun shutdown(failure: String? = null) {
         AppLog.i(this, "service", "disconnect")
         wanted = false
         sessionRoot = null
         unregisterNetworkWatch()
         connectJob?.cancel()
-        teardownSession(async = true)
+        VpnState.status.value = Status.Disconnecting
+        notificationManager.notify(NOTIFICATION_ID, notification(NState.Disconnecting, "Disconnecting…"))
+        OutrunWidget.refresh(this)
+        val pending = teardownSession(async = true)
+        if (pending == null) finishShutdown(failure)
+        else thread(name = "shutdown-wait") {
+            runCatching { pending.join() }
+            android.os.Handler(android.os.Looper.getMainLooper()).post { finishShutdown(failure) }
+        }
+    }
+
+    private fun finishShutdown(failure: String?) {
+        if (wanted) return // a new connection was requested while disconnecting
         VpnState.status.value = Status.Disconnected
         VpnState.activeLink.value = null
         VpnState.sessionUp.value = 0; VpnState.sessionDown.value = 0
         OutrunWidget.refresh(this)
         stopForeground(STOP_FOREGROUND_REMOVE)
+        notificationManager.cancel(NOTIFICATION_ID)
         stopSelf()
+        failure?.let { notifyFailure(it) }
     }
 
     override fun onRevoke() = shutdown()
@@ -731,20 +757,42 @@ class OutrunVpnService : VpnService() {
         return Notification.Action.Builder(Icon.createWithResource(this, icon), title, pi).build()
     }
 
-    private fun notification(title: String, text: String): Notification {
+    private enum class NState { Connecting, Connected, Reconnecting, Waiting, Disconnecting, Error, Idle }
+
+    private fun connectingTitle(link: String?): String =
+        link?.let { LinkParser.parse(it)?.name }?.takeIf { it.isNotBlank() }?.let { "Connecting to $it" } ?: "Connecting"
+
+    /** Same layout as Proton's status notification: state title, optional traffic/error line, Disconnect only while connecting/connected. */
+    private fun notification(state: NState, title: String, text: String? = null, dismissible: Boolean = false): Notification {
         val pi = PendingIntent.getActivity(
-            this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE
+            this, 0,
+            Intent(this, MainActivity::class.java)
+                .putExtra(MainActivity.EXTRA_OPEN_STATUS, true)
+                .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
+        val icon = when (state) {
+            NState.Connected -> R.drawable.ic_stat_outrun
+            NState.Connecting, NState.Reconnecting, NState.Waiting, NState.Disconnecting -> R.drawable.ic_stat_outrun_connecting
+            NState.Error, NState.Idle -> R.drawable.ic_stat_outrun_disconnected
+        }
         val b = Notification.Builder(this, CHANNEL)
             .setContentTitle(title)
             .setContentText(text)
-            .setSmallIcon(R.drawable.ic_stat_outrun)
+            .setSmallIcon(icon)
             .setContentIntent(pi)
-            .setOngoing(true)
+            .setOngoing(!dismissible)
+            .setAutoCancel(dismissible)
             .setOnlyAlertOnce(true)
             .setShowWhen(false)
-            .addAction(action("Disconnect", ACTION_STOP, 1, android.R.drawable.ic_menu_close_clear_cancel))
-        if (canSwitch) b.addAction(action("Switch server", ACTION_NEXT, 2, android.R.drawable.ic_menu_rotate))
+        if (state == NState.Connecting || state == NState.Connected) {
+            b.addAction(action("Disconnect", ACTION_STOP, 1, R.drawable.ic_proton_cross))
+        }
         return b.build()
+    }
+
+    /** Final failure: shown in the same status notification (same slot, title "Error"), but dismissible because the service is gone. */
+    private fun notifyFailure(message: String) {
+        notificationManager.notify(NOTIFICATION_ID, notification(NState.Error, "Error", message, dismissible = true))
     }
 }

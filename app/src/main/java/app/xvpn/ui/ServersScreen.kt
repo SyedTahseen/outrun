@@ -231,7 +231,7 @@ fun ServersScreen(
                                             else -> {
                                                 AppMenuItem(ProtonIcons.Bolt, if (testing) "Testing…" else "Test latency") { moreMenu = false; if (!testing) onTestLatency() }
                                                 AppMenuItem(ProtonIcons.LinesLongToSmall, "Sort", trailing = { Chevron() }) { menuPage = "sort" }
-                                                AppMenuItem(ProtonIcons.ArrowsRotate, "Update subs") { moreMenu = false; onRefreshSubscriptions() }
+                                                AppMenuItem(ProtonIcons.ArrowsRotate, "Update subscription") { moreMenu = false; onRefreshSubscriptions() }
                                                 AppMenuItem(ProtonIcons.Trash, "Delete", trailing = { Chevron() }) { menuPage = "delete" }
                                             }
                                         }

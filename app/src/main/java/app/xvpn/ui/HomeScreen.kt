@@ -102,12 +102,12 @@ fun HomeScreen(
     val on = status == Status.Connected
     val connecting = status == Status.Connecting
     val tone by animateColorAsState(
-        when (status) { Status.Connected -> C.Green; Status.Connecting, Status.WaitingForNetwork -> C.Neutral; Status.Disconnected -> C.Red },
+        when (status) { Status.Connected -> C.Green; Status.Connecting, Status.WaitingForNetwork, Status.Disconnecting -> C.Neutral; Status.Disconnected -> C.Red },
         label = "tone",
     )
 
     val overlay by animateColorAsState(
-        when (status) { Status.Connected -> C.Green.copy(alpha = C.OverlayConnected); Status.Connecting, Status.WaitingForNetwork -> Color.White.copy(alpha = 0.5f); Status.Disconnected -> C.Red.copy(alpha = C.OverlayDisconnected) },
+        when (status) { Status.Connected -> C.Green.copy(alpha = C.OverlayConnected); Status.Connecting, Status.WaitingForNetwork, Status.Disconnecting -> Color.White.copy(alpha = 0.5f); Status.Disconnected -> C.Red.copy(alpha = C.OverlayDisconnected) },
         tween(500), label = "overlay",
     )
 
@@ -158,6 +158,7 @@ fun HomeScreen(
                     Status.Connected -> ProtectedHeader(fmtDuration(now - connectedAt), up, down)
                     Status.Connecting -> ConnectingHeader(real)
                     Status.WaitingForNetwork -> WaitingForNetworkHeader()
+                    Status.Disconnecting -> DisconnectingHeader()
                     Status.Disconnected -> UnprotectedHeader(real, error)
                 }
             }
@@ -228,6 +229,7 @@ fun HomeScreen(
                                 }
                             }
                             Status.WaitingForNetwork -> AppButton("Cancel", onToggle, Modifier.fillMaxWidth(), ButtonStyle.Secondary)
+                            Status.Disconnecting -> Spacer(Modifier.height(Sizes.Button))
                             Status.Connected -> {
                                 AppButton("Disconnect", onToggle, Modifier.fillMaxWidth(), ButtonStyle.Secondary)
                                 Spacer(Modifier.height(Space.Sm))
@@ -306,6 +308,19 @@ private fun WaitingForNetworkHeader() {
             )
         }
         Text("Waiting for network", style = Type.BodyMedium, color = C.Text, textAlign = TextAlign.Center, modifier = Modifier.padding(Space.Sm))
+    }
+}
+
+@Composable
+private fun DisconnectingHeader() {
+    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(Modifier.padding(Space.Sm).size(Sizes.IconLg), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(Sizes.IconLg), color = C.Text, trackColor = Color.Transparent,
+                strokeWidth = Sizes.Spinner,
+            )
+        }
+        Text("Disconnecting…", style = Type.BodyMedium, color = C.Text, textAlign = TextAlign.Center, modifier = Modifier.padding(Space.Sm))
     }
 }
 

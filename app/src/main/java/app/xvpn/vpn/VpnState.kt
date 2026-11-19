@@ -2,7 +2,7 @@ package app.xvpn.vpn
 
 import kotlinx.coroutines.flow.MutableStateFlow
 
-enum class Status { Disconnected, Connecting, WaitingForNetwork, Connected }
+enum class Status { Disconnected, Connecting, WaitingForNetwork, Connected, Disconnecting }
 
 object VpnState {
     val status = MutableStateFlow(Status.Disconnected)
