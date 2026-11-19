@@ -1,9 +1,7 @@
 package app.xvpn.ui
 
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,7 +17,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyListState
@@ -31,7 +28,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.InlineTextContent
 import androidx.compose.foundation.text.appendInlineContent
 import androidx.compose.foundation.verticalScroll
@@ -46,16 +42,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.Placeholder
 import androidx.compose.ui.text.PlaceholderVerticalAlign
 import androidx.compose.ui.text.SpanStyle
@@ -68,7 +57,6 @@ import androidx.compose.ui.unit.em
 import app.xvpn.R
 import app.xvpn.data.Choices
 import kotlin.math.min
-import kotlin.math.roundToInt
 
 private fun titleVisibilityFraction(state: LazyListState, titleItemIndex: Int): Float {
     val info = state.layoutInfo.visibleItemsInfo.take(titleItemIndex + 1).firstOrNull { it.index == titleItemIndex }
@@ -247,12 +235,7 @@ private fun Bullet(text: String) {
 }
 
 @Composable
-fun ThemePage(
-    selected: String, onSelect: (String) -> Unit,
-    accent: Color, onAccent: (Color) -> Unit,
-    displayScale: Float, onDisplayScale: (Float) -> Unit,
-    onBack: () -> Unit,
-) {
+fun ThemePage(selected: String, onSelect: (String) -> Unit, onBack: () -> Unit) {
     Column(Modifier.fillMaxSize()) {
         ScreenHeader("Theme", onBack)
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
@@ -261,90 +244,12 @@ fun ThemePage(
                 ThemeTile("Dark", R.drawable.theme_dark, selected == AppTheme.DARK, Modifier.weight(1f)) { onSelect(AppTheme.DARK) }
                 ThemeTile("Device theme", R.drawable.theme_auto, selected == AppTheme.SYSTEM, Modifier.weight(1f)) { onSelect(AppTheme.SYSTEM) }
             }
-
-            ScreenLabel("Accent")
-            Row(
-                Modifier.fillMaxWidth().padding(horizontal = Space.Gutter),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Accents.Presets.forEach { p -> AccentSwatch(p, p.color == accent) { onAccent(p.color) } }
-            }
-
-            val percent = (displayScale * 100f).roundToInt()
-            Row(
-                Modifier.fillMaxWidth().padding(start = Space.Gutter, end = Space.Gutter, top = Space.Xl),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text("Display size", style = Type.Small, color = C.Muted, modifier = Modifier.weight(1f))
-                DisplaySizeStepper(
-                    percent,
-                    onChange = { onDisplayScale(it.coerceIn(AppTheme.DISPLAY_MIN, AppTheme.DISPLAY_MAX) / 100f) },
-                )
-            }
-            Text(
-                "Makes text and controls across the app smaller or larger.",
-                style = Type.Small, color = C.Muted, modifier = Modifier.fillMaxWidth().padding(horizontal = Space.Gutter, vertical = Space.Sm),
-            )
-            Spacer(Modifier.height(Space.Xxl))
         }
-    }
-}
-
-/** Compact pill with a small round "−" and "+" button either side of the current size. */
-@Composable
-private fun DisplaySizeStepper(percent: Int, onChange: (Int) -> Unit) {
-    Row(
-        Modifier.clip(CircleShape).background(C.Card).border(1.dp, C.Outline, CircleShape).padding(3.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        StepButton(ProtonIcons.Minus, "Decrease display size", percent > AppTheme.DISPLAY_MIN) { onChange(percent - AppTheme.DISPLAY_STEP) }
-        Box(Modifier.widthIn(min = 52.dp), contentAlignment = Alignment.Center) {
-            Text("$percent%", style = Type.Label, color = C.Text, maxLines = 1)
-        }
-        StepButton(ProtonIcons.Plus, "Increase display size", percent < AppTheme.DISPLAY_MAX) { onChange(percent + AppTheme.DISPLAY_STEP) }
-    }
-}
-
-@Composable
-private fun StepButton(icon: ImageVector, description: String, enabled: Boolean, onClick: () -> Unit) {
-    val tick = rememberTick()
-    Box(
-        Modifier.size(32.dp)
-            .pressable(CircleShape, 0.92f, enabled, ripple = false) { tick(); onClick() }
-            .background(C.Control)
-            .semantics { contentDescription = description },
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(icon, null, tint = if (enabled) C.Text else C.Text.copy(alpha = 0.3f), modifier = Modifier.size(16.dp))
     }
 }
 
 @Composable
 private fun ThemeTile(label: String, imageRes: Int, selected: Boolean, modifier: Modifier, onClick: () -> Unit) {
-    TileScaffold(label, selected, modifier, onClick) { Image(painterResource(imageRes), null) }
-}
-
-/** Round colour swatch that behaves like a radio button; the selected one gets a ring and a check. */
-@Composable
-private fun AccentSwatch(preset: AccentPreset, selected: Boolean, onClick: () -> Unit) {
-    val tone = if (Palette.dark) AccentSet.of(preset.color).accentDark else preset.color
-    Box(
-        Modifier.size(44.dp)
-            .clip(CircleShape)
-            .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
-            .semantics { contentDescription = preset.name },
-        contentAlignment = Alignment.Center,
-    ) {
-        if (selected) Box(Modifier.size(44.dp).border(2.dp, tone, CircleShape))
-        Box(Modifier.size(32.dp).clip(CircleShape).background(tone), contentAlignment = Alignment.Center) {
-            if (selected) Icon(ProtonIcons.Checkmark, null, tint = Color.White, modifier = Modifier.size(18.dp))
-        }
-    }
-}
-
-@Composable
-private fun TileScaffold(label: String, selected: Boolean, modifier: Modifier, onClick: () -> Unit, preview: @Composable () -> Unit) {
     Column(
         modifier.clip(RoundedCornerShape(Radius.Badge))
             .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
@@ -352,7 +257,7 @@ private fun TileScaffold(label: String, selected: Boolean, modifier: Modifier, o
         verticalArrangement = Arrangement.spacedBy(Space.Sm),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        preview()
+        Image(painterResource(imageRes), null)
         Box(Modifier.weight(1f)) { Text(label, style = Type.Small, color = C.Text, textAlign = TextAlign.Center, modifier = Modifier.align(Alignment.Center)) }
         AppRadio(selected)
     }

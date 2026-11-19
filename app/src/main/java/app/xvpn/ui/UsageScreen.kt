@@ -86,7 +86,7 @@ internal fun UsagePage(onBack: () -> Unit) {
                 Summary("30 days", month, Modifier.weight(1f))
             }
 
-            ScreenLabel("Last 14 days")
+            SectionHeader("Last 14 days")
             AppCard(Modifier.padding(horizontal = Space.Gutter).fillMaxWidth()) {
                 val peak = days.maxOf { it.second + it.third }
                 Canvas(Modifier.fillMaxWidth().height(110.dp)) {
@@ -109,7 +109,7 @@ internal fun UsagePage(onBack: () -> Unit) {
                 }
             }
 
-            ScreenLabel("Apps, last 7 days")
+            SectionHeader("Apps, last 7 days")
             AppCard(Modifier.padding(horizontal = Space.Gutter).fillMaxWidth(), padding = 0.dp) {
                 if (!access) {
                     Text(
@@ -140,7 +140,7 @@ internal fun UsagePage(onBack: () -> Unit) {
                 }
             }
 
-            ScreenLabel("Connection history")
+            SectionHeader("Connection history")
             AppCard(Modifier.padding(horizontal = Space.Gutter).fillMaxWidth(), padding = 0.dp) {
                 if (sessions.isEmpty()) Text("No connections recorded yet.", style = Type.Small, color = C.Muted, modifier = Modifier.padding(Space.Lg))
                 sessions.take(30).forEachIndexed { i, s ->

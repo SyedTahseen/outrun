@@ -106,7 +106,7 @@ object Type {
 
 @Composable
 fun largeScreenContentPadding(): Dp {
-    val width = appScreenWidthDp().dp
+    val width = LocalConfiguration.current.screenWidthDp.dp
     val extra = when {
         width >= 840.dp -> 128.dp
         width >= 600.dp -> 56.dp

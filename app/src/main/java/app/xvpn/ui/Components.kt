@@ -218,18 +218,6 @@ fun SectionHeader(text: String, modifier: Modifier = Modifier, first: Boolean = 
     )
 }
 
-/**
- * Section label used on Statistics, Usage & history and Theme: same style as Statistics' own labels
- * (14sp regular, muted, 16dp above / 8dp below).
- */
-@Composable
-fun ScreenLabel(text: String, modifier: Modifier = Modifier, horizontal: Dp = Space.Gutter) {
-    Text(
-        text, style = Type.Small, color = C.Muted,
-        modifier = modifier.padding(start = horizontal, end = horizontal, top = Space.Lg, bottom = Space.Sm),
-    )
-}
-
 @Composable
 fun FieldLabel(text: String, modifier: Modifier = Modifier) {
     // Proton's ProtonOutlinedTextField label: captionMedium + textNorm, 8dp gap to the field.

@@ -252,12 +252,7 @@ private fun MenuPage(
             return
         }
         "theme" -> {
-            ThemePage(
-                themeMode, { themeMode = it; AppTheme.set(ctx, it) },
-                AppTheme.accent, { AppTheme.setAccent(ctx, it) },
-                AppTheme.displayScale, { AppTheme.setDisplayScale(ctx, it) },
-                { page = "main" },
-            )
+            ThemePage(themeMode, { themeMode = it; AppTheme.set(ctx, it) }, { page = "main" })
             return
         }
         "advanced" -> {

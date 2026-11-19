@@ -182,14 +182,6 @@ class Store(context: Context) {
     var themeMode: String
         get() = prefs.getString("theme_mode", "system") ?: "system"
         set(v) = prefs.edit().putString("theme_mode", v).apply()
-    /** ARGB accent colour; 0xFF6D4AFF is the original purple. */
-    var accentColor: Int
-        get() = prefs.getInt("accent_color", 0xFF6D4AFF.toInt())
-        set(v) = prefs.edit().putInt("accent_color", v).apply()
-    /** App-wide display size multiplier (1.0 = default). */
-    var displayScale: Float
-        get() = prefs.getFloat("display_scale", 1f)
-        set(v) = prefs.edit().putFloat("display_scale", v).apply()
     var autoUpdateSubs: Boolean
         get() = prefs.getBoolean("auto_update_subs", true)
         set(v) = prefs.edit().putBoolean("auto_update_subs", v).apply()
