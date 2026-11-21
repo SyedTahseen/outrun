@@ -1,6 +1,15 @@
 package app.xvpn.ui
 
 import android.Manifest
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.Role
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Checkbox
 import android.appwidget.AppWidgetManager
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -617,12 +626,37 @@ private fun DiscardDialog(onDiscard: () -> Unit, onKeep: () -> Unit) {
     )
 }
 
+/** Proton's TextSectionHeader (body2Medium, accent, 24dp above) followed by an optional body2Medium textWeak explanation. */
 @Composable
 private fun ListHeader(title: String, note: String? = null) {
-    Column(Modifier.fillMaxWidth().padding(start = Space.Gutter, end = Space.Gutter, top = Space.Lg, bottom = Space.Sm)) {
-        Text(title, style = Type.Section, color = C.Accent)
-        if (note != null) Text(note, style = Type.Small, color = C.Muted)
+    Column(Modifier.fillMaxWidth().padding(horizontal = Space.Gutter)) {
+        Text(title, style = Type.SmallMedium, color = C.Accent, modifier = Modifier.padding(top = Space.Xxl, bottom = if (note != null) Space.Xs else Space.Sm))
+        if (note != null) Text(note, style = Type.SmallMedium, color = C.Muted)
     }
+}
+
+private sealed class SystemApps {
+    object NotLoaded : SystemApps()
+    object Loading : SystemApps()
+    class Content(val apps: List<AppInfo>) : SystemApps()
+}
+
+/**
+ * Same split as Proton's InstalledAppsProvider.getInstalledInternetApps(): apps with the INTERNET permission,
+ * "regular" when they have a launch intent and "system" (services, background components) when they do not.
+ */
+private fun Context.installedInternetApps(withLaunchIntent: Boolean): List<String> {
+    val pm = packageManager
+    return pm.getInstalledApplications(0).map { it.packageName }.filter { pkg ->
+        pkg != packageName &&
+            pm.checkPermission(Manifest.permission.INTERNET, pkg) == PackageManager.PERMISSION_GRANTED &&
+            (pm.getLaunchIntentForPackage(pkg) != null) == withLaunchIntent
+    }
+}
+
+private fun Context.appInfos(packages: Collection<String>): List<AppInfo> = packages.map { pkg ->
+    val label = runCatching { packageManager.getApplicationInfo(pkg, 0).loadLabel(packageManager).toString() }.getOrDefault(pkg)
+    AppInfo(label, pkg)
 }
 
 @Composable
@@ -631,57 +665,91 @@ private fun AppPickerPage(
     onSave: (Set<String>) -> Unit, onBack: () -> Unit,
 ) {
     val ctx = LocalContext.current
-    val pm = ctx.packageManager
     var sel by remember { mutableStateOf(initial) }
     var confirm by remember { mutableStateOf(false) }
+    var showSystem by remember { mutableStateOf(false) }
     val dirty = sel != initial
     val leave: () -> Unit = { if (dirty) confirm = true else onBack() }
     BackHandler(true) { leave() }
 
-    val apps by produceState<List<AppInfo>?>(null) {
+    val regular by produceState<List<AppInfo>?>(null) {
         value = withContext(Dispatchers.Default) {
-            val launcher = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
-            pm.queryIntentActivities(launcher, 0)
-                .map { AppInfo(it.loadLabel(pm).toString(), it.activityInfo.packageName) }
-                .distinctBy { it.pkg }
-                .filter { it.pkg != ctx.packageName }
-                .sortedBy { it.label.lowercase() }
+            ctx.appInfos(ctx.installedInternetApps(true)).sortedBy { it.label.lowercase() }
         }
+    }
+    val systemPackages by produceState<List<String>>(emptyList()) {
+        value = withContext(Dispatchers.Default) { ctx.installedInternetApps(false) }
+    }
+    val systemApps by produceState<SystemApps>(SystemApps.NotLoaded, showSystem) {
+        if (!showSystem) { value = SystemApps.NotLoaded; return@produceState }
+        value = SystemApps.Loading
+        value = withContext(Dispatchers.Default) { SystemApps.Content(ctx.appInfos(systemPackages).sortedBy { it.label.lowercase() }) }
     }
     val listState = rememberLazyListState()
     Column(Modifier.fillMaxSize()) {
         EditorBar(title, leave) { onSave(sel); onBack() }
-        val list = apps
-        if (list == null) {
-            Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) { Text("Loading apps…", style = Type.Small, color = C.Muted) }
+        val regularList = regular
+        if (regularList == null) {
+            Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
         } else {
-            val chosen = list.filter { it.pkg in sel }
-            val others = list.filter { it.pkg !in sel }
+            val loadedSystem = (systemApps as? SystemApps.Content)?.apps.orEmpty()
+            val known = regularList + loadedSystem
+            // Selected packages that are in neither list (system apps while hidden, uninstalled apps) are still shown.
+            val missing = sel.filter { pkg -> known.none { it.pkg == pkg } }
+            val chosen = (known.filter { it.pkg in sel } + ctx.appInfos(missing)).sortedBy { it.label.lowercase() }
+            val others = regularList.filter { it.pkg !in sel }
             LazyColumn(Modifier.weight(1f).fillMaxWidth().verticalScrollbar(listState), state = listState) {
                 item(key = "h1") { ListHeader("$listTitle (${chosen.size})", note) }
                 items(chosen, key = { "s_" + it.pkg }) { a -> PickRow(a, false, Modifier.animateItem()) { sel = sel - a.pkg } }
                 item(key = "h2") { ListHeader("All other regular apps (${others.size})") }
                 items(others, key = { "o_" + it.pkg }) { a -> PickRow(a, true, Modifier.animateItem()) { sel = sel + a.pkg } }
-                item(key = "end") { Spacer(Modifier.height(Space.Xxl)) }
+                item(key = "system_apps_checkbox") { SystemAppsCheckboxRow(showSystem, Modifier.animateItem()) { showSystem = !showSystem } }
+                when (val state = systemApps) {
+                    SystemApps.NotLoaded -> item(key = "system_apps_loading") { Spacer(Modifier.height(64.dp)) }
+                    SystemApps.Loading -> item(key = "system_apps_loading") {
+                        Box(Modifier.heightIn(min = 64.dp).fillMaxWidth(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+                    }
+                    is SystemApps.Content -> items(state.apps.filter { it.pkg !in sel }, key = { "y_" + it.pkg }) { a ->
+                        PickRow(a, true, Modifier.animateItem()) { sel = sel + a.pkg }
+                    }
+                }
             }
         }
     }
     if (confirm) DiscardDialog(onDiscard = { confirm = false; onBack() }, onKeep = { confirm = false })
 }
 
+/** Proton's SystemAppsCheckboxRow: body1 label with 14dp vertical padding and a trailing Checkbox. */
 @Composable
-private fun PickRow(app: AppInfo, add: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
+private fun SystemAppsCheckboxRow(checked: Boolean, modifier: Modifier = Modifier, onToggle: () -> Unit) {
     Row(
-        modifier.fillMaxWidth().clickable(onClick = onClick).padding(start = Space.Gutter, end = Space.Sm, top = Space.Xs, bottom = Space.Xs),
+        modifier.fillMaxWidth().padding(horizontal = Space.Gutter)
+            .toggleable(value = checked, role = Role.Checkbox, onValueChange = { onToggle() }),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        AppIcon(app.pkg)
-        Spacer(Modifier.width(Space.Lg))
-        Text(app.label, style = Type.Body, color = C.Text, maxLines = 1, modifier = Modifier.weight(1f))
-        IconAction(
-            if (add) ProtonIcons.PlusCircle else ProtonIcons.MinusCircle,
-            if (add) "Add" else "Remove", tint = if (add) C.Text else C.Muted, onClick = onClick,
+        Text("Show system apps", style = Type.Body, color = C.Text, modifier = Modifier.padding(vertical = 14.dp).weight(1f))
+        Checkbox(checked = checked, onCheckedChange = null, modifier = Modifier.padding(Space.Xs).clearAndSetSemantics {})
+    }
+}
+
+/** Proton's LabeledItemRow: 16dp start / 8dp end, 24dp icon + 8dp gap, 14dp vertical text padding, 48dp icon button. */
+@Composable
+private fun PickRow(app: AppInfo, add: Boolean, modifier: Modifier = Modifier, showIcon: Boolean = true, onAction: () -> Unit) {
+    Row(
+        modifier.fillMaxWidth().padding(start = Space.Gutter, end = Space.Sm)
+            .semantics(mergeDescendants = true) { onClick(label = if (add) "Add" else "Remove") { onAction(); true } },
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (showIcon) {
+            AppIcon(app.pkg)
+            Spacer(Modifier.width(Space.Sm))
+        }
+        Text(
+            app.label, style = Type.Body, color = C.Text, maxLines = 1, overflow = TextOverflow.MiddleEllipsis,
+            modifier = Modifier.weight(1f).padding(vertical = 14.dp),
         )
+        Spacer(Modifier.width(Space.Xs))
+        IconAction(if (add) ProtonIcons.PlusCircle else ProtonIcons.MinusCircleFilled, if (add) "Add" else "Remove", onClick = onAction)
     }
 }
 
@@ -701,31 +769,35 @@ private fun IpPage(title: String, initial: List<String>, onSave: (List<String>) 
     }
     Column(Modifier.fillMaxSize()) {
         EditorBar(title, leave) { onSave(ips); onBack() }
-        Column(Modifier.padding(horizontal = Space.Gutter)) {
+        Column(Modifier.padding(start = Space.Gutter, end = Space.Sm)) {
             FieldLabel("IP address")
-            AppTextField(
-                value = text, onValueChange = { text = it; error = false }, placeholder = "192.0.2.0",
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Done),
-                keyboardActions = KeyboardActions(onDone = { add() }),
-                trailing = { IconAction(ProtonIcons.PlusCircle, "Add") { add() } },
-            )
+            // Proton: outlined field + 4dp gap + filled plus-circle IconButton, enabled only for a valid address.
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                AppTextField(
+                    value = text, onValueChange = { text = it; error = false }, placeholder = "192.0.2.0",
+                    modifier = Modifier.weight(1f),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { add() }),
+                    isError = error,
+                    trailing = if (text.isNotEmpty()) ({ IconAction(ProtonIcons.Cross, "Clear", tint = C.Muted) { text = ""; error = false } }) else null,
+                )
+                Spacer(Modifier.width(Space.Xs))
+                IconAction(
+                    ProtonIcons.PlusCircleFilled, "Add", tint = if (Choices.parseIp(text) != null) C.Text else C.Disabled,
+                ) { if (Choices.parseIp(text) != null) add() }
+            }
             Spacer(Modifier.height(Space.Sm))
             Text(
                 if (error) "Not a valid IPv4 or IPv6 address." else "Enter an IPv4 or IPv6 address, optionally with a prefix like 10.0.0.0/8.",
                 style = Type.Caption, color = if (error) C.Red else C.Muted,
+                modifier = Modifier.padding(end = Space.Sm),
             )
         }
         val ipListState = rememberLazyListState()
         LazyColumn(Modifier.weight(1f).fillMaxWidth().verticalScrollbar(ipListState), state = ipListState) {
             item(key = "h") { ListHeader("$title (${ips.size})") }
             items(ips, key = { it }) { ip ->
-                Row(
-                    Modifier.animateItem().fillMaxWidth().padding(start = Space.Gutter, end = Space.Sm, top = Space.Xs, bottom = Space.Xs),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(ip, style = Type.Body, color = C.Text, maxLines = 1, modifier = Modifier.weight(1f))
-                    IconAction(ProtonIcons.MinusCircle, "Remove", tint = C.Muted) { ips = ips - ip }
-                }
+                PickRow(AppInfo(ip, ip), false, Modifier.animateItem(), showIcon = false) { ips = ips - ip }
             }
         }
     }
@@ -735,21 +807,22 @@ private fun IpPage(title: String, initial: List<String>, onSave: (List<String>) 
 @Composable
 private fun AppIcon(pkg: String) {
     val pm = LocalContext.current.packageManager
+    val px = with(LocalDensity.current) { Sizes.Icon.roundToPx() }
     val icon by produceState<ImageBitmap?>(null, pkg) {
         value = withContext(Dispatchers.Default) {
             runCatching {
                 val d = pm.getApplicationIcon(pkg)
-                val bmp = Bitmap.createBitmap(96, 96, Bitmap.Config.ARGB_8888)
+                val bmp = Bitmap.createBitmap(px, px, Bitmap.Config.ARGB_8888)
                 val canvas = android.graphics.Canvas(bmp)
-                d.setBounds(0, 0, 96, 96)
+                d.setBounds(0, 0, px, px)
                 d.draw(canvas)
                 bmp.asImageBitmap()
             }.getOrNull()
         }
     }
-    val m = Modifier.size(Sizes.IconLg).clip(RoundedCornerShape(Radius.Small))
+    val m = Modifier.size(Sizes.Icon)
     val i = icon
-    if (i != null) Image(i, null, m) else Box(m.background(C.Card))
+    if (i != null) Image(i, null, m) else Box(m)
 }
 
 private const val KILL_SWITCH_HELP_URL = "https://developer.android.com/develop/connectivity/vpn"

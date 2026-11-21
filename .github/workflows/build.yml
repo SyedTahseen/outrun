@@ -23,10 +23,6 @@ concurrency:
   group: build-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  CACHE_VERSION: v1
-  NDK_VERSION: 27.2.12479018
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -39,43 +35,25 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      # Native libs (sing-box + hev tun2socks) and the map asset only change when the
-      # versions or scripts change, so restore them instead of rebuilding every run.
-      # Bump CACHE_VERSION to force a refresh (e.g. to pick up a newer hev default branch).
-      - name: Restore native libs + map cache
-        id: native-cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            app/src/main/jniLibs
-            app/src/main/assets/world.bin
-          key: native-${{ env.CACHE_VERSION }}-sb${{ github.event.inputs.singbox_version || '1.14.4' }}-hev${{ github.event.inputs.hev_ref || 'default' }}-${{ hashFiles('scripts/**') }}${{ github.event.inputs.singbox_version == 'latest' && format('-{0}', github.run_id) || '' }}
-
-      - name: Set up Android SDK
+      - name: Set up Android SDK + NDK
         uses: android-actions/setup-android@v3
         with:
-          packages: "platforms;android-36 build-tools;36.0.0"
+          packages: "platforms;android-36 build-tools;36.0.0 ndk;27.2.12479018"
 
-      - name: Install NDK (only when native libs must be rebuilt)
-        if: steps.native-cache.outputs.cache-hit != 'true'
-        run: |
-          sdkmanager "ndk;${NDK_VERSION}"
-          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/${NDK_VERSION}" >> "$GITHUB_ENV"
+      - name: Point scripts at the NDK
+        run: echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.2.12479018" >> "$GITHUB_ENV"
 
       - name: Fetch sing-box binaries (official release)
-        if: steps.native-cache.outputs.cache-hit != 'true'
         env:
           SINGBOX_VERSION: ${{ github.event.inputs.singbox_version }}
         run: bash scripts/fetch-singbox.sh
 
       - name: Build tun2socks (hev-socks5-tunnel) with the NDK
-        if: steps.native-cache.outputs.cache-hit != 'true'
         env:
           HEV_REF: ${{ github.event.inputs.hev_ref }}
         run: bash scripts/build-native.sh
 
       - name: Build world map asset (Natural Earth borders)
-        if: steps.native-cache.outputs.cache-hit != 'true'
         run: |
           [ -f app/src/main/assets/world.bin ] || python3 scripts/build-map.py
 
@@ -83,12 +61,8 @@ jobs:
         with:
           gradle-version: "8.13"
 
-      # Pull requests only build arm64 (fast check); main/tags build every ABI.
       - name: Build APK
-        run: |
-          extra=""
-          if [ "${{ github.event_name }}" = "pull_request" ]; then extra="-Pabis=arm64-v8a"; fi
-          gradle :app:assembleRelease --build-cache --parallel $extra
+        run: gradle --no-daemon :app:assembleRelease
 
       - name: Rename APK
         run: |
@@ -118,7 +92,7 @@ jobs:
         with:
           path: dist/*-x86_64.apk
           archive: false
-          if-no-files-found: ${{ github.event_name == 'pull_request' && 'warn' || 'error' }}
+          if-no-files-found: error
 
       - name: Send APKs to Telegram bot
         if: github.event_name != 'pull_request'

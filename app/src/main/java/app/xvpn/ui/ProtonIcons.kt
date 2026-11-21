@@ -44,6 +44,8 @@ object ProtonIcons {
     val Magnifier: ImageVector @Composable get() = ImageVector.vectorResource(R.drawable.ic_proton_magnifier)
     val Minus: ImageVector @Composable get() = ImageVector.vectorResource(R.drawable.ic_proton_minus)
     val MinusCircle: ImageVector @Composable get() = ImageVector.vectorResource(R.drawable.ic_proton_minus_circle)
+    val MinusCircleFilled: ImageVector @Composable get() = ImageVector.vectorResource(R.drawable.ic_proton_minus_circle_filled)
+    val PlusCircleFilled: ImageVector @Composable get() = ImageVector.vectorResource(R.drawable.ic_proton_plus_circle_filled)
     val Mobile: ImageVector @Composable get() = ImageVector.vectorResource(R.drawable.ic_proton_mobile)
     val Pen: ImageVector @Composable get() = ImageVector.vectorResource(R.drawable.ic_proton_pen)
     val Plus: ImageVector @Composable get() = ImageVector.vectorResource(R.drawable.ic_proton_plus)
