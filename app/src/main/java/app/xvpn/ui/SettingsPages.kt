@@ -259,6 +259,7 @@ fun ThemePage(
             Row(Modifier.padding(horizontal = Space.Gutter).height(IntrinsicSize.Max)) {
                 ThemeTile("Light", R.drawable.theme_light, selected == AppTheme.LIGHT, Modifier.weight(1f)) { onSelect(AppTheme.LIGHT) }
                 ThemeTile("Dark", R.drawable.theme_dark, selected == AppTheme.DARK, Modifier.weight(1f)) { onSelect(AppTheme.DARK) }
+                ThemeTile("Black", R.drawable.theme_black, selected == AppTheme.BLACK, Modifier.weight(1f)) { onSelect(AppTheme.BLACK) }
                 ThemeTile("Device theme", R.drawable.theme_auto, selected == AppTheme.SYSTEM, Modifier.weight(1f)) { onSelect(AppTheme.SYSTEM) }
             }
 

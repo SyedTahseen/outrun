@@ -39,9 +39,11 @@ fun OutrunApp(content: @Composable () -> Unit) {
 fun OutrunTheme(content: @Composable () -> Unit) {
     val dark = AppTheme.isDark(isSystemInDarkTheme())
     Palette.dark = dark
+    val black = dark && AppTheme.mode == AppTheme.BLACK
+    Palette.black = black
     val activity = LocalContext.current as? ComponentActivity
     val firstRun = remember { booleanArrayOf(true) }
-    LaunchedEffect(dark) { if (firstRun[0]) firstRun[0] = false else activity?.applySystemBars(dark) }
+    LaunchedEffect(dark, black) { if (firstRun[0]) firstRun[0] = false else activity?.applySystemBars(dark) }
     // Mirrors Proton core's ProtonColors.toMaterial3ThemeColors() (surface/background = backgroundNorm,
     // accents = brandNorm, outline = brandNorm, scrim = blenderNorm). Menus/dialogs keep backgroundSecondary.
     val scheme = (if (dark) darkColorScheme() else lightColorScheme()).copy(
@@ -97,6 +99,7 @@ object AppTheme {
     const val SYSTEM = "system"
     const val LIGHT = "light"
     const val DARK = "dark"
+    const val BLACK = "black"
 
     var mode by mutableStateOf(SYSTEM)
         private set
@@ -135,7 +138,7 @@ object AppTheme {
         mode = value
     }
 
-    fun isDark(systemDark: Boolean): Boolean = when (mode) { LIGHT -> false; DARK -> true; else -> systemDark }
+    fun isDark(systemDark: Boolean): Boolean = when (mode) { LIGHT -> false; DARK, BLACK -> true; else -> systemDark }
 }
 
 private fun Context.systemDark() =
@@ -145,6 +148,7 @@ internal fun ComponentActivity.setUpEdgeToEdge(navigationBarFromBg: Boolean = fa
     AppTheme.load(this)
     val dark = AppTheme.isDark(systemDark())
     Palette.dark = dark
+    Palette.black = dark && AppTheme.mode == AppTheme.BLACK
     applySystemBars(dark, navigationBarFromBg)
 }
 
