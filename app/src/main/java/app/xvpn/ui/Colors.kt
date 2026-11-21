@@ -63,10 +63,10 @@ class AccentSet(
 private fun pick(dark: Long, light: Long) = Color(if (Palette.dark) dark else light)
 
 object C {
-    val Bg get() = pick(0xFF1C1B24, 0xFFFFFFFF)
+    val Bg get() = pick(0xFF1B1A1F, 0xFFFFFFFF)
     // Proton backgroundDeep (shade0): Cinder in dark, white in light. Used by the connection details panel.
     val Deep get() = pick(0xFF0C0C14, 0xFFFFFFFF)
-    val Card get() = pick(0xFF292733, 0xFFF5F4F2)
+    val Card get() = pick(0xFF16151A, 0xFFF5F4F2)
     val Header get() = Card
     val CardOverlay get() = Card.copy(alpha = 0.86f)
     val Control get() = pick(0xFF3B3747, 0xFFEAE7E4)
