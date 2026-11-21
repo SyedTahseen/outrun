@@ -21,7 +21,9 @@ android {
             isEnable = true
             reset()
 
-            val all = listOf("arm64-v8a", "armeabi-v7a", "x86_64")
+            // -Pabis=arm64-v8a (comma separated) limits the build, e.g. for fast CI pull-request checks
+            val all = (providers.gradleProperty("abis").orNull?.split(",")?.map { it.trim() }?.filter { it.isNotEmpty() }
+                ?: listOf("arm64-v8a", "armeabi-v7a", "x86_64"))
             val have = all.filter { file("src/main/jniLibs/$it/libsingbox.so").exists() }
             include(*(have.ifEmpty { all }).toTypedArray())
             isUniversalApk = false
