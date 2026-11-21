@@ -11,7 +11,20 @@ internal fun fmtSize(b: Long, binary: Boolean = false): String {
     return if (i == 0) "$b B" else String.format(Locale.US, if (v >= 100) "%.0f %s" else "%.1f %s", v, UNITS[i])
 }
 
-internal fun fmtKb(b: Long): String = String.format(Locale.US, "%.2f KB/s", b / 1000.0)
+/** Proton's speed unit steps (SpeedAndSizeFormat / determineScaleAndLabel): B/s, KB/s, MB/s, GB/s, TB/s in powers of 1000. */
+internal fun speedUnit(maxBytesPerSec: Long): Pair<String, Double> = when {
+    maxBytesPerSec >= 1_000_000_000_000 -> "TB/s" to 1e12
+    maxBytesPerSec >= 1_000_000_000 -> "GB/s" to 1e9
+    maxBytesPerSec >= 1_000_000 -> "MB/s" to 1e6
+    maxBytesPerSec >= 1_000 -> "KB/s" to 1e3
+    else -> "B/s" to 1.0
+}
+
+/** Proton's speedBytesToString: the unit follows the value, two decimals. */
+internal fun fmtKb(b: Long): String {
+    val (unit, factor) = speedUnit(b)
+    return String.format(Locale.US, "%.2f %s", b / factor, unit)
+}
 
 internal fun fmtDuration(ms: Long): String {
     val s = (ms / 1000).coerceAtLeast(0)

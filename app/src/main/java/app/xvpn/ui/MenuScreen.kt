@@ -548,17 +548,19 @@ private fun ReconnectDialog() {
         confirmLabel = "Reconnect now",
         onConfirm = { close("reconnect", true) },
     ) {
-        Text("New settings will apply next time you connect.", style = Type.Body, color = C.Text)
-        Spacer(Modifier.height(Space.Lg))
+        // Proton's ProtonAlert: body2Regular text, 20dp gap, ProtonDialogCheckbox (3dp padding, shade60 unchecked, 10dp label gap).
+        Text("New settings will apply next time you connect.", style = Type.Small, color = C.Text)
+        Spacer(Modifier.height(Space.Xl))
         Row(
-            Modifier.fillMaxWidth().clickable { dontShowAgain = !dontShowAgain },
+            Modifier.toggleable(value = dontShowAgain, role = Role.Checkbox, onValueChange = { dontShowAgain = it }).padding(3.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            androidx.compose.material3.Checkbox(
-                checked = dontShowAgain, onCheckedChange = { dontShowAgain = it },
-                colors = androidx.compose.material3.CheckboxDefaults.colors(checkedColor = C.Accent, uncheckedColor = C.TextHint, checkmarkColor = C.OnPrimary),
+            Checkbox(
+                checked = dontShowAgain, onCheckedChange = null,
+                colors = androidx.compose.material3.CheckboxDefaults.colors(uncheckedColor = C.TextHint),
+                modifier = Modifier.clearAndSetSemantics {},
             )
-            Text("Don\u2019t show again", style = Type.Small, color = C.Muted)
+            Text("Don\u2019t show again", style = Type.Small, color = C.Text, modifier = Modifier.padding(start = 10.dp))
         }
     }
 }

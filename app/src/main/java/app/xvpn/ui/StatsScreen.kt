@@ -1,5 +1,8 @@
 package app.xvpn.ui
 
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.heightIn
@@ -64,6 +67,11 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 private enum class StatsInfo { Ip, Speed }
+
+private fun openLearnMore(ctx: Context, url: String) {
+    runCatching { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+        .onFailure { Snack.show("No app can open this link", SnackType.Error) }
+}
 
 private const val IP_INFO = "Your VPN IP masks your real IP address. This makes it look like you’re browsing from your VPN location, so your online activity can’t be linked to your device."
 private const val SPEED_INFO = "This graph shows the speed of your current upload and download activity. Your VPN connection is unlikely to slow down normal online activity."
@@ -140,8 +148,9 @@ fun StatsScreen(profile: Profile?, real: IpInfo?, proxy: IpInfo?, onBack: () -> 
                     Text(fmtKb(up), style = Type.Heading, color = C.Text, modifier = Modifier.padding(bottom = Space.Xs))
                 }
             }
-            Text("Speed KB/s", style = Type.Label, color = C.Muted, textAlign = TextAlign.End, modifier = Modifier.fillMaxWidth())
-            SpeedChart(history, Modifier.fillMaxWidth().height(150.dp))
+            val (speedLabel, speedFactor) = speedUnit(history.maxOfOrNull { maxOf(it.first, it.second) } ?: 0L)
+            Text("Speed $speedLabel", style = Type.Label, color = C.Muted, textAlign = TextAlign.End, modifier = Modifier.fillMaxWidth())
+            SpeedChart(history, speedFactor, Modifier.fillMaxWidth().height(150.dp))
 
             StatsLabel("Connection details")
             DetailCard(
@@ -163,8 +172,8 @@ fun StatsScreen(profile: Profile?, real: IpInfo?, proxy: IpInfo?, onBack: () -> 
     }
 
     when (info) {
-        StatsInfo.Ip -> AppInfoSheet({ info = null }) { IpInfoContent(real?.ip, proxy?.ip) }
-        StatsInfo.Speed -> AppInfoSheet({ info = null }) { InfoSheetContent("What is VPN speed?", SPEED_INFO) }
+        StatsInfo.Ip -> AppInfoSheet({ info = null }) { IpInfoContent(real?.ip, proxy?.ip) { openLearnMore(ctx, "https://protonvpn.com/blog/what-is-an-ip-address") } }
+        StatsInfo.Speed -> AppInfoSheet({ info = null }) { InfoSheetContent("What is VPN speed?", SPEED_INFO, learnMoreLabel = "Learn more", onLearnMore = { openLearnMore(ctx, "https://protonvpn.com/support/increase-vpn-speeds/") }) }
         null -> {}
     }
 }
@@ -252,8 +261,8 @@ private fun MaskedMyIp(ip: String?, visible: Boolean, onToggle: () -> Unit) {
 
 /** Proton's IP address info sheet: My IP (hidden until tapped), VPN IP, then the explanation. */
 @Composable
-private fun IpInfoContent(myIp: String?, vpnIp: String?) {
-    InfoSheetContent("IP address", null) {
+private fun IpInfoContent(myIp: String?, vpnIp: String?, onLearnMore: () -> Unit) {
+    InfoSheetContent("IP address", null, learnMoreLabel = "What is an IP address?", onLearnMore = onLearnMore) {
         Column(Modifier.padding(vertical = Space.Md), verticalArrangement = Arrangement.spacedBy(Space.Md)) {
             var visible by remember { mutableStateOf(false) }
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -278,13 +287,13 @@ private fun IpInfoContent(myIp: String?, vpnIp: String?) {
 }
 
 @Composable
-private fun SpeedChart(history: List<Pair<Long, Long>>, modifier: Modifier) {
+private fun SpeedChart(history: List<Pair<Long, Long>>, factor: Double, modifier: Modifier) {
     val n = 60
     val pad = (n - history.size).coerceAtLeast(0)
     val ups = List(n) { i -> if (i < pad) 0L else history[i - pad].first }
     val downs = List(n) { i -> if (i < pad) 0L else history[i - pad].second }
     val peak = maxOf(ups.max(), downs.max())
-    var top = 4000.0
+    var top = 4 * factor
     while (top < peak) top *= 2
 
     Row(modifier) {
@@ -310,8 +319,8 @@ private fun SpeedChart(history: List<Pair<Long, Long>>, modifier: Modifier) {
             }
         }
         Column(Modifier.fillMaxHeight().padding(start = Space.Sm), verticalArrangement = Arrangement.SpaceBetween) {
-            Text("%.0f".format(top / 1000), style = Type.Label, color = C.Muted)
-            Text("%.0f".format(top / 2000), style = Type.Label, color = C.Muted)
+            Text("%.0f".format(top / factor), style = Type.Label, color = C.Muted)
+            Text("%.0f".format(top / 2 / factor), style = Type.Label, color = C.Muted)
             Text("0", style = Type.Label, color = C.Muted)
         }
     }

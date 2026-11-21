@@ -3,6 +3,7 @@ package app.xvpn.ui
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.BottomSheetDefaults
@@ -29,11 +30,22 @@ fun AppInfoSheet(onDismiss: () -> Unit, content: @Composable ColumnScope.() -> U
 
 /** Proton's GenericLearnMore: 16dp side padding, subheadline title, 14sp body, optional extra content. */
 @Composable
-fun InfoSheetContent(title: String, details: String?, subDetails: (@Composable () -> Unit)? = null) {
+fun InfoSheetContent(
+    title: String, details: String?,
+    learnMoreLabel: String? = null, onLearnMore: (() -> Unit)? = null,
+    subDetails: (@Composable () -> Unit)? = null,
+) {
     Column(Modifier.padding(start = Space.Lg, end = Space.Lg, bottom = Space.Xs)) {
         Text(title, style = Type.Subheadline, color = C.Text, modifier = Modifier.padding(bottom = Space.Lg))
         details?.let { Text(it, style = Type.Small, color = C.Text, modifier = Modifier.padding(bottom = Space.Lg)) }
         subDetails?.invoke()
         Spacer(Modifier.height(Space.Sm))
+        // Proton: outlined "Learn more" button with the external-link icon, 12dp below.
+        if (learnMoreLabel != null && onLearnMore != null) {
+            AppButton(
+                learnMoreLabel, onLearnMore, Modifier.fillMaxWidth().padding(bottom = Space.Md),
+                ButtonStyle.OutlineAccent, trailingIcon = ProtonIcons.ArrowOutSquare,
+            )
+        }
     }
 }
