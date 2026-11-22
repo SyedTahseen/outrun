@@ -54,7 +54,6 @@ class OutrunVpnService : VpnService() {
     companion object {
         const val ACTION_START = "app.xvpn.START"
         const val ACTION_STOP = "app.xvpn.STOP"
-        const val ACTION_NEXT = "app.xvpn.NEXT"
         const val ACTION_ADOPT = "app.xvpn.ADOPT"
         const val ACTION_APPLY_MODE = "app.xvpn.APPLY_MODE"
         const val ACTION_RECONNECT = "app.xvpn.RECONNECT"
@@ -118,7 +117,6 @@ class OutrunVpnService : VpnService() {
     private val validatedOnce: MutableSet<Network> = ConcurrentHashMap.newKeySet()
     private var netLost = false
     @Volatile private var waitingNet = false
-    private var canSwitch = false
     private var sessionStart = 0L
     private var sessUp = 0L
     private var sessDown = 0L
@@ -145,7 +143,6 @@ class OutrunVpnService : VpnService() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_STOP -> shutdown()
-            ACTION_NEXT -> switchNext()
             ACTION_ADOPT -> adopt()
             ACTION_APPLY_MODE -> applyMode()
             ACTION_RECONNECT -> reconnectNow()
@@ -154,7 +151,7 @@ class OutrunVpnService : VpnService() {
                 begin(link, intent.getBooleanExtra(EXTRA_BOOT, false))
             }
             else -> {
-                val link = Store(this).selected?.takeIf { LinkParser.parse(it) != null }
+                val link = Store(this).selectedOrNull()
                 if (link != null) begin(link)
                 else {
                     fg(notification(NState.Idle, getString(R.string.app_name), "Select a server in the app"))
@@ -173,7 +170,7 @@ class OutrunVpnService : VpnService() {
         scope.launch {
             val rc = RootCore(this@OutrunVpnService)
             val port = runCatching { rc.attach() }.getOrNull()
-            val link = Store(this@OutrunVpnService).selected?.takeIf { LinkParser.parse(it) != null }
+            val link = Store(this@OutrunVpnService).selectedOrNull()
             if (port == null || link == null) {
                 if (port != null) runCatching { rc.stop() }
                 AppLog.i(this@OutrunVpnService, "service", "no running root core to take over")
@@ -185,7 +182,6 @@ class OutrunVpnService : VpnService() {
             currentLink = link
             currentName = profile.name
             VpnState.activeLink.value = link
-            canSwitch = nextLink() != null
             registerNetworkWatch()
             VpnState.socksPort.value = port
             VpnState.connectedAt.value = System.currentTimeMillis()
@@ -269,15 +265,6 @@ class OutrunVpnService : VpnService() {
         connectJob = scope.launch { prev?.cancelAndJoin(); connect(link, emptySet()) }
     }
 
-    private fun nextLink(): String? {
-        val store = Store(this)
-        val all = store.links().filter { LinkParser.parse(it) != null }
-        val favs = all.filter { it in store.favorites }
-        val pool = if (favs.size >= 2) favs else all
-        if (pool.size < 2) return null
-        return pool[(pool.indexOf(currentLink) + 1) % pool.size]
-    }
-
     private fun fallbackLink(exclude: Set<String>): String? {
         val store = Store(this)
         val all = store.links().filter { LinkParser.parse(it) != null && it !in exclude }
@@ -307,14 +294,6 @@ class OutrunVpnService : VpnService() {
         AppLog.i(this, "service", "reconnecting to apply new settings")
         notificationManager.notify(NOTIFICATION_ID, notification(NState.Reconnecting, "Reconnecting"))
         launchConnect(link)
-    }
-
-    private fun switchNext() {
-        val next = nextLink() ?: return
-        val name = LinkParser.parse(next)?.name ?: ""
-        notificationManager.notify(NOTIFICATION_ID, notification(NState.Connecting, connectingTitle(next)))
-        wanted = true
-        launchConnect(next)
     }
 
     private fun registerNetworkWatch() {
@@ -437,7 +416,6 @@ class OutrunVpnService : VpnService() {
         currentLink = link
         if (tried.isEmpty()) Store(this).selected = link
         VpnState.activeLink.value = link
-        canSwitch = nextLink() != null
         if (hadSession) delay(300)
         var x: SingBoxCore? = null
         var rc: RootCore? = null

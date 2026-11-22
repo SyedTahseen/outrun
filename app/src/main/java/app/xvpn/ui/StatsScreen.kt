@@ -5,7 +5,6 @@ import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -39,7 +39,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
@@ -290,17 +289,11 @@ private fun SpeedChart(history: List<Pair<Long, Long>>, factor: Double, modifier
     Row(modifier) {
         Canvas(Modifier.weight(1f).fillMaxHeight()) {
             val w = size.width; val h = size.height
-            val dash = PathEffect.dashPathEffect(floatArrayOf(10f, 10f))
-            for (f in listOf(0f, 0.5f, 1f)) {
-                val y = h - f * (h - 2.dp.toPx()) - 1.dp.toPx()
-                drawLine(C.Border, Offset(0f, y), Offset(w, y), 1.dp.toPx(), pathEffect = dash)
-            }
+            drawChartGuides()
             fun line(vals: List<Long>, close: Boolean): Path {
-                val p = Path()
-                val xs = FloatArray(n) { it * w / (n - 1) }
-                val ys = FloatArray(n) { h - 2.dp.toPx() - (vals[it] / top).toFloat() * (h - 6.dp.toPx()) }
-                p.moveTo(xs[0], ys[0])
-                for (i in 1 until n) { val xm = (xs[i - 1] + xs[i]) / 2; p.cubicTo(xm, ys[i - 1], xm, ys[i], xs[i], ys[i]) }
+                val p = smoothPath(
+                    List(n) { Offset(it * w / (n - 1), h - 2.dp.toPx() - (vals[it] / top).toFloat() * (h - 6.dp.toPx())) },
+                )
                 if (close) { p.lineTo(w, h); p.lineTo(0f, h); p.close() }
                 return p
             }

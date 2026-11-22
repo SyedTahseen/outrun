@@ -1,5 +1,6 @@
 package app.xvpn.data
 
+import app.xvpn.vpn.LanRoutes
 import org.json.JSONArray
 import org.json.JSONObject
 import java.net.URI
@@ -92,7 +93,7 @@ object ConfigBuilder {
         val clashPort: Int,
     )
 
-    private val lanV4 = listOf("10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "169.254.0.0/16", "224.0.0.0/3")
+    private val lanV4 = LanRoutes.excludedCidrs
     private val lanV6 = listOf("fc00::/7", "fe80::/10", "ff00::/8")
 
     /**
@@ -227,10 +228,11 @@ object ConfigBuilder {
         val sni = q["sni"]?.takeIf { it.isNotEmpty() } ?: q["peer"]?.takeIf { it.isNotEmpty() } ?: host
         val t = JSONObject().put("enabled", true).put("server_name", sni)
         if (truthy(q["insecure"]) || truthy(q["allowInsecure"]) || truthy(q["allow_insecure"])) t.put("insecure", true)
-        val alpn = q["alpn"]?.takeIf { it.isNotEmpty() } ?: defaultAlpn
-        t.put("alpn", JSONArray(alpn.split(",").map { it.trim() }.filter { it.isNotEmpty() }))
+        t.put("alpn", alpnList(q["alpn"]?.takeIf { it.isNotEmpty() } ?: defaultAlpn))
         return t
     }
+
+    private fun alpnList(csv: String) = JSONArray(csv.split(",").map { it.trim() }.filter { it.isNotEmpty() })
 
     private fun hysteria2(link: String): JSONObject {
         val a = LinkParser.authority(link, defaultPort = 443)
@@ -305,8 +307,8 @@ object ConfigBuilder {
 
         val sni = q["sni"]?.takeIf { it.isNotEmpty() } ?: q["host"]?.takeIf { it.isNotEmpty() } ?: host
         val t = JSONObject().put("enabled", true).put("server_name", sni)
-        if (q["allowInsecure"] == "1" || q["insecure"] == "1") t.put("insecure", true)
-        q["alpn"]?.takeIf { it.isNotEmpty() }?.let { t.put("alpn", JSONArray(it.split(","))) }
+        if (truthy(q["allowInsecure"]) || truthy(q["insecure"])) t.put("insecure", true)
+        q["alpn"]?.takeIf { it.isNotEmpty() }?.let { t.put("alpn", alpnList(it)) }
 
         val fp = q["fp"].orEmpty()
         if (security == "reality") {

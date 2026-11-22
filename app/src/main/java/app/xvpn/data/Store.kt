@@ -253,6 +253,12 @@ class Store(context: Context) {
         get() = prefs.getString("selected", null)
         set(v) = prefs.edit().putString("selected", v).apply()
 
+    /** The selected server's link, or null when nothing is selected or the saved link no longer parses. */
+    fun selectedOrNull(): String? = selected?.takeIf { LinkParser.parse(it) != null }
+
+    /** What a connection started without the UI (boot, Quick Settings tile) uses: the selected server, else the first saved one. */
+    fun linkToConnect(): String? = (selected ?: profiles().firstOrNull()?.link)?.takeIf { LinkParser.parse(it) != null }
+
     var subscriptions: List<String>
         get() = lines("subs")
         set(v) = putLines("subs", v)
@@ -313,7 +319,7 @@ class Store(context: Context) {
         return if (t.contains('%')) runCatching { URLDecoder.decode(t, "UTF-8") }.getOrDefault(t) else t
     }
 
-    private fun parseInfo(url: String, headers: Map<String, String>, text: String, count: Int): SubInfo {
+    private fun parseInfo(headers: Map<String, String>, text: String, count: Int): SubInfo {
         val h = HashMap(headers)
 
         text.lines().forEach { l ->
@@ -360,7 +366,7 @@ class Store(context: Context) {
         saveSources(src)
         if (gone.isNotEmpty()) favorites = favorites - gone
         if (selected in gone) selected = null
-        subInfo = subInfo + (url to parseInfo(url, f.headers, text, found.size))
+        subInfo = subInfo + (url to parseInfo(f.headers, text, found.size))
         return SubSync(added, gone.size, found.size, LinkParser.skipped(text))
     }
 }

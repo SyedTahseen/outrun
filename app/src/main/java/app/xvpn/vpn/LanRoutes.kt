@@ -5,6 +5,9 @@ object LanRoutes {
         "10.0.0.0" to 8, "172.16.0.0" to 12, "192.168.0.0" to 16, "169.254.0.0" to 16, "224.0.0.0" to 3,
     )
 
+    /** The same ranges as CIDR strings, for sing-box's `route_exclude_address` in root mode. */
+    val excludedCidrs: List<String> = excluded.map { (addr, len) -> "$addr/$len" }
+
     const val IPV6_ADDRESS = "2000::"
     const val IPV6_PREFIX = 3
 

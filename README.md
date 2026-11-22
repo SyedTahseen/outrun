@@ -20,6 +20,7 @@ The workflow:
 - `scripts/fetch-singbox.sh` downloads sing-box (default **1.14.4**) for arm64-v8a and x86_64, plus armeabi-v7a when
   upstream publishes it (1.14.4 has no 32-bit ARM build, so no armeabi-v7a APK is produced for it)
 - `scripts/build-native.sh` builds hev-socks5-tunnel (tun2socks) with the NDK, bound to `app.xvpn.vpn.Tun2Socks`
+- `scripts/build-map.py` generates the world-map asset (`app/src/main/assets/world.bin`) from Natural Earth borders, unless it already exists
 - Gradle 8.13 builds `:app:assembleRelease` (signed with the debug key, for personal use)
 
 "Run workflow" lets you set the sing-box version and the hev-socks5-tunnel ref. Config formats change between
@@ -27,7 +28,7 @@ sing-box minor versions; `ConfigBuilder.kt` targets 1.14.x, so keep the version 
 
 ## Build locally
 
-Run the two scripts (need curl, git, an Android NDK via `ANDROID_NDK_HOME`), then open the folder in
+Run the two scripts (need curl, git, an Android NDK via `ANDROID_NDK_HOME`) and `python3 scripts/build-map.py` (generates the map asset), then open the folder in
 Android Studio (Koala+) and run. First connect asks for VPN + notification permission.
 
 ## Home-screen widget
@@ -63,7 +64,7 @@ been granted yet, the power button opens the app instead.
 - **Settings -> Advanced settings -> IPv6 support**: on = tunnel (default), off = block.
 - **Settings -> Usage & history**: per-day totals, 14-day chart, last connections, and per-app usage (needs Usage access).
   Per-app numbers come from Android's NetworkStatsManager and are approximate (hourly buckets).
-- **Notification**: live speed, Disconnect, and Switch server (cycles through favorites, or all servers if you have fewer than 2 favorites).
+- **Notification**: connection state with live session and speed totals, and a Disconnect action. Tapping it opens the Home screen.
 
 ## Features added from the Proton VPN comparison
 

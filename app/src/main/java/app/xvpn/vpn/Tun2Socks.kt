@@ -8,6 +8,8 @@ object Tun2Socks {
 
     @JvmStatic external fun TProxyStartService(configPath: String, fd: Int): Boolean
     @JvmStatic external fun TProxyStopService(): Boolean
+    // Not called from Kotlin, but kept: the native library registers its JNI methods against this class, and
+    // a Kotlin declaration that is missing for a registered method can make System.loadLibrary fail.
     @JvmStatic external fun TProxyIsRunning(): Boolean
     @JvmStatic external fun TProxyGetStats(): LongArray
 

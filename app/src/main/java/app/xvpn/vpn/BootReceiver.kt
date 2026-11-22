@@ -4,7 +4,6 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import app.xvpn.data.AppLog
-import app.xvpn.data.LinkParser
 import app.xvpn.data.Store
 
 /** Connects the selected server after the phone boots, when "Auto-connect on boot" is on. */
@@ -13,7 +12,7 @@ class BootReceiver : BroadcastReceiver() {
         if (intent.action != Intent.ACTION_BOOT_COMPLETED) return
         val store = Store(context)
         if (!store.autoConnectBoot) return
-        val link = (store.selected ?: store.profiles().firstOrNull()?.link)?.takeIf { LinkParser.parse(it) != null }
+        val link = store.linkToConnect()
         if (link == null) { AppLog.i(context, "boot", "auto-connect skipped: no server selected"); return }
         if (OutrunVpnService.needsPermission(context)) {
             AppLog.i(context, "boot", "auto-connect skipped: VPN permission not granted yet (connect once from the app)")

@@ -1,18 +1,13 @@
 package app.xvpn
 
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.material3.NavigationBarItemDefaults
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBar
 import android.Manifest
 import android.app.Activity
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
 import android.net.VpnService
 import android.os.Build
-import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -46,6 +41,9 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsTopHeight
 import androidx.compose.material3.Icon
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -60,6 +58,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.xvpn.data.AppLog
 import app.xvpn.data.GeoIp
@@ -67,26 +67,26 @@ import app.xvpn.data.LinkParser
 import app.xvpn.data.NetInfo
 import app.xvpn.data.RealDelay
 import app.xvpn.data.Store
+import app.xvpn.ui.AppSnackbarHost
 import app.xvpn.ui.C
-import app.xvpn.ui.OutrunApp
 import app.xvpn.ui.HomeScreen
 import app.xvpn.ui.MenuScreen
 import app.xvpn.ui.Motion
-import app.xvpn.ui.Sizes
-import app.xvpn.ui.Type
+import app.xvpn.ui.OutrunApp
+import app.xvpn.ui.ProtonIcons
 import app.xvpn.ui.ServersScreen
+import app.xvpn.ui.Sizes
+import app.xvpn.ui.Snack
+import app.xvpn.ui.SnackType
 import app.xvpn.ui.SortMode
 import app.xvpn.ui.SpeedScreen
 import app.xvpn.ui.StatsScreen
+import app.xvpn.ui.Type
 import app.xvpn.ui.appVersionName
-import app.xvpn.ui.ProtonIcons
 import app.xvpn.ui.axisTransition
+import app.xvpn.ui.largeScreenContentPadding
 import app.xvpn.ui.panelTransition
 import app.xvpn.ui.setUpEdgeToEdge
-import app.xvpn.ui.AppSnackbarHost
-import app.xvpn.ui.Snack
-import app.xvpn.ui.SnackType
-import app.xvpn.ui.largeScreenContentPadding
 import app.xvpn.vpn.OutrunVpnService
 import app.xvpn.vpn.RootCore
 import app.xvpn.vpn.Status
@@ -94,12 +94,13 @@ import app.xvpn.vpn.VpnState
 import app.xvpn.widget.OutrunWidget
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.concurrent.thread
 
 /** Bumped each time the notification asks to show the status screen. */
-internal val openStatusRequests = kotlinx.coroutines.flow.MutableStateFlow(0)
+internal val openStatusRequests = MutableStateFlow(0)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -376,9 +377,9 @@ private fun App() {
     var menuFullScreen by remember { mutableStateOf(false) }
     val dockHidden = statsOn || menuFullScreen
 
-    var serversScrolled by remember { mutableStateOf(false) }
+    var contentScrolled by remember { mutableStateOf(false) }
     val statusStripColor by animateColorAsState(
-        if (statsOn) C.Deep else if ((tab == Tab.Servers || tab == Tab.Menu) && serversScrolled) C.Header else C.Bg,
+        if (statsOn) C.Deep else if ((tab == Tab.Servers || tab == Tab.Menu) && contentScrolled) C.Header else C.Bg,
         tween(Motion.Medium), label = "statusStrip",
     )
 
@@ -457,7 +458,7 @@ private fun App() {
                             onDeleteAll = { store.clear(); reload(); toast("All servers deleted") },
                             sort = sort, onSortChange = { sort = it; store.sortName = it.name },
                             filter = serverFilter, onFilterChange = { serverFilter = it },
-                            onScrolledChange = { serversScrolled = it },
+                            onScrolledChange = { contentScrolled = it },
                             subInfo = subInfo,
                             onCopySubscription = { url ->
                                 copyToClipboard("subscription", url)
@@ -466,7 +467,7 @@ private fun App() {
                         )
                         Screen.Speed -> SpeedScreen(
                             onFullScreenChange = { menuFullScreen = it },
-                            onScrolledChange = { serversScrolled = it },
+                            onScrolledChange = { contentScrolled = it },
                         )
                         Screen.Menu -> MenuScreen(
                             store = store,
@@ -477,7 +478,7 @@ private fun App() {
                                     "Status $status\nServers ${profiles.size}\nSubscriptions ${subs.size}\n" +
                                     "Last error ${VpnState.error.value ?: "none"}"
                             },
-                            onScrolledChange = { serversScrolled = it },
+                            onScrolledChange = { contentScrolled = it },
                             onFullScreenChange = { menuFullScreen = it },
                         )
                     }

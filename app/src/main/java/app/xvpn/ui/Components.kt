@@ -1,9 +1,8 @@
 package app.xvpn.ui
 
-import app.xvpn.R
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -19,12 +18,11 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DropdownMenu
@@ -43,11 +41,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import app.xvpn.R
 
 @Composable
 fun AppCard(
@@ -195,7 +195,7 @@ fun ScreenHeaderContent(
 }
 
 @Composable
-fun SectionHeader(text: String, modifier: Modifier = Modifier, first: Boolean = false, horizontal: Dp = Space.Gutter) {
+fun SectionHeader(text: String, modifier: Modifier = Modifier, horizontal: Dp = Space.Gutter) {
     Text(
         text, style = Type.Section, color = C.Accent,
         modifier = modifier.padding(start = horizontal, end = horizontal, top = Space.Xxl, bottom = Space.Sm),

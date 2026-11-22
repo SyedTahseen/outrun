@@ -58,7 +58,7 @@ class OutrunTileService : TileService() {
             return
         }
         val store = Store(this)
-        val link = (store.selected ?: store.profiles().firstOrNull()?.link)?.takeIf { LinkParser.parse(it) != null }
+        val link = store.linkToConnect()
         if (link == null || OutrunVpnService.needsPermission(this)) openApp() else OutrunVpnService.start(this, link)
     }
 

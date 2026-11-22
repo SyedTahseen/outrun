@@ -5,6 +5,7 @@ import org.json.JSONObject
 import java.net.URI
 import java.net.URLDecoder
 import java.net.URLEncoder
+import java.util.concurrent.ConcurrentHashMap
 
 data class Profile(
     val name: String,
@@ -206,7 +207,7 @@ object LinkParser {
         return Profile(j.optString("ps").ifEmpty { "$host:$port" }, "vmess", host, port, link)
     }
 
-    private val describeCache = HashMap<String, String>()
+    private val describeCache = ConcurrentHashMap<String, String>()
 
     fun describe(link: String): String = describeCache.getOrPut(link) {
         runCatching {

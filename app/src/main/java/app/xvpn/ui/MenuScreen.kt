@@ -1,15 +1,7 @@
 package app.xvpn.ui
 
 import android.Manifest
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.semantics.onClick
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.ui.semantics.Role
-import androidx.compose.foundation.selection.toggleable
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Checkbox
+import android.app.Activity
 import android.appwidget.AppWidgetManager
 import android.content.ComponentName
 import android.content.Context
@@ -17,15 +9,12 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.net.Uri
+import android.net.VpnService
 import android.os.Build
 import android.provider.Settings
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.core.app.NotificationManagerCompat
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.LifecycleOwner
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.ScrollState
@@ -47,16 +36,19 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -70,21 +62,29 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.core.app.NotificationManagerCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.LifecycleOwner
 import app.xvpn.LogActivity
 import app.xvpn.data.Choices
 import app.xvpn.data.Store
-import app.xvpn.widget.OutrunWidget
-import kotlinx.coroutines.flow.filter
-import android.app.Activity
-import android.net.VpnService
 import app.xvpn.vpn.OutrunVpnService
 import app.xvpn.vpn.RootShell
 import app.xvpn.vpn.Status
 import app.xvpn.vpn.VpnState
+import app.xvpn.widget.OutrunWidget
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -394,7 +394,7 @@ private fun MenuPage(
     Column(Modifier.fillMaxSize()) {
         ScreenHeader("Settings", scrolled = scrolled)
         Column(Modifier.weight(1f).fillMaxWidth().verticalScrollbar(scroll).verticalScroll(scroll)) {
-            SectionHeader("Features", first = true)
+            SectionHeader("Features")
             ListRow(
                 ProtonIcons.Shield, "NetShield",
                 if (!netShield) "Off" else if (customDnsOn && customDns.isNotEmpty()) "Unavailable with custom DNS" else if (blockAdult) "Blocking ads, trackers, malware and adult content" else "Blocking ads, trackers and malware",
@@ -516,11 +516,7 @@ private fun Context.openUrl(url: String) = launch(Intent(Intent.ACTION_VIEW, Uri
 private fun Context.notificationsEnabled(): Boolean = NotificationManagerCompat.from(this).areNotificationsEnabled()
 
 private fun Context.openNotificationSettings() {
-    val intent = if (Build.VERSION.SDK_INT >= 26) {
-        Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
-    } else {
-        Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName"))
-    }
+    val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
     launch(intent, "Couldn\u2019t open notification settings")
 }
 
@@ -530,8 +526,7 @@ private fun Context.widgetCount(): Int =
 
 private fun Context.requestPinWidget() {
     val manager = AppWidgetManager.getInstance(this)
-    val supported = Build.VERSION.SDK_INT >= 26 && manager.isRequestPinAppWidgetSupported
-    val requested = supported && runCatching {
+    val requested = manager.isRequestPinAppWidgetSupported && runCatching {
         manager.requestPinAppWidget(ComponentName(this, OutrunWidget::class.java), null, null)
     }.getOrDefault(false)
     if (!requested) toast("To add the widget, press and hold your home screen, then select Outrun VPN from the widget menu")

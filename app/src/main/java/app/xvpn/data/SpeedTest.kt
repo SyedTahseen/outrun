@@ -19,6 +19,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlin.random.Random
@@ -181,7 +182,7 @@ object SpeedTest {
         val deadline = start + phaseMs
         val chunk = ByteArray(CHUNK).also { Random.nextBytes(it) }
 
-        val lastError = java.util.concurrent.atomic.AtomicReference<String?>(null)
+        val lastError = AtomicReference<String?>(null)
         val workers = List(streams) {
             launch {
                 var fails = 0

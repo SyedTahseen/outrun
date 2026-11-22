@@ -74,7 +74,7 @@ class RootCore(private val context: Context) {
     @Volatile private var up = 0L
     @Volatile private var down = 0L
     private var useClash = false
-    private var trafficThread: Thread? = null
+    private var seenLog = 0
 
     /** `sing-box version` lists its build tags; the Clash API gives exact traffic numbers when it is compiled in. */
     fun hasClashApi(): Boolean = runCatching {
@@ -159,7 +159,7 @@ class RootCore(private val context: Context) {
     }
 
     private fun startTraffic(clashPort: Int) {
-        trafficThread = thread(isDaemon = true, name = "root-traffic") {
+        thread(isDaemon = true, name = "root-traffic") {
             while (running) {
                 try {
                     val c = URL("http://127.0.0.1:$clashPort/traffic").openConnection(Proxy.NO_PROXY) as HttpURLConnection
@@ -191,14 +191,11 @@ class RootCore(private val context: Context) {
 
     fun stop() {
         running = false
-        trafficThread = null
         RootShell.run(stopScript(dir), 20_000)
         drainLog()
         AppLog.i(context, "root", "core stopped")
         flushConnections()
     }
-
-    private var seenLog = 0
 
     /** sing-box's output goes to a root-owned file, so it is read through the root shell and copied into the app log. */
     @Synchronized

@@ -63,10 +63,10 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
-import app.xvpn.ui.C
 import app.xvpn.ui.AppButton
 import app.xvpn.ui.ButtonSize
 import app.xvpn.ui.ButtonStyle
+import app.xvpn.ui.C
 import app.xvpn.ui.IconAction
 import app.xvpn.ui.OutrunApp
 import app.xvpn.ui.Radius
