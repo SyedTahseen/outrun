@@ -450,6 +450,21 @@ private fun App() {
                                 copyToClipboard("proxy", p.link)
                                 toast("Copied to clipboard")
                             },
+                            onEdit = { old, new ->
+                                when {
+                                    old == new -> null
+                                    !store.replace(old, new) -> "A server with these details already exists"
+                                    else -> {
+                                        val wasActive = VpnState.activeLink.value == old && VpnState.status.value != Status.Disconnected
+                                        if (selectedLink == old) selectedLink = new
+                                        reload()
+                                        // The running connection still has the old settings; reconnecting applies the edit.
+                                        if (wasActive) { connect(new); toast("Saved. Reconnecting with the new settings", SnackType.Success) }
+                                        else toast("Server updated", SnackType.Success)
+                                        null
+                                    }
+                                }
+                            },
                             onAddSubscription = { refreshSubs(listOf(it)) },
                             onDeleteMany = { links ->
                                 val n = store.removeMany(links)

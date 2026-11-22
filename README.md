@@ -1,7 +1,7 @@
 # Outrun VPN (Android)
 
 Compose UI (Home / Servers / Speed test / Settings) + **sing-box** core, for your own vless / trojan / shadowsocks / vmess /
-hysteria2 / tuic / wireguard proxies. Config import via clipboard and subscription URLs.
+hysteria2 / tuic / wireguard / socks5 / http proxies. Config import via clipboard and subscription URLs.
 
 Data path: apps -> VpnService TUN -> hev-socks5-tunnel -> sing-box SOCKS (127.0.0.1:<free port>, protected by a per-connection username and password) -> your server.
 
@@ -75,6 +75,8 @@ been granted yet, the power button opens the app instead.
 - **Recents**: the last 3 servers appear on Home while disconnected for one-tap reconnect.
 - **Fastest** (first row of the Servers list, like Proton's "Fastest country" row): reuses a latency test from the last 10 minutes or runs one first. While connecting is slow, Home offers "Try another server" (random).
 - **Advanced settings** (Settings -> Connection, like Proton): LAN connections, Custom DNS, IPv6 support and MTU live here. Custom DNS is a switch plus your own server list (IPv4 or IPv6, tried in order, reorder / remove, "Add new DNS server" screen); the old DNS preset list was replaced by it and an existing preset or custom choice is migrated into the list. IPv6 support is a switch (off = IPv6 blocked).
+- **SOCKS5 and HTTP(S) proxies**: paste `socks5://[user:pass@]host[:port]` (also `socks://` incl. the v2rayN base64 form, and `socks5h://`) or `http://[user:pass@]host:port` / `https://...` (the port is required, with no path or query, so ordinary web links are not mistaken for servers). They change your apparent location like a VPN but are not encrypted by themselves (https:// proxies encrypt the hop to the proxy). DNS cannot rely on UDP here, so it is answered over TCP through a SOCKS proxy, and over DoH (port 443) through an HTTP proxy, using the configured DNS server (pick one that supports DoH, such as 1.1.1.1 or 8.8.8.8). HTTP proxies carry TCP only, so QUIC and other UDP traffic falls back or fails.
+- **Editing servers**: the ⋯ menu of every server has an Edit option for all link types (VLESS, VMess, Trojan, Shadowsocks, Hysteria2, TUIC, WireGuard, SOCKS5, HTTP). Name, server, port and credentials are fields; transport, TLS, Reality, plugin and similar settings are editable name/value rows you can change, add or remove. The edit is checked the same way as a connection (the link must parse and build a valid sing-box outbound) before it is saved, and the server keeps its place, favorite star and selection. Editing the connected server reconnects with the new settings. A server edited from a subscription is detached from it, so the next subscription update adds the original again.
 - **Excluded IP addresses** (split tunneling): on Android 13+ they use `excludeRoute`; on Android 8-12 the IPv4 ranges are removed from the routes instead (IPv6 exclusions need Android 13+).
 - **LAN connections**: keeps 10/8, 172.16/12, 192.168/16, link-local and multicast outside the tunnel (works on every Android version, not only 13+). Off by default.
 - **MTU** (Advanced settings): 1500 (default) down to 1280.

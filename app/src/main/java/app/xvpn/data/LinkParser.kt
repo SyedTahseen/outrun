@@ -24,8 +24,16 @@ object LinkParser {
         link.startsWith("hysteria2://") || link.startsWith("hy2://") -> "hysteria2"
         link.startsWith("tuic://") -> "tuic"
         link.startsWith("wireguard://") || link.startsWith("wg://") -> "wireguard"
+        link.startsWith("socks5://") || link.startsWith("socks5h://") || link.startsWith("socks://") -> "socks"
+        isHttpProxy(link) -> "http"
         else -> null
     }
+
+    // An HTTP(S) proxy link needs an explicit port and no path or query. That keeps ordinary web addresses, such as
+    // a status page line inside a subscription, from being taken for servers.
+    private val httpProxyRe = Regex("^https?://(?:[^@/?#]*@)?(?:\\[[^\\]]+\\]|[^:/?#@]+):\\d{1,5}/?(?:#.*)?$", RegexOption.IGNORE_CASE)
+
+    fun isHttpProxy(link: String): Boolean = httpProxyRe.matches(link)
 
     fun parse(raw: String): Profile? = try {
         val link = sanitize(raw.trim())
@@ -37,6 +45,8 @@ object LinkParser {
             "hysteria2" -> authProfile(link, "hysteria2", defaultPort = 443)
             "tuic" -> authProfile(link, "tuic")
             "wireguard" -> authProfile(link, "wireguard")
+            "socks" -> authProfile(link, "socks", defaultPort = 1080)
+            "http" -> authProfile(link, "http")
             else -> null
         }
     } catch (e: Exception) {
@@ -233,6 +243,8 @@ object LinkParser {
                 "hysteria2" -> parts += "Hysteria2"
                 "tuic" -> parts += "TUIC"
                 "wireguard" -> parts += "WireGuard"
+                "socks" -> parts += "SOCKS5"
+                "http" -> parts += if (link.startsWith("https://", ignoreCase = true)) "HTTPS proxy" else "HTTP proxy"
             }
             parts.joinToString(" / ")
         }.getOrDefault("")

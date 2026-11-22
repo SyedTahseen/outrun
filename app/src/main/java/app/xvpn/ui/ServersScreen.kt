@@ -78,6 +78,8 @@ fun ServersScreen(
     favorites: Set<String>,
     onToggleFavorite: (Profile) -> Unit,
     onCopy: (Profile) -> Unit,
+    /** Saves an edited link in place of the old one; returns an error message, or null when it worked. */
+    onEdit: (old: String, new: String) -> String? = { _, _ -> null },
     onAddSubscription: (String) -> Unit,
     pings: Map<String, Int>,
     testing: Boolean,
@@ -94,6 +96,7 @@ fun ServersScreen(
     onCopySubscription: (String) -> Unit = {},
     onConnectFastest: () -> Unit = {},
 ) {
+    var editing by remember { mutableStateOf<Profile?>(null) }
     var searching by remember { mutableStateOf(false) }
     var query by remember { mutableStateOf("") }
     var addMenu by remember { mutableStateOf(false) }
@@ -268,7 +271,7 @@ fun ServersScreen(
                         items(shown, key = { it.link }) { p ->
                             ServerRow(
                                 p, p.link == selectedLink, p.link in favorites, pings[p.link], testing,
-                                { onConnect(p) }, { onDelete(p) }, { onToggleFavorite(p) }, { onCopy(p) },
+                                { onConnect(p) }, { onDelete(p) }, { onToggleFavorite(p) }, { onCopy(p) }, { editing = p },
                                 modifier = Modifier.animateItem(),
                             )
                         }
@@ -314,6 +317,13 @@ fun ServersScreen(
     }
     if (subDialog) SubscriptionDialog(onDismiss = { subDialog = false }, onAdd = { onAddSubscription(it); subDialog = false })
     if (manual) ManualDialog(onDismiss = { manual = false }, onAdd = { onAddManual(it).also { ok -> if (ok) manual = false } })
+    editing?.let { p ->
+        EditServerDialog(
+            profile = p, fromSubscription = p.link in sources,
+            onDismiss = { editing = null },
+            onSave = { new -> onEdit(p.link, new).also { err -> if (err == null) editing = null } },
+        )
+    }
 }
 
 @Composable
@@ -395,7 +405,7 @@ private fun CountText(n: Int) { Text("$n", style = Type.Small, color = C.Muted) 
 @Composable
 private fun ServerRow(
     p: Profile, selected: Boolean, fav: Boolean, ping: Int?, testing: Boolean,
-    onConnect: () -> Unit, onDelete: () -> Unit, onFavorite: () -> Unit, onCopy: () -> Unit,
+    onConnect: () -> Unit, onDelete: () -> Unit, onFavorite: () -> Unit, onCopy: () -> Unit, onEdit: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var menu by remember { mutableStateOf(false) }
@@ -422,6 +432,7 @@ private fun ServerRow(
                 IconAction(ProtonIcons.ThreeDotsHorizontal, "Options") { menu = true }
                 AppDropdownMenu(menu, { menu = false }) {
                     AppMenuItem(ProtonIcons.SquaresInSquare, "Copy") { menu = false; onCopy() }
+                    AppMenuItem(ProtonIcons.Pen, "Edit") { menu = false; onEdit() }
                     AppMenuItem(ProtonIcons.Trash, "Delete") { menu = false; onDelete() }
                 }
             }
@@ -488,7 +499,7 @@ private fun ManualDialog(onDismiss: () -> Unit, onAdd: (String) -> Boolean) {
         title = "Add manually", confirmLabel = "Add",
         onConfirm = { if (!onAdd(text)) bad = true }, onDismiss = onDismiss,
     ) {
-        Text("Paste a WireGuard .conf or a vless://, trojan://, ss://, vmess://, hysteria2://, tuic:// or wireguard:// link (one per line).", style = Type.Small, color = C.Text)
+        Text("Paste a WireGuard .conf or a vless://, trojan://, ss://, vmess://, hysteria2://, tuic://, wireguard://, socks5:// or http://host:port link (one per line).", style = Type.Small, color = C.Text)
         Spacer(Modifier.height(Space.Md))
         AppTextField(text, { text = it; bad = false }, singleLine = false, onCard = true)
         if (bad) Text("No valid link found", style = Type.Caption, color = C.Red, modifier = Modifier.padding(top = Space.Sm))

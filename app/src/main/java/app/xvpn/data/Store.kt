@@ -135,6 +135,23 @@ class Store(context: Context) {
         return before.count { it in set }
     }
 
+    /**
+     * Swaps a server's link for an edited one, in place. Its position, favorite star, selection and recents carry
+     * over; it is detached from its subscription, because the next update would overwrite the edit.
+     * Returns false if the old link is gone or the new one already exists.
+     */
+    fun replace(old: String, new: String): Boolean {
+        if (old == new) return true
+        val all = links()
+        if (old !in all || new in all) return false
+        putLines("links", all.map { if (it == old) new else it })
+        saveSources(sources.filterKeys { it != old })
+        if (old in favorites) favorites = favorites - old + new
+        putLines("recents", recentLinks().map { if (it == old) new else it })
+        if (selected == old) selected = new
+        return true
+    }
+
     fun removeSubscription(url: String): Int {
         val gone = sources.filterValues { it == url }.keys
         removeMany(gone)

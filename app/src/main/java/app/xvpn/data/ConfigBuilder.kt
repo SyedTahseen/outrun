@@ -16,6 +16,8 @@ object ConfigBuilder {
             "hysteria2" -> hysteria2(link)
             "tuic" -> tuic(link)
             "wireguard" -> wireguard(link)
+            "socks" -> socks(link)
+            "http" -> httpProxy(link)
             else -> error("Unsupported link")
         }
         proxy.put("tag", "proxy")
@@ -36,10 +38,22 @@ object ConfigBuilder {
         JSONObject().put("type", "socks").put("tag", tag).put("listen", "127.0.0.1").put("listen_port", port)
             .put("users", JSONArray().put(JSONObject().put("username", creds.user).put("password", creds.pass)))
 
-    private fun dnsBlock(dns: String = "1.1.1.1", viaProxy: Boolean = false): JSONObject {
+    /**
+     * How DNS has to travel through this proxy. Plain SOCKS5 and HTTP proxies often carry no UDP, so their DNS goes
+     * over TCP (SOCKS) or DoH on port 443 (HTTP proxies usually only allow CONNECT to 443). Everything else keeps UDP.
+     */
+    private fun dnsKind(proxy: JSONObject) = when (proxy.optString("type")) {
+        "http" -> "https"
+        "socks" -> "tcp"
+        else -> "udp"
+    }
+
+    private fun carriesUdp(proxy: JSONObject) = dnsKind(proxy) == "udp"
+
+    private fun dnsBlock(dns: String = "1.1.1.1", viaProxy: Boolean = false, kind: String = "udp"): JSONObject {
         val servers = JSONArray().put(JSONObject().put("type", "udp").put("tag", "dns-direct").put("server", dns))
         if (viaProxy) servers.put(
-            JSONObject().put("type", "udp").put("tag", "dns-proxy").put("server", dns).put("detour", "proxy")
+            JSONObject().put("type", kind).put("tag", "dns-proxy").put("server", dns).put("detour", "proxy")
         )
         return JSONObject().put("servers", servers).put("final", if (viaProxy) "dns-proxy" else "dns-direct")
     }
@@ -70,13 +84,17 @@ object ConfigBuilder {
 
         val root = JSONObject()
             .put("log", JSONObject().put("level", "warn"))
-            .put("dns", dnsBlock(dns, viaProxy = endpoint))
+            .put("dns", dnsBlock(dns, viaProxy = endpoint || !carriesUdp(proxy), kind = dnsKind(proxy)))
             .put("inbounds", JSONArray().put(socksInbound("socks-in", socksPort, creds)))
             .put("outbounds", outs)
             .put(
                 "route", JSONObject()
                     .put("final", "proxy")
                     .put("default_domain_resolver", "dns-direct")
+                    .apply {
+                        // Apps send DNS as UDP to the VPN's resolver; answer it here, over the proxy's own transport.
+                        if (!carriesUdp(proxy)) put("rules", JSONArray().put(JSONObject().put("port", 53).put("action", "hijack-dns")))
+                    }
             )
         if (endpoint) root.put("endpoints", JSONArray().put(proxy))
         return root.toString()
@@ -125,7 +143,7 @@ object ConfigBuilder {
             .put(JSONObject().put("protocol", "dns").put("action", "hijack-dns"))
         if (o.blockIpv6) rules.put(JSONObject().put("ip_version", 6).put("action", "reject"))
 
-        val dnsObj = dnsBlock(dns, viaProxy = true)
+        val dnsObj = dnsBlock(dns, viaProxy = true, kind = dnsKind(proxy))
         val resolver: Any = if (o.blockIpv6) {
             dnsObj.put("strategy", "ipv4_only")
             JSONObject().put("server", "dns-direct").put("strategy", "ipv4_only")
@@ -279,6 +297,38 @@ object ConfigBuilder {
         a.pass?.let { o.put("password", it) }
         (q["congestion_control"] ?: q["congestion-control"])?.takeIf { it.isNotEmpty() }?.let { o.put("congestion_control", it) }
         (q["udp_relay_mode"] ?: q["udp-relay-mode"])?.takeIf { it == "native" || it == "quic" }?.let { o.put("udp_relay_mode", it) }
+        return o
+    }
+
+    private fun socks(link: String): JSONObject {
+        val a = LinkParser.authority(link, defaultPort = 1080)
+        var user = a.user
+        var pass = a.pass
+        // socks://BASE64(user:pass)@host:port, as written by v2rayN and similar apps
+        if (pass == null && user.isNotEmpty() && link.startsWith("socks://", ignoreCase = true)) {
+            LinkParser.decodeB64(user)?.takeIf { ':' in it }?.let { user = it.substringBefore(':'); pass = it.substringAfter(':') }
+        }
+        val o = JSONObject().put("type", "socks").put("server", a.host).put("server_port", a.port).put("version", "5")
+        if (user.isNotEmpty()) {
+            o.put("username", user)
+            pass?.let { o.put("password", it) }
+        }
+        return o
+    }
+
+    private fun httpProxy(link: String): JSONObject {
+        val a = LinkParser.authority(link)
+        val o = JSONObject().put("type", "http").put("server", a.host).put("server_port", a.port)
+        if (a.user.isNotEmpty()) {
+            o.put("username", a.user)
+            a.pass?.let { o.put("password", it) }
+        }
+        if (link.startsWith("https://", ignoreCase = true)) {
+            val t = JSONObject().put("enabled", true)
+                .put("server_name", a.query["sni"]?.takeIf { it.isNotEmpty() } ?: a.host)
+            if (truthy(a.query["insecure"]) || truthy(a.query["allowInsecure"])) t.put("insecure", true)
+            o.put("tls", t)
+        }
         return o
     }
 
