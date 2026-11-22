@@ -4,7 +4,9 @@ import android.content.Context
 import app.xvpn.data.AppLog
 import org.json.JSONObject
 import java.io.File
+import java.net.HttpURLConnection
 import java.net.InetSocketAddress
+import java.net.Proxy
 import java.net.Socket
 import java.net.URL
 import kotlin.concurrent.thread
