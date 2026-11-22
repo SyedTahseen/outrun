@@ -22,13 +22,15 @@ import app.xvpn.R
 import app.xvpn.data.AppLog
 import app.xvpn.data.Choices
 import app.xvpn.data.ConfigBuilder
+import app.xvpn.data.Creds
+import app.xvpn.data.SocksAuth
 import app.xvpn.data.LinkParser
 import app.xvpn.data.Session
 import app.xvpn.data.Store
 import app.xvpn.data.Usage
 import app.xvpn.data.openConnection
 import app.xvpn.ui.fmtBytes
-import app.xvpn.ui.fmtKb
+import app.xvpn.ui.fmtSpeed
 import app.xvpn.widget.OutrunWidget
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -105,6 +107,8 @@ class OutrunVpnService : VpnService() {
 
     private var currentLink: String? = null
     private var currentName: String = ""
+    /** What the user picked. Automatic reconnects try this first, so a fallback server does not become sticky. */
+    private var preferredLink: String? = null
 
     @Volatile private var wanted = false
     /** Mode the foreground notification / current session was set up for; null when no session. */
@@ -112,6 +116,7 @@ class OutrunVpnService : VpnService() {
     private var healthJob: Job? = null
     private var netJob: Job? = null
     private var netCallback: ConnectivityManager.NetworkCallback? = null
+    private var defaultNetCallback: ConnectivityManager.NetworkCallback? = null
     private var lastNet: Network? = null
     private val underlying = ConcurrentHashMap<Network, Boolean>()
     private val validatedOnce: MutableSet<Network> = ConcurrentHashMap.newKeySet()
@@ -150,7 +155,11 @@ class OutrunVpnService : VpnService() {
                 val link = intent.getStringExtra(EXTRA_LINK) ?: return START_NOT_STICKY
                 begin(link, intent.getBooleanExtra(EXTRA_BOOT, false))
             }
-            else -> {
+            // Always-on VPN and a restart after the process was killed arrive with no action or the system's own one.
+            // Anything else (for example a notification button from an older version) must not start a connection.
+            else -> if (intent != null && intent.action != VpnService.SERVICE_INTERFACE) {
+                if (!wanted) stopSelf()
+            } else {
                 val link = Store(this).selectedOrNull()
                 if (link != null) begin(link)
                 else {
@@ -180,6 +189,7 @@ class OutrunVpnService : VpnService() {
             val profile = LinkParser.parse(link) ?: return@launch
             rootCore = rc
             currentLink = link
+            preferredLink = link
             currentName = profile.name
             VpnState.activeLink.value = link
             registerNetworkWatch()
@@ -226,7 +236,8 @@ class OutrunVpnService : VpnService() {
     }
 
     private fun connectOrWait(link: String) {
-        if (hasUnderlyingNetwork()) launchConnect(link)
+        preferredLink = link
+        if (hasUnderlyingNetwork()) launchConnect(link, remember = true)
         else {
             currentLink = link
             Store(this).selected = link
@@ -260,9 +271,10 @@ class OutrunVpnService : VpnService() {
         notificationManager.notify(NOTIFICATION_ID, notification(NState.Waiting, "Waiting for usable network"))
     }
 
-    private fun launchConnect(link: String) {
+    /** [remember] is true only for a connection the user asked for; automatic reconnects must not rewrite their choice. */
+    private fun launchConnect(link: String, remember: Boolean = false) {
         val prev = connectJob
-        connectJob = scope.launch { prev?.cancelAndJoin(); connect(link, emptySet()) }
+        connectJob = scope.launch { prev?.cancelAndJoin(); connect(link, emptySet(), remember) }
     }
 
     private fun fallbackLink(exclude: Set<String>): String? {
@@ -274,7 +286,7 @@ class OutrunVpnService : VpnService() {
 
     /** Switches the live connection to whatever mode is now saved in settings. */
     private fun applyMode() {
-        val link = currentLink
+        val link = preferredLink ?: currentLink
         if (!wanted || link == null) { stopSelf(); return }
         // While waiting for a network the old session is still held; the reconnect on recovery reads the new mode.
         if (waitingNet) return
@@ -288,7 +300,7 @@ class OutrunVpnService : VpnService() {
     }
 
     private fun reconnectNow() {
-        val link = currentLink
+        val link = preferredLink ?: currentLink
         if (!wanted || link == null) { stopSelf(); return }
         if (waitingNet) return
         AppLog.i(this, "service", "reconnecting to apply new settings")
@@ -323,11 +335,20 @@ class OutrunVpnService : VpnService() {
             .addCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN)
             .build()
         runCatching { cm.registerNetworkCallback(request, cb); netCallback = cb }
+        // The all-networks callback is not told when the system merely switches its default (Wi-Fi and cellular both
+        // stay up), so a second callback only re-runs the selection.
+        val dcb = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) = reevaluateNetwork()
+            override fun onCapabilitiesChanged(network: Network, caps: NetworkCapabilities) = reevaluateNetwork()
+        }
+        runCatching { cm.registerDefaultNetworkCallback(dcb); defaultNetCallback = dcb }
     }
 
     private fun unregisterNetworkWatch() {
         netCallback?.let { cb -> runCatching { getSystemService(ConnectivityManager::class.java)?.unregisterNetworkCallback(cb) } }
         netCallback = null
+        defaultNetCallback?.let { cb -> runCatching { getSystemService(ConnectivityManager::class.java)?.unregisterNetworkCallback(cb) } }
+        defaultNetCallback = null
         underlying.clear(); validatedOnce.clear()
         lastNet = null; netLost = false; waitingNet = false
         netJob?.cancel(); netJob = null
@@ -335,7 +356,12 @@ class OutrunVpnService : VpnService() {
 
     @Synchronized
     private fun reevaluateNetwork() {
-        val best = underlying.entries.filter { it.value }.map { it.key }.let { usable -> usable.firstOrNull { it == lastNet } ?: usable.firstOrNull() }
+        // Follow the network the system itself routes this app over (our own app is excluded from the VPN), so the
+        // declared underlying network matches the path sing-box really dials through.
+        val sysDefault = runCatching { getSystemService(ConnectivityManager::class.java)?.activeNetwork }.getOrNull()
+        val best = underlying.entries.filter { it.value }.map { it.key }.let { usable ->
+            usable.firstOrNull { it == sysDefault } ?: usable.firstOrNull { it == lastNet } ?: usable.firstOrNull()
+        }
         if (best == null) {
             lastNet = null
             val st = VpnState.status.value
@@ -351,7 +377,7 @@ class OutrunVpnService : VpnService() {
         if (changed || recovered) {
             AppLog.i(this, "net", if (recovered) "network back" else "network changed")
             netLost = false
-            val link = currentLink ?: return
+            val link = preferredLink ?: currentLink ?: return
             netJob?.cancel()
             netJob = scope.launch {
                 delay(NET_DEBOUNCE_MS)
@@ -374,7 +400,7 @@ class OutrunVpnService : VpnService() {
                 if (!ok) AppLog.i(this@OutrunVpnService, "health", "probe failed ($fails/$HEALTH_FAILS)")
                 if (fails == 1) lastNet?.let { n -> runCatching { getSystemService(ConnectivityManager::class.java)?.reportNetworkConnectivity(n, false) } }
                 if (fails >= HEALTH_FAILS) {
-                    val link = currentLink ?: return@launch
+                    val link = preferredLink ?: currentLink ?: return@launch
                     notificationManager.notify(NOTIFICATION_ID, notification(NState.Reconnecting, "Reconnecting"))
                     launchConnect(link)
                     return@launch
@@ -401,20 +427,26 @@ class OutrunVpnService : VpnService() {
 
     /** Same line as Proton's notification: "↓ session | speed  ↑ session | speed". */
     private fun trafficLine(): String =
-        "↓ ${fmtBytes(sessDown)} | ${fmtKb(VpnState.downBytesPerSec.value)}  " +
-            "↑ ${fmtBytes(sessUp)} | ${fmtKb(VpnState.upBytesPerSec.value)}"
+        "↓ ${fmtBytes(sessDown)} | ${fmtSpeed(VpnState.downBytesPerSec.value)}  " +
+            "↑ ${fmtBytes(sessUp)} | ${fmtSpeed(VpnState.upBytesPerSec.value)}"
 
     private fun prefixLength(ip: String): Int = ip.substringAfter('/', if (':' in ip) "128" else "32").toInt()
 
-    private suspend fun connect(link: String, tried: Set<String>) {
+    private suspend fun connect(link: String, tried: Set<String>, remember: Boolean = false) {
         VpnState.error.value = null
         VpnState.status.value = Status.Connecting
         OutrunWidget.refresh(this)
 
         val hadSession = tun != null || core != null || rootCore != null
-        teardownSession()
+        // An automatic reconnect continues the running session (one history entry, one timer); a server the user
+        // picked starts a new one.
+        val continuing = !remember && sessionStart != 0L
+        // The TUN stays open across the restart: with nothing reading it, traffic is dropped instead of leaking out
+        // over the raw network. establish() below replaces it, and only then is the old one closed.
+        teardownSession(keepTun = true, keepSession = continuing)
+        val oldTun = tun
         currentLink = link
-        if (tried.isEmpty()) Store(this).selected = link
+        if (remember) { Store(this).selected = link; preferredLink = link }
         VpnState.activeLink.value = link
         if (hadSession) delay(300)
         var x: SingBoxCore? = null
@@ -434,6 +466,8 @@ class OutrunVpnService : VpnService() {
             }
 
             val port = SingBoxCore.freePort()
+            val creds = Creds.random()
+            SocksAuth.register(port, creds)
             val settings = Store(this)
             if (settings.rootMode && !RootShell.granted()) {
                 // Root is gone: use the normal VPN service instead. Without the VPN permission only the UI can ask for it.
@@ -448,10 +482,12 @@ class OutrunVpnService : VpnService() {
                 runCatching { fg(notification(NState.Connecting, connectingTitle(link)), settings.rootMode) }
             }
             if (settings.rootMode) {
+                tun?.let { runCatching { it.close() } }
+                tun = null
                 rc = RootCore(this)
                 rootCore = rc
                 val clash = if (rc.hasClashApi()) SingBoxCore.freePort() else 0
-                rc.start(ConfigBuilder.buildRoot(link, port, rootDns(settings), rootTun(settings, clash)), port, clash)
+                rc.start(ConfigBuilder.buildRoot(link, port, creds, rootDns(settings), rootTun(settings, clash)), port, clash, creds)
                 currentCoroutineContext().ensureActive()
             } else {
                 // A root core from an earlier app process (or an earlier mode) would keep routing underneath the VPN service.
@@ -463,7 +499,7 @@ class OutrunVpnService : VpnService() {
                 core = x
                 val dns = settings.dnsServers()
                 val mtu = settings.mtu
-                x.start(ConfigBuilder.build(link, port, settings.resolverDns()), port)
+                x.start(ConfigBuilder.build(link, port, creds, settings.resolverDns()), port)
                 currentCoroutineContext().ensureActive()
 
                 val b = Builder()
@@ -478,9 +514,15 @@ class OutrunVpnService : VpnService() {
                 val exclude = settings.splitEnabled && !include
                 val incApps = if (include) settings.splitIncludeApps.filter { it != packageName } else emptyList()
                 val incIps = if (include) settings.splitIncludeIps else emptyList()
-                if (incIps.isEmpty() && settings.lanAccess) {
-                    LanRoutes.ipv4.forEach { (addr, len) -> b.addRoute(addr, len) }
-                    b.addRoute(LanRoutes.IPV6_ADDRESS, LanRoutes.IPV6_PREFIX)
+                // Builder.excludeRoute needs Android 13; before that, excluded IPv4 ranges are left out of the routes.
+                val manualExclude = exclude && Build.VERSION.SDK_INT < 33 && settings.splitExcludeIps.isNotEmpty()
+                if (manualExclude && settings.splitExcludeIps.any { ':' in it }) {
+                    AppLog.i(this, "service", "excluded IPv6 ranges need Android 13 or newer and are ignored")
+                }
+                if (incIps.isEmpty() && (settings.lanAccess || manualExclude)) {
+                    LanRoutes.ipv4Except(if (manualExclude) settings.splitExcludeIps else emptyList(), settings.lanAccess)
+                        .forEach { (addr, len) -> b.addRoute(addr, len) }
+                    if (settings.lanAccess) b.addRoute(LanRoutes.IPV6_ADDRESS, LanRoutes.IPV6_PREFIX) else b.addRoute("::", 0)
                 } else if (incIps.isEmpty()) { b.addRoute("0.0.0.0", 0); b.addRoute("::", 0) }
                 else incIps.forEach { ip ->
                     runCatching { b.addRoute(ip.substringBefore('/'), prefixLength(ip)) }
@@ -500,10 +542,11 @@ class OutrunVpnService : VpnService() {
                 }
                 pfd = b.establish() ?: throw NoVpnPermission()
                 tun = pfd
+                if (oldTun != null && oldTun !== pfd) runCatching { oldTun.close() }
                 currentCoroutineContext().ensureActive()
 
                 val cfg = File(filesDir, "tun2socks.yml").apply {
-                    writeText(Tun2Socks.yaml(port, mtu, v6))
+                    writeText(Tun2Socks.yaml(port, mtu, creds, v6))
                 }
                 var started = Tun2Socks.TProxyStartService(cfg.absolutePath, pfd.fd)
                 if (!started) {
@@ -524,13 +567,16 @@ class OutrunVpnService : VpnService() {
                 return
             }
             VpnState.socksPort.value = port
-            VpnState.connectedAt.value = System.currentTimeMillis()
             VpnState.status.value = Status.Connected
             OutrunWidget.refresh(this)
-            AppLog.i(this, "service", "connected to \"${profile.name}\"")
+            AppLog.i(this, "service", "connected to \"${profile.name}\"" + if (continuing) " (session continued)" else "")
             currentName = profile.name
-            sessionStart = System.currentTimeMillis(); sessUp = 0; sessDown = 0; pendUp = 0; pendDown = 0
-            VpnState.sessionUp.value = 0; VpnState.sessionDown.value = 0
+            if (!continuing || sessionStart == 0L) {
+                val now = System.currentTimeMillis()
+                VpnState.connectedAt.value = now
+                sessionStart = now; sessUp = 0; sessDown = 0; pendUp = 0; pendDown = 0
+                VpnState.sessionUp.value = 0; VpnState.sessionDown.value = 0
+            }
             if (Build.VERSION.SDK_INT >= 29 && rc == null) {
                 VpnState.alwaysOn.value = isAlwaysOn
                 VpnState.lockdown.value = isLockdownEnabled
@@ -541,13 +587,14 @@ class OutrunVpnService : VpnService() {
             notificationManager.notify(NOTIFICATION_ID, notification(NState.Connected, "Connected to ${profile.name}", trafficLine()))
             startStats()
             startHealth(port)
-            Store(this).pushRecent(link)
+            if (remember) Store(this).pushRecent(link)
         } catch (e: Throwable) {
             if (!currentCoroutineContext().isActive) {
                 if (tunStarted) runCatching { Tun2Socks.TProxyStopService() }
                 runCatching { x?.stop() }
                 runCatching { rc?.stop() }
-                runCatching { pfd?.close() }
+                // Cancelled for a new attempt: keep the TUN for it. Cancelled by a disconnect: nobody else will close it.
+                if (!wanted) { runCatching { pfd?.close() }; if (tun === pfd) tun = null }
             } else {
                 Log.w(TAG, "connect failed: ${e.javaClass.simpleName}")
                 AppLog.i(this, "service", "connect failed: ${e.javaClass.simpleName}: ${e.message}")
@@ -660,10 +707,10 @@ class OutrunVpnService : VpnService() {
     }
 
     /** [async] is for shutdown on the main thread: stopping the root core can take a second or two. */
-    private fun teardownSession(async: Boolean = false): Thread? {
+    private fun teardownSession(async: Boolean = false, keepTun: Boolean = false, keepSession: Boolean = false): Thread? {
         statsJob?.cancel(); statsJob = null
         healthJob?.cancel(); healthJob = null
-        finishSession()
+        if (keepSession) flushUsage() else finishSession()
         val rc = rootCore
         rootCore = null
         var pending: Thread? = null
@@ -672,8 +719,7 @@ class OutrunVpnService : VpnService() {
         } else runCatching { Tun2Socks.TProxyStopService() }
         runCatching { core?.stop() }
         core = null
-        runCatching { tun?.close() }
-        tun = null
+        if (!keepTun) { runCatching { tun?.close() }; tun = null }
         VpnState.upBytesPerSec.value = 0
         VpnState.downBytesPerSec.value = 0
         VpnState.speedHistory.value = emptyList()
@@ -715,6 +761,8 @@ class OutrunVpnService : VpnService() {
     override fun onDestroy() {
         finishSession()
         runCatching { core?.stop() }
+        runCatching { tun?.close() }
+        tun = null
         rootCore?.let { rc -> rootCore = null; thread(name = "root-stop") { runCatching { rc.stop() } } }
         scope.cancel()
         super.onDestroy()

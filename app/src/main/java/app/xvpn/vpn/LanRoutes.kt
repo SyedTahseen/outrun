@@ -11,8 +11,27 @@ object LanRoutes {
     const val IPV6_ADDRESS = "2000::"
     const val IPV6_PREFIX = 3
 
-    val ipv4: List<Pair<String, Int>> by lazy {
-        val ex = excluded.map { (a, len) -> val s = parse(a); s to (s + (1L shl (32 - len)) - 1) }
+    val ipv4: List<Pair<String, Int>> by lazy { ipv4Except(emptyList(), includeLan = true) }
+
+    /**
+     * 0.0.0.0/0 minus the LAN ranges (when [includeLan]) and the IPv4 CIDRs in [extra], as the smallest list of routes.
+     * Android before 13 has no Builder.excludeRoute, so excluded addresses have to be left out of the routes instead.
+     */
+    fun ipv4Except(extra: List<String>, includeLan: Boolean): List<Pair<String, Int>> {
+        val ex = ArrayList<Pair<Long, Long>>()
+        fun add(addr: String, len: Int) {
+            val mask = (0xFFFFFFFFL shl (32 - len)) and 0xFFFFFFFFL
+            val s = parse(addr) and mask
+            ex += s to (s + (1L shl (32 - len)) - 1)
+        }
+        if (includeLan) excluded.forEach { (a, len) -> add(a, len) }
+        extra.forEach { cidr ->
+            runCatching {
+                val addr = cidr.substringBefore('/')
+                val len = cidr.substringAfter('/', "32").toInt()
+                if (':' !in addr && len in 0..32) add(addr, len)
+            }
+        }
         val out = ArrayList<Pair<String, Int>>()
         fun walk(start: Long, len: Int) {
             val end = start + (1L shl (32 - len)) - 1
@@ -22,7 +41,7 @@ object LanRoutes {
             walk(start + (1L shl (31 - len)), len + 1)
         }
         walk(0L, 0)
-        out
+        return out
     }
 
     private fun parse(ip: String): Long = ip.split('.').fold(0L) { acc, part -> (acc shl 8) or part.toLong() }

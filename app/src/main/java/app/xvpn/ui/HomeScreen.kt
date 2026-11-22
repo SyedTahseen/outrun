@@ -368,9 +368,9 @@ private fun ProtectedHeader(time: String, up: Long, down: Long) {
                     Text("Connected for", style = Type.Small, color = C.Muted)
                     Text(time, style = Type.Heading, color = C.Text)
                 }
-                Speed(ProtonIcons.ArrowDown, C.Green, fmtKb(down))
+                Speed(ProtonIcons.ArrowDown, C.Green, fmtSpeed(down))
                 Spacer(Modifier.width(Space.Lg))
-                Speed(ProtonIcons.ArrowUp, C.Red, fmtKb(up))
+                Speed(ProtonIcons.ArrowUp, C.Red, fmtSpeed(up))
             }
         }
     }

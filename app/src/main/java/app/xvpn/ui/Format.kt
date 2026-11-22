@@ -28,7 +28,7 @@ internal fun fmtBytes(b: Long): String {
 }
 
 /** Proton's speedBytesToString: the unit follows the value, two decimals. */
-internal fun fmtKb(b: Long): String {
+internal fun fmtSpeed(b: Long): String {
     val (unit, factor) = speedUnit(b)
     return String.format(Locale.US, "%.2f %s", b / factor, unit)
 }

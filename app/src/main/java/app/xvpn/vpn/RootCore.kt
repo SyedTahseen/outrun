@@ -2,6 +2,8 @@ package app.xvpn.vpn
 
 import android.content.Context
 import app.xvpn.data.AppLog
+import app.xvpn.data.Creds
+import app.xvpn.data.SocksAuth
 import org.json.JSONObject
 import java.io.File
 import java.net.HttpURLConnection
@@ -84,12 +86,17 @@ class RootCore(private val context: Context) {
         "with_clash_api" in text
     }.getOrDefault(false)
 
-    fun start(configJson: String, port: Int, clashPort: Int) {
+    @Volatile private var clashSecret = ""
+
+    fun start(configJson: String, port: Int, clashPort: Int, creds: Creds) {
         if (!bin.exists()) error("sing-box binary missing")
         dir.mkdirs()
         val cfg = File(dir, "config.json").apply { writeText(configJson) }
         File(dir, "core.port").writeText(port.toString())
         File(dir, "core.clash").writeText(clashPort.toString())
+        File(dir, "core.cred").apply { writeText(listOf(creds.user, creds.pass, creds.secret).joinToString("\n")) }
+        SocksAuth.register(port, creds)
+        clashSecret = creds.secret
 
         RootShell.run(stopScript(dir), 20_000)
 
@@ -117,11 +124,14 @@ class RootCore(private val context: Context) {
     fun attach(): Int? {
         val port = runCatching { File(dir, "core.port").readText().trim().toInt() }.getOrNull() ?: return null
         val clash = runCatching { File(dir, "core.clash").readText().trim().toInt() }.getOrDefault(0)
+        val cred = runCatching { File(dir, "core.cred").readLines() }.getOrNull()?.takeIf { it.size >= 3 } ?: return null
         if (!isRunning(context)) return null
         val ok = runCatching { Socket().use { it.connect(InetSocketAddress("127.0.0.1", port), 500) } }.isSuccess
         if (!ok) return null
         val log = q(File(dir, "core.log").absolutePath)
         seenLog = RootShell.run("wc -l < $log 2>/dev/null", 5_000).out.trim().toIntOrNull() ?: 0
+        SocksAuth.register(port, Creds(cred[0], cred[1], cred[2]))
+        clashSecret = cred[2]
         running = true
         useClash = clash > 0
         startLogPump()
@@ -165,6 +175,7 @@ class RootCore(private val context: Context) {
                     val c = URL("http://127.0.0.1:$clashPort/traffic").openConnection(Proxy.NO_PROXY) as HttpURLConnection
                     c.connectTimeout = 2000
                     c.readTimeout = 5000
+                    if (clashSecret.isNotEmpty()) c.setRequestProperty("Authorization", "Bearer $clashSecret")
                     c.inputStream.bufferedReader().use { r ->
                         while (running) {
                             val line = r.readLine() ?: break

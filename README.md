@@ -3,7 +3,7 @@
 Compose UI (Home / Servers / Speed test / Settings) + **sing-box** core, for your own vless / trojan / shadowsocks / vmess /
 hysteria2 / tuic / wireguard proxies. Config import via clipboard and subscription URLs.
 
-Data path: apps -> VpnService TUN -> hev-socks5-tunnel -> sing-box SOCKS (127.0.0.1:<free port>) -> your server.
+Data path: apps -> VpnService TUN -> hev-socks5-tunnel -> sing-box SOCKS (127.0.0.1:<free port>, protected by a per-connection username and password) -> your server.
 
 sing-box is the official CLI build from SagerNet/sing-box releases, packaged as `libsingbox.so` per ABI and
 started as a child process by the VPN service (so there is no gomobile/AAR to build or keep in sync).
@@ -69,12 +69,13 @@ been granted yet, the power button opens the app instead.
 ## Features added from the Proton VPN comparison
 
 - **NetShield** (Settings -> NetShield): blocks ads, trackers and malware while connected by using AdGuard DNS as the VPN's DNS; an extra switch uses AdGuard's family servers to block adult content too. Custom DNS takes precedence: with it on, NetShield is unavailable (as in Proton). DNS-level only: no blocked-count statistics.
-- **Auto-reconnect** (Settings -> Auto-reconnect, on by default): rebuilds the tunnel when the real network changes (Wi-Fi <-> mobile) or returns after a drop, probes the tunnel every 60 s (2 failures -> reconnect), and when a server fails to connect tries up to 3 other servers (favorites first). The server you picked stays selected. The service also starts correctly when Android launches it as an Always-on VPN.
+- **Auto-reconnect** (Settings -> Auto-reconnect, on by default): rebuilds the tunnel when the real network changes (Wi-Fi <-> mobile) or returns after a drop, probes the tunnel every 20 s (2 failures -> reconnect), and when a server fails to connect tries up to 3 other servers (favorites first). The server you picked stays selected, and every automatic reconnect tries it again first. In VPN service mode the TUN stays open during a reconnect, so traffic is dropped instead of leaking over the raw network. A reconnect continues the same session in the history. The service also starts correctly when Android launches it as an Always-on VPN.
 - **Auto-connect on boot** (Settings -> Auto-connect): needs the VPN permission to have been granted once.
 - **Quick Settings tile**: add "Outrun VPN" from the notification shade's edit menu. Opens the app when no server is selected or the VPN permission is missing.
 - **Recents**: the last 3 servers appear on Home while disconnected for one-tap reconnect.
 - **Fastest** (first row of the Servers list, like Proton's "Fastest country" row): reuses a latency test from the last 10 minutes or runs one first. While connecting is slow, Home offers "Try another server" (random).
 - **Advanced settings** (Settings -> Connection, like Proton): LAN connections, Custom DNS, IPv6 support and MTU live here. Custom DNS is a switch plus your own server list (IPv4 or IPv6, tried in order, reorder / remove, "Add new DNS server" screen); the old DNS preset list was replaced by it and an existing preset or custom choice is migrated into the list. IPv6 support is a switch (off = IPv6 blocked).
+- **Excluded IP addresses** (split tunneling): on Android 13+ they use `excludeRoute`; on Android 8-12 the IPv4 ranges are removed from the routes instead (IPv6 exclusions need Android 13+).
 - **LAN connections**: keeps 10/8, 172.16/12, 192.168/16, link-local and multicast outside the tunnel (works on every Android version, not only 13+). Off by default.
 - **MTU** (Advanced settings): 1500 (default) down to 1280.
 
@@ -85,7 +86,7 @@ own TUN (`auto_route` + `auto_redirect`), so there is no VPN permission prompt a
 
 - Turning the switch on asks for root once (the `su` prompt). It applies the next time you connect; reconnect to switch.
 - DNS is hijacked at the TUN and answered through the proxy (VpnService mode instead hands the resolver to Android).
-- Split tunneling (apps and IPs), LAN connections, IPv6 off and MTU all carry over. Excluding IP addresses has no Android 13 limit here.
+- Split tunneling (apps and IPs), LAN connections, IPv6 off and MTU all carry over. Excluding IP addresses has no Android 13 limit here. Root mode protects the Clash API with a secret.
 - Interface name is `outrun0`. The core's pid, config and log live in `files/singbox-root/`. Stopping sends SIGTERM so sing-box removes
   its own routes and firewall rules; if it has to be killed, the app removes the leftover `ip rule` / `iptables` entries itself.
 - Speed numbers come from sing-box's Clash API when the binary has it, otherwise from the TUN counters (TCP that auto_redirect

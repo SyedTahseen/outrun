@@ -32,8 +32,9 @@ object ConfigBuilder {
         put(directOutbound())
     }
 
-    private fun socksInbound(tag: String, port: Int) =
+    private fun socksInbound(tag: String, port: Int, creds: Creds) =
         JSONObject().put("type", "socks").put("tag", tag).put("listen", "127.0.0.1").put("listen_port", port)
+            .put("users", JSONArray().put(JSONObject().put("username", creds.user).put("password", creds.pass)))
 
     private fun dnsBlock(dns: String = "1.1.1.1", viaProxy: Boolean = false): JSONObject {
         val servers = JSONArray().put(JSONObject().put("type", "udp").put("tag", "dns-direct").put("server", dns))
@@ -43,11 +44,11 @@ object ConfigBuilder {
         return JSONObject().put("servers", servers).put("final", if (viaProxy) "dns-proxy" else "dns-direct")
     }
 
-    fun buildMulti(outs: List<JSONObject>, ports: List<Int>): String {
+    fun buildMulti(outs: List<JSONObject>, ports: List<Int>, creds: Creds): String {
         val inbounds = JSONArray(); val outbounds = JSONArray(); val rules = JSONArray(); val endpoints = JSONArray()
         outs.forEachIndexed { i, o ->
             (if (isEndpoint(o)) endpoints else outbounds).put(o.put("tag", "p$i"))
-            inbounds.put(socksInbound("in$i", ports[i]))
+            inbounds.put(socksInbound("in$i", ports[i], creds))
             rules.put(JSONObject().put("inbound", JSONArray().put("in$i")).put("action", "route").put("outbound", "p$i"))
         }
         outbounds.put(directOutbound())
@@ -61,7 +62,7 @@ object ConfigBuilder {
         return root.toString()
     }
 
-    fun build(link: String, socksPort: Int, dns: String = "1.1.1.1"): String {
+    fun build(link: String, socksPort: Int, creds: Creds, dns: String = "1.1.1.1"): String {
         val proxy = outbound(link)
         val endpoint = isEndpoint(proxy)
 
@@ -70,7 +71,7 @@ object ConfigBuilder {
         val root = JSONObject()
             .put("log", JSONObject().put("level", "warn"))
             .put("dns", dnsBlock(dns, viaProxy = endpoint))
-            .put("inbounds", JSONArray().put(socksInbound("socks-in", socksPort)))
+            .put("inbounds", JSONArray().put(socksInbound("socks-in", socksPort, creds)))
             .put("outbounds", outs)
             .put(
                 "route", JSONObject()
@@ -101,7 +102,7 @@ object ConfigBuilder {
      * the proxy, because without a VpnService nothing points apps at a resolver that is reachable through it.
      * The SOCKS inbound stays, so the connection check, health probe and tests work the same as in VPN mode.
      */
-    fun buildRoot(link: String, socksPort: Int, dns: String, o: RootTun): String {
+    fun buildRoot(link: String, socksPort: Int, creds: Creds, dns: String, o: RootTun): String {
         val proxy = outbound(link)
         val endpoint = isEndpoint(proxy)
 
@@ -133,7 +134,7 @@ object ConfigBuilder {
         val root = JSONObject()
             .put("log", JSONObject().put("level", "warn"))
             .put("dns", dnsObj)
-            .put("inbounds", JSONArray().put(socksInbound("socks-in", socksPort)).put(tun))
+            .put("inbounds", JSONArray().put(socksInbound("socks-in", socksPort, creds)).put(tun))
             .put("outbounds", outs)
             .put(
                 "route", JSONObject()
@@ -146,7 +147,10 @@ object ConfigBuilder {
         if (o.clashPort > 0) {
             root.put(
                 "experimental",
-                JSONObject().put("clash_api", JSONObject().put("external_controller", "127.0.0.1:${o.clashPort}")),
+                JSONObject().put(
+                    "clash_api",
+                    JSONObject().put("external_controller", "127.0.0.1:${o.clashPort}").put("secret", creds.secret),
+                ),
             )
         }
         return root.toString()
@@ -237,6 +241,10 @@ object ConfigBuilder {
     private fun hysteria2(link: String): JSONObject {
         val a = LinkParser.authority(link, defaultPort = 443)
         val q = a.query
+        // sing-box cannot pin a certificate by its hash; connecting without the pin would silently weaken the link.
+        if ((q["pinSHA256"] ?: q["pin-sha256"] ?: q["pinsha256"]).orEmpty().isNotEmpty()) {
+            error("This link pins its certificate (pinSHA256), which sing-box does not support. Use a server with a valid certificate or remove the pin.")
+        }
         val o = JSONObject()
             .put("type", "hysteria2")
             .put("server", a.host)

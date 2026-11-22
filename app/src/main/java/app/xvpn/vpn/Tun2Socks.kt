@@ -13,7 +13,7 @@ object Tun2Socks {
     @JvmStatic external fun TProxyIsRunning(): Boolean
     @JvmStatic external fun TProxyGetStats(): LongArray
 
-    fun yaml(socksPort: Int, mtu: Int, ipv6: Boolean = true): String {
+    fun yaml(socksPort: Int, mtu: Int, creds: app.xvpn.data.Creds, ipv6: Boolean = true): String {
         val v6 = if (ipv6) "\n          ipv6: '$TUN_IPV6'" else ""
         return """
         tunnel:
@@ -23,6 +23,8 @@ object Tun2Socks {
           port: $socksPort
           address: 127.0.0.1
           udp: 'udp'
+          username: '${creds.user}'
+          password: '${creds.pass}'
         misc:
           task-stack-size: 20480
           connect-timeout: 5000

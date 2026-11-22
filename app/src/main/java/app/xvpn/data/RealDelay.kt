@@ -41,9 +41,10 @@ object RealDelay {
 
     private suspend fun runGroup(ctx: Context, items: List<Pair<String, JSONObject>>, url: String, emit: suspend (String, Int) -> Unit) {
         val ports = freePorts(items.size)
+        val creds = Creds.random()
         val core = SingBoxCore(ctx, "singbox-test")
         try {
-            core.start(ConfigBuilder.buildMulti(items.map { JSONObject(it.second.toString()) }, ports), ports.first())
+            core.start(ConfigBuilder.buildMulti(items.map { JSONObject(it.second.toString()) }, ports, creds), ports.first())
         } catch (e: Exception) {
             core.stop()
             if (items.size == 1) { emit(items[0].first, -1); return }
@@ -57,7 +58,7 @@ object RealDelay {
             val sem = Semaphore(PARALLEL)
             coroutineScope {
                 items.forEachIndexed { i, (link, _) ->
-                    launch(Dispatchers.IO) { sem.withPermit { emit(link, probe(ports[i], url)) } }
+                    launch(Dispatchers.IO) { sem.withPermit { emit(link, probe(ports[i], url, creds)) } }
                 }
             }
         } finally {
@@ -65,7 +66,7 @@ object RealDelay {
         }
     }
 
-    private fun probe(port: Int, url: String): Int = runCatching {
+    private fun probe(port: Int, url: String, creds: Creds): Int = runCatching {
         val u = URL(url)
         val tls = u.protocol == "https"
         val host = u.host
@@ -79,8 +80,12 @@ object RealDelay {
             raw.soTimeout = left()
             val rin = raw.getInputStream(); val rout = raw.getOutputStream()
 
-            rout.write(byteArrayOf(5, 1, 0)); rout.flush()
-            if (rin.read() != 5 || rin.read() != 0) return@runCatching -1
+            rout.write(byteArrayOf(5, 1, 2)); rout.flush()
+            if (rin.read() != 5 || rin.read() != 2) return@runCatching -1
+            val u8 = creds.user.toByteArray(Charsets.US_ASCII)
+            val p8 = creds.pass.toByteArray(Charsets.US_ASCII)
+            rout.write(byteArrayOf(1, u8.size.toByte()) + u8 + byteArrayOf(p8.size.toByte()) + p8); rout.flush()
+            if (rin.read() != 1 || rin.read() != 0) return@runCatching -1
             val h = host.toByteArray(Charsets.US_ASCII)
             rout.write(byteArrayOf(5, 1, 0, 3, h.size.toByte()) + h + byteArrayOf((tport shr 8).toByte(), tport.toByte())); rout.flush()
             if (rin.read() != 5 || rin.read() != 0) return@runCatching -1

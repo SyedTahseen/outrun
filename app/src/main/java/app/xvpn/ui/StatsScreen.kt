@@ -128,14 +128,14 @@ fun StatsScreen(profile: Profile?, real: IpInfo?, proxy: IpInfo?, onBack: () -> 
                         Text("Download", style = Type.Small, color = C.SuccessSolid)
                         Icon(ProtonIcons.ArrowDown, null, tint = C.SuccessSolid, modifier = Modifier.size(Sizes.Icon))
                     }
-                    Text(fmtKb(down), style = Type.Heading, color = C.Text, modifier = Modifier.padding(bottom = Space.Xs))
+                    Text(fmtSpeed(down), style = Type.Heading, color = C.Text, modifier = Modifier.padding(bottom = Space.Xs))
                 }
                 Column(Modifier.weight(1f).padding(horizontal = Space.Sm), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Space.Xs)) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.Xs)) {
                         Text("Upload", style = Type.Small, color = C.Red)
                         Icon(ProtonIcons.ArrowUp, null, tint = C.Red, modifier = Modifier.size(Sizes.Icon))
                     }
-                    Text(fmtKb(up), style = Type.Heading, color = C.Text, modifier = Modifier.padding(bottom = Space.Xs))
+                    Text(fmtSpeed(up), style = Type.Heading, color = C.Text, modifier = Modifier.padding(bottom = Space.Xs))
                 }
             }
             val (speedLabel, speedFactor) = speedUnit(history.maxOfOrNull { maxOf(it.first, it.second) } ?: 0L)
