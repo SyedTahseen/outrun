@@ -25,6 +25,12 @@ object ConfigBuilder {
 
     private fun directOutbound() = JSONObject().put("type", "direct").put("tag", "direct")
 
+    /** Outbounds of a single-server config: the proxy (WireGuard is an endpoint instead) and a direct outbound. */
+    private fun singleOutbounds(proxy: JSONObject, endpoint: Boolean) = JSONArray().apply {
+        if (!endpoint) put(proxy)
+        put(directOutbound())
+    }
+
     private fun socksInbound(tag: String, port: Int) =
         JSONObject().put("type", "socks").put("tag", tag).put("listen", "127.0.0.1").put("listen_port", port)
 
@@ -58,9 +64,7 @@ object ConfigBuilder {
         val proxy = outbound(link)
         val endpoint = isEndpoint(proxy)
 
-        val outs = JSONArray()
-        if (!endpoint) outs.put(proxy)
-        outs.put(directOutbound())
+        val outs = singleOutbounds(proxy, endpoint)
 
         val root = JSONObject()
             .put("log", JSONObject().put("level", "warn"))
@@ -100,9 +104,7 @@ object ConfigBuilder {
         val proxy = outbound(link)
         val endpoint = isEndpoint(proxy)
 
-        val outs = JSONArray()
-        if (!endpoint) outs.put(proxy)
-        outs.put(directOutbound())
+        val outs = singleOutbounds(proxy, endpoint)
 
         val tun = JSONObject()
             .put("type", "tun").put("tag", "tun-in").put("interface_name", o.iface)

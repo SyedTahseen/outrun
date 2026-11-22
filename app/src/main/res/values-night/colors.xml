@@ -1,7 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="outrun_bg">#FF1C1B24</color>
-    <color name="outrun_widget_bg">#FF0A090F</color>
-    <color name="transparent">#00000000</color>
     <color name="icon_norm">#FFFFFFFF</color>
 </resources>

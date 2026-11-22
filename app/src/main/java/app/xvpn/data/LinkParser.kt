@@ -124,6 +124,8 @@ object LinkParser {
         null
     }
 
+    private fun requireB64(s: String): String = decodeB64(s) ?: error("Invalid base64 data in link")
+
     class Auth(
         val user: String, val pass: String?, val host: String, val port: Int, val portSpec: String,
         val query: Map<String, String>, val name: String,
@@ -181,10 +183,10 @@ object LinkParser {
         val hostPort: String
         if (rest.contains("@")) {
             val ui = rest.substringBeforeLast("@")
-            userInfo = if (ui.contains(":")) URLDecoder.decode(ui, "UTF-8") else decodeB64(ui)!!
+            userInfo = if (ui.contains(":")) URLDecoder.decode(ui, "UTF-8") else requireB64(ui)
             hostPort = rest.substringAfterLast("@")
         } else {
-            val all = decodeB64(rest)!!
+            val all = requireB64(rest)
             userInfo = all.substringBeforeLast("@")
             hostPort = all.substringAfterLast("@")
         }
@@ -195,7 +197,7 @@ object LinkParser {
         return Ss(method, password, host, port, name.ifEmpty { "$host:$port" })
     }
 
-    fun vmessJson(link: String): JSONObject = JSONObject(decodeB64(link.removePrefix("vmess://"))!!)
+    fun vmessJson(link: String): JSONObject = JSONObject(requireB64(link.removePrefix("vmess://")))
 
     private fun vmessProfile(link: String): Profile {
         val j = vmessJson(link)

@@ -27,6 +27,8 @@ import app.xvpn.data.Session
 import app.xvpn.data.Store
 import app.xvpn.data.Usage
 import app.xvpn.data.openConnection
+import app.xvpn.ui.fmtBytes
+import app.xvpn.ui.fmtKb
 import app.xvpn.widget.OutrunWidget
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -42,7 +44,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.net.InetAddress
-import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.concurrent.thread
 
@@ -419,18 +420,10 @@ class OutrunVpnService : VpnService() {
         sessionStart = 0L; sessUp = 0; sessDown = 0
     }
 
-    /** Proton-style sizes: decimal units, two decimals ("0.00 KB/s", "12.34 MB"). */
-    private fun fmtBytes(b: Long, perSecond: Boolean): String {
-        val units = arrayOf("B", "KB", "MB", "GB", "TB")
-        var v = b.toDouble(); var i = 0
-        while (v >= 1000 && i < units.lastIndex) { v /= 1000; i++ }
-        return String.format(Locale.US, "%.2f %s%s", v, units[i], if (perSecond) "/s" else "")
-    }
-
     /** Same line as Proton's notification: "↓ session | speed  ↑ session | speed". */
     private fun trafficLine(): String =
-        "↓ ${fmtBytes(sessDown, false)} | ${fmtBytes(VpnState.downBytesPerSec.value, true)}  " +
-            "↑ ${fmtBytes(sessUp, false)} | ${fmtBytes(VpnState.upBytesPerSec.value, true)}"
+        "↓ ${fmtBytes(sessDown)} | ${fmtKb(VpnState.downBytesPerSec.value)}  " +
+            "↑ ${fmtBytes(sessUp)} | ${fmtKb(VpnState.upBytesPerSec.value)}"
 
     private fun prefixLength(ip: String): Int = ip.substringAfter('/', if (':' in ip) "128" else "32").toInt()
 

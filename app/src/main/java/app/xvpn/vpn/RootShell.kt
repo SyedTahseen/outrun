@@ -54,9 +54,10 @@ object RootShell {
     fun run(cmd: String, timeoutMs: Long = 15_000): RootResult {
         if (!open()) return RootResult(-1, "su is not available")
         val q = queue ?: return RootResult(-1, "su is not available")
+        val w = stdin ?: return RootResult(-1, "su is not available")
         q.clear()
         try {
-            stdin!!.apply { write(cmd); write("\necho \"$MARK\$?\"\n"); flush() }
+            w.apply { write(cmd); write("\necho \"$MARK\$?\"\n"); flush() }
         } catch (e: Exception) {
             close()
             return RootResult(-1, "could not talk to su")

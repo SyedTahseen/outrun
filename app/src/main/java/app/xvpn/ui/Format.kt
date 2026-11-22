@@ -20,6 +20,13 @@ internal fun speedUnit(maxBytesPerSec: Long): Pair<String, Double> = when {
     else -> "B/s" to 1.0
 }
 
+/** Proton-style size: decimal units, two decimals ("12.34 MB"). Used where the unit follows the value, e.g. the notification. */
+internal fun fmtBytes(b: Long): String {
+    var v = b.toDouble(); var i = 0
+    while (v >= 1000 && i < UNITS.lastIndex) { v /= 1000; i++ }
+    return String.format(Locale.US, "%.2f %s", v, UNITS[i])
+}
+
 /** Proton's speedBytesToString: the unit follows the value, two decimals. */
 internal fun fmtKb(b: Long): String {
     val (unit, factor) = speedUnit(b)
