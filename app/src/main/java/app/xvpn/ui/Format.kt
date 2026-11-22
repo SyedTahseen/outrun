@@ -35,8 +35,3 @@ internal fun fmtDuration(ms: Long): String {
         else -> "$sec sec"
     }
 }
-
-internal fun fmtAgo(ms: Long): String {
-    val m = (System.currentTimeMillis() - ms) / 60000
-    return when { m < 1 -> "just now"; m < 60 -> "${m}m ago"; m < 1440 -> "${m / 60}h ago"; else -> "${m / 1440}d ago" }
-}

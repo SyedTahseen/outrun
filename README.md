@@ -20,7 +20,7 @@ The workflow:
 - `scripts/fetch-singbox.sh` downloads sing-box (default **1.14.4**) for arm64-v8a and x86_64, plus armeabi-v7a when
   upstream publishes it (1.14.4 has no 32-bit ARM build, so no armeabi-v7a APK is produced for it)
 - `scripts/build-native.sh` builds hev-socks5-tunnel (tun2socks) with the NDK, bound to `app.xvpn.vpn.Tun2Socks`
-- Gradle 8.9 builds `:app:assembleRelease` (signed with the debug key, for personal use)
+- Gradle 8.13 builds `:app:assembleRelease` (signed with the debug key, for personal use)
 
 "Run workflow" lets you set the sing-box version and the hev-socks5-tunnel ref. Config formats change between
 sing-box minor versions; `ConfigBuilder.kt` targets 1.14.x, so keep the version pinned.

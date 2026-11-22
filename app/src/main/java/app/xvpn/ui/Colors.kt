@@ -31,7 +31,6 @@ object Accents {
         AccentPreset("orange", "Orange", Color(0xFFC2410C)),
         AccentPreset("pink", "Pink", Color(0xFFBE185D)),
     )
-    fun nameOf(c: Color) = Presets.firstOrNull { it.color == c }?.name ?: "Custom"
 }
 
 /**
@@ -87,7 +86,6 @@ object C {
     val TextHint get() = pick(0xFF6D697D, 0xFF999693)
     val OnPrimary = Color(0xFFFFFFFF)
     val PrimaryDisabled get() = AccentMid
-    val SolidDisabled get() = Palette.accentSet.tint
     val Disabled get() = pick(0xFF5B576B, 0xFFC2BFBC)
     val Inverted get() = pick(0xFF0C0C14, 0xFFFFFFFF)
 

@@ -10,12 +10,10 @@ import android.graphics.Color
 import android.os.Bundle
 import android.view.View
 import android.widget.RemoteViews
-import androidx.compose.ui.graphics.toArgb
 import app.xvpn.MainActivity
 import app.xvpn.R
 import app.xvpn.data.LinkParser
 import app.xvpn.data.Store
-import app.xvpn.ui.C
 import app.xvpn.vpn.OutrunVpnService
 import app.xvpn.vpn.Status
 import app.xvpn.vpn.VpnState

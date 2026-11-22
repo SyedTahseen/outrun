@@ -24,29 +24,19 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
-import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.indication
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -54,13 +44,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.wrapContentWidth
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsTopHeight
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material3.Icon
@@ -75,12 +60,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import app.xvpn.data.AppLog
 import app.xvpn.data.GeoIp
 import app.xvpn.data.LinkParser
@@ -92,7 +75,6 @@ import app.xvpn.ui.OutrunApp
 import app.xvpn.ui.HomeScreen
 import app.xvpn.ui.MenuScreen
 import app.xvpn.ui.Motion
-import app.xvpn.ui.Radius
 import app.xvpn.ui.Sizes
 import app.xvpn.ui.Type
 import app.xvpn.ui.ServersScreen
@@ -103,7 +85,6 @@ import app.xvpn.ui.appVersionName
 import app.xvpn.ui.ProtonIcons
 import app.xvpn.ui.axisTransition
 import app.xvpn.ui.panelTransition
-import app.xvpn.ui.rememberTick
 import app.xvpn.ui.setUpEdgeToEdge
 import app.xvpn.ui.AppSnackbarHost
 import app.xvpn.ui.Snack
@@ -416,7 +397,7 @@ private fun App() {
                     when {
                         targetState == Screen.Stats -> panelTransition(entering = true)
                         initialState == Screen.Stats -> panelTransition(entering = false)
-                        else -> axisTransition(forward = targetState.ordinal > initialState.ordinal)
+                        else -> axisTransition()
                     }
                 },
                 modifier = Modifier.fillMaxSize(),

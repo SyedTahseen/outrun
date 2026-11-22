@@ -1,10 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="outrun_bg">#FFFFFFFF</color>
-    <color name="outrun_card">#FFF5F4F2</color>
     <color name="outrun_widget_bg">#FF0A090F</color>
-    <color name="outrun_text">#FF0C0C14</color>
-    <color name="outrun_muted">#FF706D6B</color>
     <color name="widget_text">#FFFFFFFF</color>
     <color name="widget_muted">#FFA7A4B5</color>
     <color name="widget_card">#FF292733</color>

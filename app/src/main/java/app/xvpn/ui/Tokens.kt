@@ -1,7 +1,6 @@
 package app.xvpn.ui
 
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -18,7 +17,6 @@ object Space {
     val Xl = 20.dp
     val Xxl = 24.dp
     val Xxxl = 32.dp
-    val Huge = 40.dp
 
     val Gutter = Lg
 }
@@ -29,7 +27,6 @@ object Radius {
     val Control = 8.dp
     val Card = 12.dp
     val Sheet = 28.dp
-    val Pill = 16.dp
 }
 
 object Sizes {
@@ -43,15 +40,12 @@ object Sizes {
     val TopBar = 64.dp
     val TopBarExpanded = 112.dp
     val Dock = 80.dp
-    val DockPillWidth = 64.dp
-    val DockPillHeight = 32.dp
 
     val MaxContent = 800.dp
     val Dot = 8.dp
     val IconSm = 16.dp
     val Icon = 24.dp
     val IconLg = 32.dp
-    val IconHero = 40.dp
     val Tile = 64.dp
     val FlagArea = 30.dp
     val FlagWidth = 30.dp
@@ -98,8 +92,6 @@ object Type {
     val Label = style(12, FontWeight.Medium, 16, 0.03f)
     val Button = style(16, FontWeight.Normal, 24, 0.03f)
     val ButtonSmall = style(16, FontWeight.Medium, 24, 0.03f)
-    val Overline = style(10, FontWeight.Normal, 16, 0.03f)
-    val OverlineMedium = style(10, FontWeight.Medium, 16, 0.03f)
     val LogLine = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 9.sp, lineHeight = 12.sp, letterSpacing = 0.sp)
     val Mono = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 12.sp, lineHeight = 18.sp, letterSpacing = 0.sp)
 }

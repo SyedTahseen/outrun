@@ -16,10 +16,7 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.LocalIndication
@@ -34,13 +31,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.unit.IntSize
 
 object Motion {
     const val Fast = 120
@@ -99,8 +92,7 @@ fun Modifier.pressable(
         )
 }
 
-@Suppress("UNUSED_PARAMETER")
-fun axisTransition(forward: Boolean, distance: Float = 0f): ContentTransform = ContentTransform(
+fun axisTransition(): ContentTransform = ContentTransform(
     fadeIn(tween(700)), fadeOut(tween(700)), 0f, SizeTransform(clip = false),
 )
 
