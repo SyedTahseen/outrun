@@ -2,6 +2,7 @@ package app.xvpn.ui
 
 import android.content.Context
 import android.util.Log
+import app.xvpn.data.AppLog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.DataInputStream
@@ -29,7 +30,10 @@ object WorldGeo {
         val app = ctx.applicationContext
         return withContext(Dispatchers.Default) {
             runCatching { read(app) }
-                .onFailure { Log.e("WorldGeo", "could not read world.bin - run scripts/build-map.py", it) }
+                .onFailure {
+                    Log.e("WorldGeo", "could not read world.bin - run scripts/build-map.py", it)
+                    AppLog.i(app, "map", "could not read world.bin: ${it.javaClass.simpleName}")
+                }
                 .getOrElse { emptyList() }
                 .also { if (it.isNotEmpty()) cached = it }
         }

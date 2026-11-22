@@ -32,9 +32,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.ContentPaste
-import androidx.compose.material.icons.outlined.WifiOff
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
@@ -169,7 +166,7 @@ fun ServersScreen(
                             IconAction(ProtonIcons.Plus, "Add") { addMenu = true }
                             AppDropdownMenu(addMenu, { addMenu = false }) {
                                 AppMenuItem(ProtonIcons.QrCode, "Scan QR code") { addMenu = false; onScanQr() }
-                                AppMenuItem(Icons.Outlined.ContentPaste, "Paste from clipboard") { addMenu = false; onPasteClipboard() }
+                                AppMenuItem(ProtonIcons.ArrowDownToSquare, "Paste from clipboard") { addMenu = false; onPasteClipboard() }
                                 AppMenuItem(ProtonIcons.File, "Import from file") { addMenu = false; onImportFile() }
                                 AppMenuItem(ProtonIcons.Pen, "Add manually") { addMenu = false; manual = true }
                                 AppMenuItem(ProtonIcons.Link, "Add subscription link") { addMenu = false; subDialog = true }
@@ -200,7 +197,7 @@ fun ServersScreen(
                                                     moreMenu = false
                                                     confirmDel = DelAction("Delete ${dupes.size} duplicate(s)?", "One copy of each server is kept. Favorites and the selected server are kept first.", dupes)
                                                 }
-                                                AppMenuItem(Icons.Outlined.WifiOff, "Unreachable", destructive = true, enabled = dead.isNotEmpty(), trailing = { CountText(dead.size) }) {
+                                                AppMenuItem(ProtonIcons.LinkSlash, "Unreachable", destructive = true, enabled = dead.isNotEmpty(), trailing = { CountText(dead.size) }) {
                                                     moreMenu = false
                                                     confirmDel = DelAction("Delete ${dead.size} unreachable server(s)?", "These failed the last latency test.", dead)
                                                 }

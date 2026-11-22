@@ -270,10 +270,25 @@ private fun StatusChip(content: @Composable () -> Unit) {
 }
 
 @Composable
+private fun HeaderSpinner() {
+    Box(Modifier.padding(Space.Sm).size(Sizes.IconLg), contentAlignment = Alignment.Center) {
+        CircularProgressIndicator(
+            modifier = Modifier.size(Sizes.IconLg), color = C.Text, trackColor = Color.Transparent,
+            strokeWidth = Sizes.Spinner,
+        )
+    }
+}
+
+@Composable
+private fun HeaderTitle(text: String) {
+    Text(text, style = Type.BodyMedium, color = C.Text, textAlign = TextAlign.Center, modifier = Modifier.padding(Space.Sm))
+}
+
+@Composable
 private fun UnprotectedHeader(real: IpInfo?, error: String?) {
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
         Icon(ProtonIcons.LockOpenFilled2, null, tint = C.Red, modifier = Modifier.padding(Space.Sm).size(Sizes.IconLg))
-        Text("You are unprotected", style = Type.BodyMedium, color = C.Text, textAlign = TextAlign.Center, modifier = Modifier.padding(Space.Sm))
+        HeaderTitle("You are unprotected")
         StatusChip {
             Text(real?.let { r -> r.city.ifBlank { r.country } } ?: "Locating…", style = Type.Body, color = C.Text)
             if (real != null) Text(" · ${real.ip}", style = Type.Body, color = C.Muted)
@@ -288,39 +303,24 @@ private fun UnprotectedHeader(real: IpInfo?, error: String?) {
 @Composable
 private fun WaitingForNetworkHeader() {
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(Modifier.padding(Space.Sm).size(Sizes.IconLg), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator(
-                modifier = Modifier.size(Sizes.IconLg), color = C.Text, trackColor = Color.Transparent,
-                strokeWidth = Sizes.Spinner,
-            )
-        }
-        Text("Waiting for network", style = Type.BodyMedium, color = C.Text, textAlign = TextAlign.Center, modifier = Modifier.padding(Space.Sm))
+        HeaderSpinner()
+        HeaderTitle("Waiting for network")
     }
 }
 
 @Composable
 private fun DisconnectingHeader() {
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(Modifier.padding(Space.Sm).size(Sizes.IconLg), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator(
-                modifier = Modifier.size(Sizes.IconLg), color = C.Text, trackColor = Color.Transparent,
-                strokeWidth = Sizes.Spinner,
-            )
-        }
-        Text("Disconnecting…", style = Type.BodyMedium, color = C.Text, textAlign = TextAlign.Center, modifier = Modifier.padding(Space.Sm))
+        HeaderSpinner()
+        HeaderTitle("Disconnecting…")
     }
 }
 
 @Composable
 private fun ConnectingHeader(real: IpInfo?) {
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(Modifier.padding(Space.Sm).size(Sizes.IconLg), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator(
-                modifier = Modifier.size(Sizes.IconLg), color = C.Text, trackColor = Color.Transparent,
-                strokeWidth = Sizes.Spinner,
-            )
-        }
-        Text("Protecting your digital identity", style = Type.BodyMedium, color = C.Text, textAlign = TextAlign.Center, modifier = Modifier.padding(Space.Sm))
+        HeaderSpinner()
+        HeaderTitle("Protecting your digital identity")
         StatusChip {
             val place = real?.let { r -> r.city.ifBlank { r.country } }
             val label = real?.let { r -> "$place · ${r.ip}" } ?: "Locating…"

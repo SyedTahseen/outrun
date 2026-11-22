@@ -32,11 +32,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.FlashOff
-import androidx.compose.material.icons.filled.FlashOn
-import androidx.compose.material.icons.filled.Image
-import androidx.compose.material.icons.outlined.QrCodeScanner
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -69,6 +64,7 @@ import app.xvpn.ui.ButtonStyle
 import app.xvpn.ui.C
 import app.xvpn.ui.IconAction
 import app.xvpn.ui.OutrunApp
+import app.xvpn.ui.ProtonIcons
 import app.xvpn.ui.Radius
 import app.xvpn.ui.ScreenHeader
 import app.xvpn.ui.Space
@@ -132,8 +128,8 @@ class ScanActivity : ComponentActivity() {
         Column(Modifier.fillMaxSize().background(C.Bg)) {
             Column(Modifier.fillMaxWidth().statusBarsPadding()) {
                 ScreenHeader("Scan QR code", onBack = { finish() }) {
-                    if (active) IconAction(if (torch) Icons.Filled.FlashOn else Icons.Filled.FlashOff, "Flash", tint = if (torch) C.Accent else C.Text) { torch = !torch }
-                    IconAction(Icons.Filled.Image, "Pick from gallery") { gallery.launch("image/*") }
+                    if (active) IconAction(if (torch) ProtonIcons.BoltFilled else ProtonIcons.Bolt, "Flash", tint = if (torch) C.Accent else C.Text) { torch = !torch }
+                    IconAction(ProtonIcons.Image, "Pick from gallery") { gallery.launch("image/*") }
                 }
             }
             Box(Modifier.weight(1f).fillMaxWidth()) {
@@ -147,7 +143,7 @@ class ScanActivity : ComponentActivity() {
                         Modifier.fillMaxSize().clickable { start() },
                         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center,
                     ) {
-                        Icon(Icons.Outlined.QrCodeScanner, null, tint = C.Accent, modifier = Modifier.size(56.dp))
+                        Icon(ProtonIcons.QrCode, null, tint = C.Accent, modifier = Modifier.size(56.dp))
                         Spacer(Modifier.height(Space.Lg))
                         Text("Scan a QR code", style = Type.Heading, color = C.Text)
                         Spacer(Modifier.height(Space.Sm))

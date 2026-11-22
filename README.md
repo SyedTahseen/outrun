@@ -1,6 +1,6 @@
 # Outrun VPN (Android)
 
-Compose UI (Home / Servers / Settings) + **sing-box** core, for your own vless / trojan / shadowsocks / vmess /
+Compose UI (Home / Servers / Speed test / Settings) + **sing-box** core, for your own vless / trojan / shadowsocks / vmess /
 hysteria2 / tuic / wireguard proxies. Config import via clipboard and subscription URLs.
 
 Data path: apps -> VpnService TUN -> hev-socks5-tunnel -> sing-box SOCKS (127.0.0.1:<free port>) -> your server.

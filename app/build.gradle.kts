@@ -62,7 +62,6 @@ dependencies {
     implementation(composeBom)
     implementation("androidx.activity:activity-compose:1.12.4")
     implementation("androidx.compose.material3:material3")
-    implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.compose.ui:ui")
     implementation("androidx.core:core-ktx:1.17.0")
     implementation("com.journeyapps:zxing-android-embedded:4.3.0")

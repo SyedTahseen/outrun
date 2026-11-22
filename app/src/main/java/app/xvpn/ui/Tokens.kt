@@ -35,7 +35,6 @@ object Sizes {
     val Chip = 40.dp
     val Field = 56.dp
     val Button = 48.dp
-    val Row = 64.dp
     val ServerRow = 64.dp
     val TopBar = 64.dp
     val TopBarExpanded = 112.dp
@@ -67,8 +66,6 @@ object Sizes {
 
 object Elevation {
     val Menu = 3.dp
-    // Proton uses ButtonDefaults.buttonElevation() (Material 3), which is 0dp at rest.
-    val Button = 0.dp
 }
 
 object Type {

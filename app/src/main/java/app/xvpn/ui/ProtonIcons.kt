@@ -7,6 +7,7 @@ import app.xvpn.R
 
 object ProtonIcons {
     val ArrowDown: ImageVector @Composable get() = ImageVector.vectorResource(R.drawable.ic_proton_arrow_down)
+    val ArrowDownToSquare: ImageVector @Composable get() = ImageVector.vectorResource(R.drawable.ic_proton_arrow_down_to_square)
     val ArrowDownArrowUp: ImageVector @Composable get() = ImageVector.vectorResource(R.drawable.ic_proton_arrow_down_arrow_up)
     val ArrowLeft: ImageVector @Composable get() = ImageVector.vectorResource(R.drawable.ic_proton_arrow_left)
     val ArrowOutSquare: ImageVector @Composable get() = ImageVector.vectorResource(R.drawable.ic_proton_arrow_out_square)
@@ -18,6 +19,7 @@ object ProtonIcons {
     val ArrowsSwapRight: ImageVector @Composable get() = ImageVector.vectorResource(R.drawable.ic_proton_arrows_swap_right)
     val Bell: ImageVector @Composable get() = ImageVector.vectorResource(R.drawable.ic_proton_bell)
     val Bolt: ImageVector @Composable get() = ImageVector.vectorResource(R.drawable.ic_proton_bolt)
+    val BoltFilled: ImageVector @Composable get() = ImageVector.vectorResource(R.drawable.ic_proton_bolt_filled)
     val Bug: ImageVector @Composable get() = ImageVector.vectorResource(R.drawable.ic_proton_bug)
     val ChartLine: ImageVector @Composable get() = ImageVector.vectorResource(R.drawable.ic_proton_chart_line)
     val Checkmark: ImageVector @Composable get() = ImageVector.vectorResource(R.drawable.ic_proton_checkmark)
@@ -37,7 +39,9 @@ object ProtonIcons {
     val InfoCircle: ImageVector @Composable get() = ImageVector.vectorResource(R.drawable.ic_proton_info_circle)
     val LifeRing: ImageVector @Composable get() = ImageVector.vectorResource(R.drawable.ic_proton_life_ring)
     val LinesLongToSmall: ImageVector @Composable get() = ImageVector.vectorResource(R.drawable.ic_proton_lines_long_to_small)
+    val Image: ImageVector @Composable get() = ImageVector.vectorResource(R.drawable.ic_proton_image)
     val Link: ImageVector @Composable get() = ImageVector.vectorResource(R.drawable.ic_proton_link)
+    val LinkSlash: ImageVector @Composable get() = ImageVector.vectorResource(R.drawable.ic_proton_link_slash)
     val Lock: ImageVector @Composable get() = ImageVector.vectorResource(R.drawable.ic_proton_lock)
     val Magnifier: ImageVector @Composable get() = ImageVector.vectorResource(R.drawable.ic_proton_magnifier)
     val Minus: ImageVector @Composable get() = ImageVector.vectorResource(R.drawable.ic_proton_minus)

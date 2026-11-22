@@ -560,15 +560,20 @@ private fun StatGrid(ui: SpeedUi, highlightDown: Boolean, highlightUp: Boolean, 
 }
 
 @Composable
+private fun ValueWithUnit(value: String, unit: String) {
+    Row(verticalAlignment = Alignment.Bottom) {
+        Text(value, style = Type.Heading, color = C.Text, maxLines = 1)
+        Spacer(Modifier.width(Space.Xs))
+        Text(unit, style = Type.Caption, color = C.Muted, modifier = Modifier.padding(bottom = Space.Xs))
+    }
+}
+
+@Composable
 private fun StatTile(label: String, labelColor: Color, value: String, unit: String, modifier: Modifier = Modifier) {
     val labelShown by animateColorAsState(labelColor, tween(Motion.Medium), label = "tileLabel")
     AppCard(modifier, padding = Space.Md) {
         Text(label, style = Type.Body, color = labelShown)
-        Row(verticalAlignment = Alignment.Bottom) {
-            Text(value, style = Type.Heading, color = C.Text, maxLines = 1)
-            Spacer(Modifier.width(Space.Xs))
-            Text(unit, style = Type.Caption, color = C.Muted, modifier = Modifier.padding(bottom = Space.Xs))
-        }
+        ValueWithUnit(value, unit)
     }
 }
 
@@ -577,11 +582,7 @@ private fun BigStat(label: String, labelColor: Color, value: String, unit: Strin
     Column(modifier) {
         Text(label, style = Type.Body, color = labelColor)
         Spacer(Modifier.height(Space.Xs))
-        Row(verticalAlignment = Alignment.Bottom) {
-            Text(value, style = Type.Heading, color = C.Text, maxLines = 1)
-            Spacer(Modifier.width(Space.Xs))
-            Text(unit, style = Type.Caption, color = C.Muted, modifier = Modifier.padding(bottom = Space.Xs))
-        }
+        ValueWithUnit(value, unit)
     }
 }
 

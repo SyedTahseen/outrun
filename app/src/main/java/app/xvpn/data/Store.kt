@@ -22,15 +22,15 @@ data class SubInfo(
 
 class SubSync(val added: Int, val removed: Int, val total: Int, val skipped: Map<String, Int> = emptyMap())
 
-class DnsOption(val id: String, val name: String, val note: String, val servers: List<String>)
+class DnsOption(val id: String, val servers: List<String>)
 class TestUrlOption(val id: String, val name: String, val url: String)
 
 object Choices {
     val dns = listOf(
-        DnsOption("cloudflare", "Cloudflare", "1.1.1.1 · fast, private", listOf("1.1.1.1", "1.0.0.1")),
-        DnsOption("google", "Google", "8.8.8.8 · reliable", listOf("8.8.8.8", "8.8.4.4")),
-        DnsOption("quad9", "Quad9", "9.9.9.9 · blocks malicious domains", listOf("9.9.9.9", "149.112.112.112")),
-        DnsOption("adguard", "AdGuard", "Blocks ads and trackers", listOf("94.140.14.14", "94.140.15.15")),
+        DnsOption("cloudflare", listOf("1.1.1.1", "1.0.0.1")),
+        DnsOption("google", listOf("8.8.8.8", "8.8.4.4")),
+        DnsOption("quad9", listOf("9.9.9.9", "149.112.112.112")),
+        DnsOption("adguard", listOf("94.140.14.14", "94.140.15.15")),
     )
     val testUrls = listOf(
         TestUrlOption("google", "Google", "https://www.gstatic.com/generate_204"),
@@ -167,12 +167,9 @@ class Store(context: Context) {
     var splitIncludeIps: List<String>
         get() = lines("split_inc_ips")
         set(v) = putLines("split_inc_ips", v)
-    var dnsChoice: String
-        get() = prefs.getString("dns", "cloudflare") ?: "cloudflare"
-        set(v) = prefs.edit().putString("dns", v).apply()
-    var dnsCustom: String
-        get() = prefs.getString("dns_custom", "") ?: ""
-        set(v) = prefs.edit().putString("dns_custom", v).apply()
+    /** Legacy DNS preset keys: only read, to migrate an old preset / custom choice into the custom DNS list. */
+    private val dnsChoice: String get() = prefs.getString("dns", "cloudflare") ?: "cloudflare"
+    private val dnsCustom: String get() = prefs.getString("dns_custom", "") ?: ""
     var testUrlChoice: String
         get() = prefs.getString("test_url", "google") ?: "google"
         set(v) = prefs.edit().putString("test_url", v).apply()
@@ -231,7 +228,7 @@ class Store(context: Context) {
             else Choices.dns.firstOrNull { it.id == dnsChoice && it.id != "cloudflare" }?.servers ?: emptyList()
         set(v) = putLines("cdns_list", v)
 
-    fun customDnsEffective(): List<String> =
+    private fun customDnsEffective(): List<String> =
         if (customDnsEnabled) customDnsList.filter { ipv6Mode != "block" || ':' !in it } else emptyList()
 
     fun dnsServers(): List<String> = customDnsEffective().ifEmpty {
