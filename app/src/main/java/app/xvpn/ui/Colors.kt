@@ -10,12 +10,6 @@ object Palette {
         get() = state.value
         set(v) { if (state.value != v) state.value = v }
 
-    private val blackState = mutableStateOf(false)
-    /** Black theme: the dark palette with an AMOLED black background and neutral greys. Only meaningful while [dark]. */
-    var black: Boolean
-        get() = blackState.value
-        set(v) { if (blackState.value != v) blackState.value = v }
-
     private val accentState = mutableStateOf(AccentSet.of(Accents.Default))
     /** Every accent-dependent colour in [C] is derived from this one set. */
     var accentSet: AccentSet
@@ -66,20 +60,18 @@ class AccentSet(
     }
 }
 
-/** [black] defaults to the dark value, so only the colours that differ in the black theme need a third argument. */
-private fun pick(dark: Long, light: Long, black: Long = dark) =
-    Color(if (!Palette.dark) light else if (Palette.black) black else dark)
+private fun pick(dark: Long, light: Long) = Color(if (Palette.dark) dark else light)
 
 object C {
-    val Bg get() = pick(0xFF1C1B24, 0xFFFFFFFF, 0xFF000000)
+    val Bg get() = pick(0xFF1C1B24, 0xFFFFFFFF)
     // Proton backgroundDeep: shade0 (Cinder) in dark, shade15 (Pampas) in light. Used by the connection details panel.
-    val Deep get() = pick(0xFF0C0C14, 0xFFF1EEEB, 0xFF000000)
-    val Card get() = pick(0xFF292733, 0xFFF5F4F2, 0xFF1D1D1D)
+    val Deep get() = pick(0xFF0C0C14, 0xFFF1EEEB)
+    val Card get() = pick(0xFF292733, 0xFFF5F4F2)
     val Header get() = Card
     val CardOverlay get() = Card.copy(alpha = 0.86f)
-    val Control get() = pick(0xFF3B3747, 0xFFEAE7E4, 0xFF2E2E2E)
-    val Border get() = pick(0xFF3B3747, 0xFFEAE7E4, 0xFF2E2E2E)
-    val Outline get() = pick(0xFF4A4658, 0xFFD1CFCD, 0xFF3D3D3D)
+    val Control get() = pick(0xFF3B3747, 0xFFEAE7E4)
+    val Border get() = pick(0xFF3B3747, 0xFFEAE7E4)
+    val Outline get() = pick(0xFF4A4658, 0xFFD1CFCD)
     val Scrim get() = pick(0x85000000, 0x7A17181C)
 
     val Primary get() = Palette.accentSet.primary
@@ -91,12 +83,12 @@ object C {
     val Blue = Color(0xFF2F7BF0)
 
     val Text get() = pick(0xFFFFFFFF, 0xFF0C0C14)
-    val Muted get() = pick(0xFFA7A4B5, 0xFF706D6B, 0xFFA6A6A6)
-    val TextHint get() = pick(0xFF6D697D, 0xFF999693, 0xFF6B6B6B)
+    val Muted get() = pick(0xFFA7A4B5, 0xFF706D6B)
+    val TextHint get() = pick(0xFF6D697D, 0xFF999693)
     val OnPrimary = Color(0xFFFFFFFF)
     val PrimaryDisabled get() = AccentMid
     val SolidDisabled get() = Palette.accentSet.tint
-    val Disabled get() = pick(0xFF5B576B, 0xFFC2BFBC, 0xFF555555)
+    val Disabled get() = pick(0xFF5B576B, 0xFFC2BFBC)
     val Inverted get() = pick(0xFF0C0C14, 0xFFFFFFFF)
 
     val Green get() = pick(0xFF2CFFCC, 0xFF1C9C7C)
@@ -108,7 +100,7 @@ object C {
     val OverlayConnected get() = if (Palette.dark) 0.5f else 0.2f
     val OverlayDisconnected get() = if (Palette.dark) 0.5f else 0.24f
 
-    val Land get() = pick(0xFF292733, 0xFFF1EEEB, 0xFF1D1D1D)
-    val LandActive get() = pick(0xFF4A4658, 0xFFD1CFCD, 0xFF3D3D3D)
-    val LandLine get() = pick(0xFF5B576B, 0xFFC2BFBC, 0xFF555555)
+    val Land get() = pick(0xFF292733, 0xFFF1EEEB)
+    val LandActive get() = pick(0xFF4A4658, 0xFFD1CFCD)
+    val LandLine get() = pick(0xFF5B576B, 0xFFC2BFBC)
 }
