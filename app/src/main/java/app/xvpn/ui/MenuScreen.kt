@@ -154,6 +154,7 @@ private fun MenuPage(
     var lan by remember { mutableStateOf(store.lanAccess) }
     var lanDirect by remember { mutableStateOf(store.lanDirect) }
     var mtu by remember { mutableStateOf(store.mtu) }
+    var blockQuic by remember { mutableStateOf(store.blockQuic) }
     var rootOn by remember { mutableStateOf(store.rootMode) }
     val rootMissing by VpnState.rootUnavailable.collectAsState()
     LaunchedEffect(rootMissing) { rootOn = store.rootMode }
@@ -222,6 +223,10 @@ private fun MenuPage(
                     "IPv6 support", ipv6 != "block",
                     "Tunnels IPv6 traffic through the VPN. Can enhance compatibility with IPv6 networks. When off, IPv6 is blocked so it can\u2019t bypass servers without IPv6 support.",
                 ) { on -> ipv6 = if (on) "tunnel" else "block"; store.ipv6Mode = ipv6; notifyReconnect(ctx) }
+                SettingsToggleItem(
+                    "Block QUIC", blockQuic,
+                    "Blocks QUIC (UDP port 443) so apps like Chrome and YouTube use regular TCP instead. Can be faster and more stable with VLESS, Trojan and other TCP-based servers. Apps may take a moment to switch.",
+                ) { on -> blockQuic = on; store.blockQuic = on; notifyReconnect(ctx) }
                 SettingsValueItem(
                     "MTU", "$mtu",
                     "The largest packet the VPN sends. Lower it if some sites or apps stall or time out only while connected.",

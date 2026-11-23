@@ -214,6 +214,10 @@ class Store(context: Context) {
         get() = prefs.getBoolean("lan_access", false)
         set(v) = prefs.edit().putBoolean("lan_access", v).apply()
 
+    var blockQuic: Boolean
+        get() = prefs.getBoolean("block_quic", false)
+        set(v) = prefs.edit().putBoolean("block_quic", v).apply()
+
     var lanDirect: Boolean
         get() = prefs.getBoolean("lan_direct", false)
         set(v) = prefs.edit().putBoolean("lan_direct", v).apply()

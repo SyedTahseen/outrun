@@ -498,7 +498,7 @@ class OutrunVpnService : VpnService() {
                 core = x
                 val dns = settings.dnsServers()
                 val mtu = settings.mtu
-                x.start(ConfigBuilder.build(link, port, creds, settings.resolverDns()), port)
+                x.start(ConfigBuilder.build(link, port, creds, settings.resolverDns(), settings.blockQuic), port)
                 currentCoroutineContext().ensureActive()
 
                 val b = Builder()
@@ -659,6 +659,7 @@ class OutrunVpnService : VpnService() {
             includeIps = if (include) settings.splitIncludeIps else emptyList(),
             excludeIps = if (exclude) settings.splitExcludeIps else emptyList(),
             clashPort = clashPort,
+            blockQuic = settings.blockQuic,
         )
     }
 

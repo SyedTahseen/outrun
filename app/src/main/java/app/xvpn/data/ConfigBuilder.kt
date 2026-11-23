@@ -70,7 +70,9 @@ object ConfigBuilder {
         return root.toString()
     }
 
-    fun build(link: String, socksPort: Int, creds: Creds, dns: String = "1.1.1.1"): String {
+    private fun quicRule() = JSONObject().put("network", "udp").put("port", 443).put("action", "reject")
+
+    fun build(link: String, socksPort: Int, creds: Creds, dns: String = "1.1.1.1", blockQuic: Boolean = false): String {
         val proxy = outbound(link)
         val endpoint = isEndpoint(proxy)
 
@@ -86,8 +88,10 @@ object ConfigBuilder {
                     .put("final", "proxy")
                     .put("default_domain_resolver", "dns-direct")
                     .apply {
-
-                        if (!carriesUdp(proxy)) put("rules", JSONArray().put(JSONObject().put("port", 53).put("action", "hijack-dns")))
+                        val rules = JSONArray()
+                        if (!carriesUdp(proxy)) rules.put(JSONObject().put("port", 53).put("action", "hijack-dns"))
+                        if (blockQuic) rules.put(quicRule())
+                        if (rules.length() > 0) put("rules", rules)
                     }
             )
         if (endpoint) root.put("endpoints", JSONArray().put(proxy))
@@ -104,6 +108,7 @@ object ConfigBuilder {
         val includeIps: List<String>,
         val excludeIps: List<String>,
         val clashPort: Int,
+        val blockQuic: Boolean = false,
     )
 
     fun buildRoot(link: String, socksPort: Int, creds: Creds, dns: String, o: RootTun): String {
@@ -128,6 +133,7 @@ object ConfigBuilder {
             .put(JSONObject().put("action", "sniff"))
             .put(JSONObject().put("protocol", "dns").put("action", "hijack-dns"))
         if (o.blockIpv6) rules.put(JSONObject().put("ip_version", 6).put("action", "reject"))
+        if (o.blockQuic) rules.put(quicRule())
 
         val dnsObj = dnsBlock(dns, viaProxy = true, kind = dnsKind(proxy))
         val resolver: Any = if (o.blockIpv6) {
