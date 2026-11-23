@@ -31,7 +31,7 @@ object Radius {
 
 object Sizes {
     val Control = 48.dp
-    // Proton's filter chips are Material 3 Buttons with the default 40dp min height (ButtonDefaults.MinHeight).
+
     val Chip = 40.dp
     val Field = 56.dp
     val Button = 48.dp

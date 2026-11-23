@@ -24,11 +24,6 @@ import androidx.compose.ui.unit.dp
 import app.xvpn.data.LinkEditor
 import app.xvpn.data.Profile
 
-/**
- * Edits any kind of server: vless, trojan, shadowsocks, vmess, hysteria2, tuic, wireguard, socks5 and http proxies.
- * The common fields are fixed; everything else (transport, TLS, Reality, plugin, WireGuard address ...) is a list of
- * name/value rows that can be changed, added or removed. [onSave] returns an error text, or null when it was saved.
- */
 @Composable
 fun EditServerDialog(
     profile: Profile,

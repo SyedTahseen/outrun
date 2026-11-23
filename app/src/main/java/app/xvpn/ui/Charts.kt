@@ -6,7 +6,6 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.unit.dp
 
-/** Three dashed horizontal guide lines (bottom, middle, top) shared by the speed charts. */
 internal fun DrawScope.drawChartGuides() {
     val dash = PathEffect.dashPathEffect(floatArrayOf(10f, 10f))
     for (f in listOf(0f, 0.5f, 1f)) {
@@ -15,7 +14,6 @@ internal fun DrawScope.drawChartGuides() {
     }
 }
 
-/** A smooth line through [points] (at least one): cubic segments with horizontal tangents at every point. */
 internal fun smoothPath(points: List<Offset>): Path = Path().apply {
     moveTo(points[0].x, points[0].y)
     for (i in 1 until points.size) {

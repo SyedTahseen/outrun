@@ -5,7 +5,6 @@ object LanRoutes {
         "10.0.0.0" to 8, "172.16.0.0" to 12, "192.168.0.0" to 16, "169.254.0.0" to 16, "224.0.0.0" to 3,
     )
 
-    /** The same ranges as CIDR strings, for sing-box's `route_exclude_address` in root mode. */
     val excludedCidrs: List<String> = excluded.map { (addr, len) -> "$addr/$len" }
 
     const val IPV6_ADDRESS = "2000::"
@@ -13,10 +12,6 @@ object LanRoutes {
 
     val ipv4: List<Pair<String, Int>> by lazy { ipv4Except(emptyList(), includeLan = true) }
 
-    /**
-     * 0.0.0.0/0 minus the LAN ranges (when [includeLan]) and the IPv4 CIDRs in [extra], as the smallest list of routes.
-     * Android before 13 has no Builder.excludeRoute, so excluded addresses have to be left out of the routes instead.
-     */
     fun ipv4Except(extra: List<String>, includeLan: Boolean): List<Pair<String, Int>> {
         val ex = ArrayList<Pair<Long, Long>>()
         fun add(addr: String, len: Int) {

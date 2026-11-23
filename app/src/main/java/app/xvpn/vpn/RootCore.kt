@@ -13,11 +13,6 @@ import java.net.Socket
 import java.net.URL
 import kotlin.concurrent.thread
 
-/**
- * Runs the same sing-box binary as [SingBoxCore], but as root and with its own TUN inbound (auto_route +
- * auto_redirect), so no VpnService is involved. The core is started from the shared root shell and keeps
- * running if the app process dies, so its pid is kept in a file and any stale core is stopped before a new one.
- */
 class RootCore(private val context: Context) {
     companion object {
         const val IFACE = "outrun0"
@@ -25,7 +20,6 @@ class RootCore(private val context: Context) {
 
         private fun q(s: String) = "'" + s.replace("'", "'\\''") + "'"
 
-        /** True when a sing-box core from an earlier app process is still running. Only uses su if a pid file exists. */
         fun isRunning(context: Context): Boolean {
             val dir = File(context.filesDir, DIR)
             if (!File(dir, "core.pid").exists()) return false
@@ -78,7 +72,6 @@ class RootCore(private val context: Context) {
     private var useClash = false
     private var seenLog = 0
 
-    /** `sing-box version` lists its build tags; the Clash API gives exact traffic numbers when it is compiled in. */
     fun hasClashApi(): Boolean = runCatching {
         val p = ProcessBuilder(bin.absolutePath, "version").redirectErrorStream(true).start()
         val text = p.inputStream.bufferedReader().readText()
@@ -120,7 +113,6 @@ class RootCore(private val context: Context) {
         if (useClash) startTraffic(clashPort)
     }
 
-    /** Re-attaches to a core that outlived the app process. Returns its SOCKS port, or null if it is not usable. */
     fun attach(): Int? {
         val port = runCatching { File(dir, "core.port").readText().trim().toInt() }.getOrNull() ?: return null
         val clash = runCatching { File(dir, "core.clash").readText().trim().toInt() }.getOrDefault(0)
@@ -190,7 +182,6 @@ class RootCore(private val context: Context) {
         }
     }
 
-    /** Cumulative (up, down) bytes since start. */
     fun totals(): Pair<Long, Long> {
         if (useClash) return up to down
         val r = RootShell.run(
@@ -208,7 +199,6 @@ class RootCore(private val context: Context) {
         flushConnections()
     }
 
-    /** sing-box's output goes to a root-owned file, so it is read through the root shell and copied into the app log. */
     @Synchronized
     private fun drainLog() {
         val log = q(File(dir, "core.log").absolutePath)
@@ -228,11 +218,6 @@ class RootCore(private val context: Context) {
         }
     }
 
-    /**
-     * Without a VpnService Android does not reset apps' open sockets when the route changes, so a browser keeps using
-     * its old (direct or proxied) connections until restarted. Clear tracked connections, kill established TCP
-     * sockets and drop the DNS cache; each step is best effort because tools differ between ROMs.
-     */
     private fun flushConnections() {
         RootShell.run(
             listOf(

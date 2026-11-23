@@ -11,7 +11,6 @@ internal fun fmtSize(b: Long, binary: Boolean = false): String {
     return if (i == 0) "$b B" else String.format(Locale.US, if (v >= 100) "%.0f %s" else "%.1f %s", v, UNITS[i])
 }
 
-/** Proton's speed unit steps (SpeedAndSizeFormat / determineScaleAndLabel): B/s, KB/s, MB/s, GB/s, TB/s in powers of 1000. */
 internal fun speedUnit(maxBytesPerSec: Long): Pair<String, Double> = when {
     maxBytesPerSec >= 1_000_000_000_000 -> "TB/s" to 1e12
     maxBytesPerSec >= 1_000_000_000 -> "GB/s" to 1e9
@@ -20,14 +19,12 @@ internal fun speedUnit(maxBytesPerSec: Long): Pair<String, Double> = when {
     else -> "B/s" to 1.0
 }
 
-/** Proton-style size: decimal units, two decimals ("12.34 MB"). Used where the unit follows the value, e.g. the notification. */
 internal fun fmtBytes(b: Long): String {
     var v = b.toDouble(); var i = 0
     while (v >= 1000 && i < UNITS.lastIndex) { v /= 1000; i++ }
     return String.format(Locale.US, "%.2f %s", v, UNITS[i])
 }
 
-/** Proton's speedBytesToString: the unit follows the value, two decimals. */
 internal fun fmtSpeed(b: Long): String {
     val (unit, factor) = speedUnit(b)
     return String.format(Locale.US, "%.2f %s", b / factor, unit)

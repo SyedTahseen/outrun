@@ -112,7 +112,6 @@ jobs:
             caption="Outrun VPN ${GITHUB_REF_NAME} (${GITHUB_SHA::7})
           $(basename "$f")"
             if [ "$size" -gt 49000000 ]; then
-              # Telegram bots can't upload files over 50 MB, so send a link instead
               curl -sS -X POST "$api/sendMessage" \
                 -d chat_id="$TG_CHAT" \
                 --data-urlencode text="$caption

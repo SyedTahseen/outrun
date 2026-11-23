@@ -9,10 +9,6 @@ class RootResult(val code: Int, val out: String) {
     val ok: Boolean get() = code == 0
 }
 
-/**
- * One long-lived `su` session shared by everything that needs root. Spawning `su` per command would pop a
- * "Superuser granted" toast every time on Magisk/KernelSU, so commands are written to a single shell instead.
- */
 object RootShell {
     private const val MARK = "__OUTRUN_DONE__"
     private const val EOF = "\u0000EOF"
@@ -79,7 +75,6 @@ object RootShell {
         }
     }
 
-    /** True when `su` exists and the user has granted root. The first call can wait on the grant prompt. */
     fun granted(timeoutMs: Long = 30_000): Boolean {
         val r = run("id -u", timeoutMs)
         return r.ok && r.out.lines().lastOrNull()?.trim() == "0"

@@ -11,14 +11,13 @@ object Palette {
         set(v) { if (state.value != v) state.value = v }
 
     private val accentState = mutableStateOf(AccentSet.of(Accents.Default))
-    /** Every accent-dependent colour in [C] is derived from this one set. */
+
     var accentSet: AccentSet
         get() = accentState.value
         private set(v) { accentState.value = v }
     fun setAccent(base: Color) { if (accentSet.primary != base) accentSet = AccentSet.of(base) }
 }
 
-/** A user-selectable accent colour. */
 class AccentPreset(val id: String, val name: String, val color: Color)
 
 object Accents {
@@ -33,17 +32,13 @@ object Accents {
     )
 }
 
-/**
- * All the shades the UI needs, derived from one brand colour. For the default purple the original
- * hand-picked values are kept exactly; other colours use the same recipe (mix with white / darken).
- */
 class AccentSet(
-    val primary: Color,      // buttons, switches, selected boxes (same in light & dark)
-    val accentDark: Color,   // text/icons accent on dark backgrounds
+    val primary: Color,
+    val accentDark: Color,
     val darken20: Color,
     val midDark: Color,
     val deepDark: Color,
-    val tint: Color,         // pale tint used on light backgrounds / disabled solid
+    val tint: Color,
 ) {
     companion object {
         fun of(p: Color): AccentSet {
@@ -63,7 +58,7 @@ private fun pick(dark: Long, light: Long) = Color(if (Palette.dark) dark else li
 
 object C {
     val Bg get() = pick(0xFF1C1B24, 0xFFFFFFFF)
-    // Proton backgroundDeep: shade0 (Cinder) in dark, shade15 (Pampas) in light. Used by the connection details panel.
+
     val Deep get() = pick(0xFF0C0C14, 0xFFF1EEEB)
     val Card get() = pick(0xFF292733, 0xFFF5F4F2)
     val Header get() = Card

@@ -5,10 +5,6 @@ import java.net.PasswordAuthentication
 import java.security.SecureRandom
 import java.util.concurrent.ConcurrentHashMap
 
-/**
- * Per-session credentials for the loopback SOCKS inbound (and the Clash API in root mode). Without them any app on the
- * phone could scan localhost, use the tunnel, or read the connection list of the root core.
- */
 class Creds(val user: String, val pass: String, val secret: String) {
     companion object {
         private val rng = SecureRandom()
@@ -28,7 +24,6 @@ object SocksAuth {
 
     fun credsFor(port: Int): Creds? = byPort[port]
 
-    /** HttpURLConnection through a SOCKS proxy asks the default Authenticator for the proxy's user name and password. */
     @Synchronized
     private fun install() {
         if (installed) return

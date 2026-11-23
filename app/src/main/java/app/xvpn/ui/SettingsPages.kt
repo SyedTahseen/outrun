@@ -101,7 +101,7 @@ fun LazyListScope.featureHeader(imageRes: Int, title: String, description: Strin
         Image(painterResource(imageRes), null, Modifier.padding(start = Space.Gutter, end = Space.Gutter, top = Space.Lg))
     }
     item {
-        // Proton: ProtonTheme.typography.subheadline (20sp regular).
+
         Text(title, style = Type.Subheadline, color = C.Text, modifier = Modifier.padding(start = Space.Gutter, end = Space.Gutter, top = Space.Lg))
     }
     item {
@@ -285,7 +285,6 @@ fun ThemePage(
     }
 }
 
-/** Compact pill with a small round "−" and "+" button either side of the current size. */
 @Composable
 private fun DisplaySizeStepper(percent: Int, onChange: (Int) -> Unit) {
     Row(
@@ -319,7 +318,6 @@ private fun ThemeTile(label: String, imageRes: Int, selected: Boolean, modifier:
     TileScaffold(label, selected, modifier, onClick) { Image(painterResource(imageRes), null) }
 }
 
-/** Round colour swatch that behaves like a radio button; the selected one gets a ring and a check. */
 @Composable
 private fun AccentSwatch(preset: AccentPreset, selected: Boolean, onClick: () -> Unit) {
     val tone = if (Palette.dark) AccentSet.of(preset.color).accentDark else preset.color

@@ -5,23 +5,21 @@ import org.json.JSONObject
 import java.net.URLDecoder
 import java.net.URLEncoder
 
-/** A server link taken apart into the fields an edit form shows. [LinkEditor.build] puts it back together. */
 data class EditModel(
     val protocol: String,
-    /** The scheme as written in the original link (wg, hy2, socks5h, https ...), kept so the link keeps its style. */
+
     val scheme: String,
     val name: String,
     val host: String,
     val port: String,
     val user: String,
     val pass: String,
-    /** Query parameters (vmess: the remaining JSON settings), shown as editable name/value rows. */
+
     val params: List<Pair<String, String>>,
-    /** vmess only: JSON keys whose value was a number ('n') or a boolean ('b'), so they keep that type. */
+
     val kinds: Map<String, Char> = emptyMap(),
 )
 
-/** Captions for the two credential fields of a protocol; [pass] is null when the protocol has only one. */
 class EditLabels(val user: String, val pass: String?)
 
 object LinkEditor {
@@ -34,7 +32,7 @@ object LinkEditor {
         "hysteria2" -> EditLabels("Password, or username", "Password (only if the first field is a username)")
         "tuic" -> EditLabels("UUID", "Password")
         "wireguard" -> EditLabels("Private key", null)
-        else -> EditLabels("Username (optional)", "Password (optional)") // socks, http
+        else -> EditLabels("Username (optional)", "Password (optional)")
     }
 
     fun describeProtocol(protocol: String) = when (protocol) {
@@ -60,7 +58,6 @@ object LinkEditor {
         }
     }.getOrNull()
 
-    /** The edited link ready to store, or a message for the form (never both). */
     fun finish(m: EditModel): Pair<String?, String?> {
         val p = LinkParser.parse(build(m))
         if (p == null || p.protocol != m.protocol) return null to "These details don't make a valid link"
@@ -74,8 +71,6 @@ object LinkEditor {
         "vmess" -> buildVmess(m)
         else -> buildUri(m)
     }
-
-    // ---- reading
 
     private fun dec(s: String) = URLDecoder.decode(s.replace("+", "%2B"), "UTF-8")
 
@@ -105,8 +100,6 @@ object LinkEditor {
         }
         return EditModel("vmess", "vmess", j.optString("ps"), j.getString("add"), j.get("port").toString(), j.optString("id"), "", params, kinds)
     }
-
-    // ---- writing
 
     private fun enc(s: String) = URLEncoder.encode(s, "UTF-8").replace("+", "%20")
 
@@ -154,7 +147,6 @@ object LinkEditor {
         return "vmess://" + Base64.encodeToString(j.toString().toByteArray(Charsets.UTF_8), Base64.NO_WRAP)
     }
 
-    /** Gives an edited vmess value back the JSON type it had before, so numbers stay numbers. */
     private fun typed(m: EditModel, key: String, v: String): Any = when (m.kinds[key]) {
         'n' -> {
             val l = v.toLongOrNull()

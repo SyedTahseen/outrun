@@ -28,7 +28,6 @@ object ConfigBuilder {
 
     private fun directOutbound() = JSONObject().put("type", "direct").put("tag", "direct")
 
-    /** Outbounds of a single-server config: the proxy (WireGuard is an endpoint instead) and a direct outbound. */
     private fun singleOutbounds(proxy: JSONObject, endpoint: Boolean) = JSONArray().apply {
         if (!endpoint) put(proxy)
         put(directOutbound())
@@ -38,10 +37,6 @@ object ConfigBuilder {
         JSONObject().put("type", "socks").put("tag", tag).put("listen", "127.0.0.1").put("listen_port", port)
             .put("users", JSONArray().put(JSONObject().put("username", creds.user).put("password", creds.pass)))
 
-    /**
-     * How DNS has to travel through this proxy. Plain SOCKS5 and HTTP proxies often carry no UDP, so their DNS goes
-     * over TCP (SOCKS) or DoH on port 443 (HTTP proxies usually only allow CONNECT to 443). Everything else keeps UDP.
-     */
     private fun dnsKind(proxy: JSONObject) = when (proxy.optString("type")) {
         "http" -> "https"
         "socks" -> "tcp"
@@ -92,7 +87,7 @@ object ConfigBuilder {
                     .put("final", "proxy")
                     .put("default_domain_resolver", "dns-direct")
                     .apply {
-                        // Apps send DNS as UDP to the VPN's resolver; answer it here, over the proxy's own transport.
+
                         if (!carriesUdp(proxy)) put("rules", JSONArray().put(JSONObject().put("port", 53).put("action", "hijack-dns")))
                     }
             )
@@ -115,11 +110,6 @@ object ConfigBuilder {
     private val lanV4 = LanRoutes.excludedCidrs
     private val lanV6 = listOf("fc00::/7", "fe80::/10", "ff00::/8")
 
-    /**
-     * Config for root mode: sing-box owns the TUN (no VpnService). DNS is hijacked at the TUN and answered through
-     * the proxy, because without a VpnService nothing points apps at a resolver that is reachable through it.
-     * The SOCKS inbound stays, so the connection check, health probe and tests work the same as in VPN mode.
-     */
     fun buildRoot(link: String, socksPort: Int, creds: Creds, dns: String, o: RootTun): String {
         val proxy = outbound(link)
         val endpoint = isEndpoint(proxy)
@@ -259,7 +249,7 @@ object ConfigBuilder {
     private fun hysteria2(link: String): JSONObject {
         val a = LinkParser.authority(link, defaultPort = 443)
         val q = a.query
-        // sing-box cannot pin a certificate by its hash; connecting without the pin would silently weaken the link.
+
         if ((q["pinSHA256"] ?: q["pin-sha256"] ?: q["pinsha256"]).orEmpty().isNotEmpty()) {
             error("This link pins its certificate (pinSHA256), which sing-box does not support. Use a server with a valid certificate or remove the pin.")
         }
@@ -304,7 +294,7 @@ object ConfigBuilder {
         val a = LinkParser.authority(link, defaultPort = 1080)
         var user = a.user
         var pass = a.pass
-        // socks://BASE64(user:pass)@host:port, as written by v2rayN and similar apps
+
         if (pass == null && user.isNotEmpty() && link.startsWith("socks://", ignoreCase = true)) {
             LinkParser.decodeB64(user)?.takeIf { ':' in it }?.let { user = it.substringBefore(':'); pass = it.substringAfter(':') }
         }

@@ -81,12 +81,11 @@ fun StatsScreen(profile: Profile?, real: IpInfo?, proxy: IpInfo?, onBack: () -> 
     var info by remember { mutableStateOf<StatsInfo?>(null) }
     var myIpVisible by remember { mutableStateOf(false) }
 
-    // Proton's ConnectionDetails sits on backgroundDeep, including its top bar.
     Column(Modifier.fillMaxSize().background(C.Deep)) {
         ScreenHeader("Statistics", onBack = onBack, base = C.Deep)
         Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = Space.Gutter)) {
             Spacer(Modifier.height(Space.Lg))
-            // Proton: headline (20 bold) title, 4dp above the subtitle, 16dp icon-to-label gap, min 42dp row.
+
             Row(Modifier.padding(bottom = Space.Lg).heightIn(min = Sizes.CardRowMin), verticalAlignment = Alignment.Top) {
                 FlagBadge(profile?.name)
                 Spacer(Modifier.width(Space.Lg))
@@ -100,7 +99,7 @@ fun StatsScreen(profile: Profile?, real: IpInfo?, proxy: IpInfo?, onBack: () -> 
             }
 
             StatsLabel("IP address") { info = StatsInfo.Ip }
-            // Proton's IpView: backgroundNorm surface (8dp), 16dp padding per half, 16dp above/below the card.
+
             AppCard(Modifier.fillMaxWidth().padding(vertical = Space.Lg), padding = 0.dp, containerColor = C.Bg, radius = Radius.Control) {
                 Row(Modifier.padding(bottom = Space.Sm), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f).padding(Space.Lg), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -110,7 +109,7 @@ fun StatsScreen(profile: Profile?, real: IpInfo?, proxy: IpInfo?, onBack: () -> 
                     Column(Modifier.weight(1f).padding(Space.Lg), horizontalAlignment = Alignment.CenterHorizontally) {
                         Text("VPN IP", style = Type.Caption, color = C.Muted)
                         Spacer(Modifier.height(Space.Xs))
-                        // Proton's ExitIpAddressText: normal text color on a backgroundSecondary chip (4dp, 6x2dp padding).
+
                         Text(
                             proxy?.ip ?: "…", style = Type.Body, color = C.Text, textAlign = TextAlign.Center,
                             maxLines = 1, overflow = TextOverflow.Ellipsis,
@@ -121,7 +120,7 @@ fun StatsScreen(profile: Profile?, real: IpInfo?, proxy: IpInfo?, onBack: () -> 
             }
 
             StatsLabel("VPN speed") { info = StatsInfo.Speed }
-            // Proton: row padded 12dp above / 4dp below; success/error notification colors; 14sp label, 24dp icon, 4dp gaps.
+
             Row(Modifier.fillMaxWidth().padding(top = Space.Md, bottom = Space.Xs)) {
                 Column(Modifier.weight(1f).padding(horizontal = Space.Sm), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Space.Xs)) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.Xs)) {
@@ -214,8 +213,7 @@ private fun LeakSection() {
 
 @Composable
 private fun StatsLabel(text: String, onInfo: (() -> Unit)? = null) {
-    // Proton's connection-details HeaderText: body2Regular + textWeak, 16dp above / 8dp below, with an optional
-    // 20dp iconHint info icon (4dp start padding) that makes the whole header tappable.
+
     Row(
         Modifier
             .then(if (onInfo != null) Modifier.pressable(RoundedCornerShape(Radius.Small), pressedScale = 1f, onClick = onInfo) else Modifier)
@@ -227,7 +225,6 @@ private fun StatsLabel(text: String, onInfo: (() -> Unit)? = null) {
     }
 }
 
-/** Proton's "My IP": masked with asterisks until tapped; eye icon (iconHint) shows the current state. */
 @Composable
 private fun MaskedMyIp(ip: String?, visible: Boolean, onToggle: () -> Unit) {
     Column(
@@ -249,7 +246,6 @@ private fun MaskedMyIp(ip: String?, visible: Boolean, onToggle: () -> Unit) {
     }
 }
 
-/** Proton's IP address info sheet: My IP (hidden until tapped), VPN IP, then the explanation. */
 @Composable
 private fun IpInfoContent(myIp: String?, vpnIp: String?, onLearnMore: () -> Unit) {
     InfoSheetContent("IP address", null, learnMoreLabel = "What is an IP address?", onLearnMore = onLearnMore) {

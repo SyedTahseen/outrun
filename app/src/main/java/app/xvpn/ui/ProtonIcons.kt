@@ -34,7 +34,7 @@ object ProtonIcons {
     val File: ImageVector @Composable get() = ImageVector.vectorResource(R.drawable.ic_proton_file)
     val Eye: ImageVector @Composable get() = ImageVector.vectorResource(R.drawable.ic_proton_eye)
     val EyeSlash: ImageVector @Composable get() = ImageVector.vectorResource(R.drawable.ic_proton_eye_slash)
-    // Proton's 20dp section-header info icon (distinct from the 16dp InfoCircle).
+
     val InfoOutline: ImageVector @Composable get() = ImageVector.vectorResource(R.drawable.ic_info_circle)
     val InfoCircle: ImageVector @Composable get() = ImageVector.vectorResource(R.drawable.ic_proton_info_circle)
     val LifeRing: ImageVector @Composable get() = ImageVector.vectorResource(R.drawable.ic_proton_life_ring)

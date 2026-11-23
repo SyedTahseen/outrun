@@ -99,7 +99,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.concurrent.thread
 
-/** Bumped each time the notification asks to show the status screen. */
 internal val openStatusRequests = MutableStateFlow(0)
 
 class MainActivity : ComponentActivity() {
@@ -117,7 +116,6 @@ class MainActivity : ComponentActivity() {
         handleOpenStatus(intent)
     }
 
-    /** Tapping the VPN notification asks for the status (Home) screen, like Proton's "OpenStatus" extra. */
     private fun handleOpenStatus(intent: Intent?) {
         if (intent?.getBooleanExtra(EXTRA_OPEN_STATUS, false) == true) {
             intent.removeExtra(EXTRA_OPEN_STATUS)
@@ -291,7 +289,7 @@ private fun App() {
         if (rootMissing != 0) {
             Snack.show("Root mode is unavailable. Using VPN mode", SnackType.Warning)
             VpnState.rootUnavailable.value = 0
-            // 2: the service could not switch by itself (VPN permission not granted yet), so connect from here.
+
             if (rootMissing == 2) selectedLink?.let { connect(it) }
         }
     }
@@ -338,7 +336,7 @@ private fun App() {
             Handler(Looper.getMainLooper()).post {
                 reload()
                 if (!silent) {
-                    // Details go to the log; the snackbar stays one short line, like Proton VPN's.
+
                     AppLog.i(ctx, "subscription", "update: $added new, $removed removed, $total total, $failed failed" +
                         (if (err.isNotEmpty()) " ($err)" else "") +
                         (if (skipped.isNotEmpty()) ", skipped unsupported: " + skipped.entries.joinToString { "${it.key} ×${it.value}" } else ""))
@@ -458,7 +456,7 @@ private fun App() {
                                         val wasActive = VpnState.activeLink.value == old && VpnState.status.value != Status.Disconnected
                                         if (selectedLink == old) selectedLink = new
                                         reload()
-                                        // The running connection still has the old settings; reconnecting applies the edit.
+
                                         if (wasActive) { connect(new); toast("Saved. Reconnecting with the new settings", SnackType.Success) }
                                         else toast("Server updated", SnackType.Success)
                                         null

@@ -135,11 +135,6 @@ class Store(context: Context) {
         return before.count { it in set }
     }
 
-    /**
-     * Swaps a server's link for an edited one, in place. Its position, favorite star, selection and recents carry
-     * over; it is detached from its subscription, because the next update would overwrite the edit.
-     * Returns false if the old link is gone or the new one already exists.
-     */
     fun replace(old: String, new: String): Boolean {
         if (old == new) return true
         val all = links()
@@ -184,7 +179,7 @@ class Store(context: Context) {
     var splitIncludeIps: List<String>
         get() = lines("split_inc_ips")
         set(v) = putLines("split_inc_ips", v)
-    /** Legacy DNS preset keys: only read, to migrate an old preset / custom choice into the custom DNS list. */
+
     private val dnsChoice: String get() = prefs.getString("dns", "cloudflare") ?: "cloudflare"
     private val dnsCustom: String get() = prefs.getString("dns_custom", "") ?: ""
     var testUrlChoice: String
@@ -196,11 +191,11 @@ class Store(context: Context) {
     var themeMode: String
         get() = prefs.getString("theme_mode", "system") ?: "system"
         set(v) = prefs.edit().putString("theme_mode", v).apply()
-    /** ARGB accent colour; 0xFF6D4AFF is the original purple. */
+
     var accentColor: Int
         get() = prefs.getInt("accent_color", 0xFF6D4AFF.toInt())
         set(v) = prefs.edit().putInt("accent_color", v).apply()
-    /** App-wide display size multiplier (1.0 = default). */
+
     var displayScale: Float
         get() = prefs.getFloat("display_scale", 1f)
         set(v) = prefs.edit().putFloat("display_scale", v).apply()
@@ -267,10 +262,8 @@ class Store(context: Context) {
         get() = prefs.getString("selected", null)
         set(v) = prefs.edit().putString("selected", v).apply()
 
-    /** The selected server's link, or null when nothing is selected or the saved link no longer parses. */
     fun selectedOrNull(): String? = selected?.takeIf { LinkParser.parse(it) != null }
 
-    /** What a connection started without the UI (boot, Quick Settings tile) uses: the selected server, else the first saved one. */
     fun linkToConnect(): String? = (selected ?: profiles().firstOrNull()?.link)?.takeIf { LinkParser.parse(it) != null }
 
     var subscriptions: List<String>

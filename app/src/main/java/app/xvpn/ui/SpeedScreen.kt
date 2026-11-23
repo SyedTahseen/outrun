@@ -198,8 +198,7 @@ private fun StartView(
     val scroll = rememberScrollState()
     val scrolled by remember { derivedStateOf { scroll.value > 0 } }
     ReportScrolled(scrolled, onScrolledChange)
-    // Height of the block under the button (note + info card + transmit mode), measured so the
-    // button can sit exactly halfway between the title bar and the info card.
+
     var belowPx by remember { mutableIntStateOf(0) }
     val density = LocalDensity.current
     Column(Modifier.fillMaxSize()) {
@@ -210,9 +209,7 @@ private fun StartView(
             val topH = (viewport - below).coerceAtLeast(ORB_BOX.dp + Space.Xxl)
             Column(Modifier.fillMaxSize().verticalScroll(scroll)) {
                 Box(Modifier.fillMaxWidth().height(topH), contentAlignment = Alignment.Center) {
-                    // The header box has Space.Xxl of empty space under the title text, so the visible
-                    // gap above the button is that much larger. Lift the button by half of it so it
-                    // is centred between the title text and the card's top edge.
+
                     Box(Modifier.offset(y = -(Space.Xxl / 2))) {
                         StartRing(enabled = !connecting, onClick = onStart)
                     }
@@ -276,9 +273,6 @@ private fun ModePicker(selected: TransmitMode, onSelect: (TransmitMode) -> Unit)
     }
 }
 
-// Start button: a round orb built from soft overlapping colour blobs (magenta, blue, teal, pale lavender,
-// cyan core), fitted to the supplied design, with a shading layer so the lower right falls off to navy.
-// Everything is drawn from gradients, so it stays sharp at any size. Same colours in light and dark themes.
 private const val ORB_BOX = 200
 private const val ORB_ICON = 56
 
@@ -330,7 +324,7 @@ private fun StartRing(enabled: Boolean, onClick: () -> Unit) {
                 val r = size.minDimension / 2f
                 drawCircle(color = OrbBase, radius = r, center = c)
                 OrbBlobs.forEach { orbBlob(it, c, r) }
-                // shading: darkens the rim toward the lower right
+
                 drawCircle(
                     brush = Brush.radialGradient(
                         0.00f to OrbShade.copy(alpha = 0f),
@@ -342,7 +336,7 @@ private fun StartRing(enabled: Boolean, onClick: () -> Unit) {
                     radius = r, center = c,
                 )
             }
-            // The app's own power icon, white like the transmit-mode icons
+
             Icon(ProtonIcons.PowerOff, contentDescription = null, tint = C.OnPrimary, modifier = Modifier.size(ORB_ICON.dp))
         }
     }

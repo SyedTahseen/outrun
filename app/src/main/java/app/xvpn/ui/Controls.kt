@@ -70,7 +70,7 @@ fun AppButton(
     val container by animateColorAsState(
         when {
             !enabled && style == ButtonStyle.Primary -> C.PrimaryDisabled
-            // Proton's VpnWeakSolidButton keeps the solid-button disabled colors (interactionDisabled + 50% white).
+
             !enabled && style == ButtonStyle.Secondary -> C.PrimaryDisabled
             style == ButtonStyle.Primary -> C.Primary
             style == ButtonStyle.Secondary -> C.Control
@@ -93,7 +93,7 @@ fun AppButton(
     val borderColor = when {
         onCardOutline -> C.Border
         !enabled -> if (style == ButtonStyle.Outline) C.Disabled else C.PrimaryDisabled
-        // Proton protonOutlinedBorder: brandNorm border, textAccent label.
+
         style == ButtonStyle.OutlineAccent -> C.Primary
         else -> C.Text
     }
@@ -205,12 +205,12 @@ fun AppTextField(
 ) {
     var focused by remember { mutableStateOf(false) }
     val border by animateColorAsState(if (isError) C.Red else if (focused) C.Primary else Color.Transparent, tween(Motion.Short), label = "fieldBorder")
-    // M3 OutlinedTextFieldDefaults.Container: 2dp focused, 1dp otherwise (also for the error colour).
+
     val borderWidth = if (focused) Sizes.Spinner else Sizes.Border
     val shape = RoundedCornerShape(Radius.Control)
     Row(
         modifier.fillMaxWidth()
-            // Proton: 16dp x 12dp content padding around a 24dp line = 48dp; no extra 56dp minimum.
+
             .then(if (singleLine) Modifier.heightIn(min = Sizes.Control) else Modifier.height(height))
             .clip(shape).background(if (onCard) C.Bg else C.Card).border(borderWidth, border, shape)
             .padding(start = Space.Lg, end = if (trailing != null) Space.Xs else Space.Lg, top = if (singleLine) 0.dp else Space.Md, bottom = if (singleLine) 0.dp else Space.Md),

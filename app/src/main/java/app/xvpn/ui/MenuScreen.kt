@@ -164,7 +164,7 @@ private fun MenuPage(
             Snack.show(if (on) "Switching root mode" else "Switching VPN mode")
         }
     }
-    // Root mode never asked for the system VPN consent, so switching back while connected has to ask before the root core is stopped.
+
     val vpnConsent = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { r ->
         if (r.resultCode == Activity.RESULT_OK) applyRootMode(false)
         else Snack.show("VPN permission is needed to switch to VPN mode", SnackType.Warning)
@@ -436,7 +436,7 @@ private fun MenuPage(
             }
 
             Spacer(Modifier.height(Space.Xxl))
-            // Same block as Proton's settings footer: caption-weak version, accent caption link, one 8dp-rounded click target.
+
             Column(
                 Modifier.fillMaxWidth().clip(RoundedCornerShape(Radius.Control)).clickable { ctx.openUrl(LICENSE_URL) }.padding(Space.Lg),
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -457,10 +457,6 @@ private const val KEY_NOTIF_ASKED = "notif_asked"
 private const val KEY_RECONNECT_CHOICE = "reconnect_choice"
 private val reconnectPrompt = mutableStateOf(false)
 
-/**
- * Same flow as Proton VPN: when a connection setting changes while connected, ask whether to reconnect now.
- * "Don't show again" remembers the answer (reconnect automatically, or leave it for the next connection).
- */
 private fun notifyReconnect(ctx: Context) {
     if (VpnState.status.value == Status.Disconnected) return
     when (ctx.uiPrefs().getString(KEY_RECONNECT_CHOICE, "ask")) {
@@ -486,7 +482,7 @@ private fun ReconnectDialog() {
         confirmLabel = "Reconnect now",
         onConfirm = { close("reconnect", true) },
     ) {
-        // Proton's ProtonAlert: body2Regular text, 20dp gap, ProtonDialogCheckbox (3dp padding, shade60 unchecked, 10dp label gap).
+
         Text("New settings will apply next time you connect.", style = Type.Small, color = C.Text)
         Spacer(Modifier.height(Space.Xl))
         Row(
@@ -557,7 +553,6 @@ private fun DiscardDialog(onDiscard: () -> Unit, onKeep: () -> Unit) {
     )
 }
 
-/** Proton's TextSectionHeader (body2Medium, accent, 24dp above) followed by an optional body2Medium textWeak explanation. */
 @Composable
 private fun ListHeader(title: String, note: String? = null) {
     Column(Modifier.fillMaxWidth().padding(horizontal = Space.Gutter)) {
@@ -572,10 +567,6 @@ private sealed class SystemApps {
     class Content(val apps: List<AppInfo>) : SystemApps()
 }
 
-/**
- * Same split as Proton's InstalledAppsProvider.getInstalledInternetApps(): apps with the INTERNET permission,
- * "regular" when they have a launch intent and "system" (services, background components) when they do not.
- */
 private fun Context.installedInternetApps(withLaunchIntent: Boolean): List<String> {
     val pm = packageManager
     return pm.getInstalledApplications(0).map { it.packageName }.filter { pkg ->
@@ -625,7 +616,7 @@ private fun AppPickerPage(
         } else {
             val loadedSystem = (systemApps as? SystemApps.Content)?.apps.orEmpty()
             val known = regularList + loadedSystem
-            // Selected packages that are in neither list (system apps while hidden, uninstalled apps) are still shown.
+
             val missing = sel.filter { pkg -> known.none { it.pkg == pkg } }
             val chosen = (known.filter { it.pkg in sel } + ctx.appInfos(missing)).sortedBy { it.label.lowercase() }
             val others = regularList.filter { it.pkg !in sel }
@@ -650,7 +641,6 @@ private fun AppPickerPage(
     if (confirm) DiscardDialog(onDiscard = { confirm = false; onBack() }, onKeep = { confirm = false })
 }
 
-/** Proton's SystemAppsCheckboxRow: body1 label with 14dp vertical padding and a trailing Checkbox. */
 @Composable
 private fun SystemAppsCheckboxRow(checked: Boolean, modifier: Modifier = Modifier, onToggle: () -> Unit) {
     Row(
@@ -663,7 +653,6 @@ private fun SystemAppsCheckboxRow(checked: Boolean, modifier: Modifier = Modifie
     }
 }
 
-/** Proton's LabeledItemRow: 16dp start / 8dp end, 24dp icon + 8dp gap, 14dp vertical text padding, 48dp icon button. */
 @Composable
 private fun PickRow(app: AppInfo, add: Boolean, modifier: Modifier = Modifier, showIcon: Boolean = true, onAction: () -> Unit) {
     Row(
@@ -702,7 +691,7 @@ private fun IpPage(title: String, initial: List<String>, onSave: (List<String>) 
         EditorBar(title, leave) { onSave(ips); onBack() }
         Column(Modifier.padding(start = Space.Gutter, end = Space.Sm)) {
             FieldLabel("IP address")
-            // Proton: outlined field + 4dp gap + filled plus-circle IconButton, enabled only for a valid address.
+
             Row(verticalAlignment = Alignment.CenterVertically) {
                 AppTextField(
                     value = text, onValueChange = { text = it; error = false }, placeholder = "192.0.2.0",

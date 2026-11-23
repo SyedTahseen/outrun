@@ -80,8 +80,7 @@ fun HomeScreen(
     LaunchedEffect(status) { while (true) { now = System.currentTimeMillis(); delay(1000) } }
 
     val bg = C.Bg
-    // Proton: list gradient is 100dp (offset 68dp) on compact widths and 200dp (offset 100dp) from 600dp up,
-    // and the list gets the extra large-screen horizontal padding.
+
     val wide = appScreenWidthDp() >= 600
     val listGradient = if (wide) 200.dp else Sizes.ListGradient
     val listTopOffset = if (wide) 100.dp else Sizes.ListTopOffset
@@ -180,7 +179,7 @@ fun HomeScreen(
                             targetState = selected?.let { Flags.clean(it.name) } ?: "No server selected",
                             transitionSpec = { fadeTransition() }, label = "serverName",
                         ) { name ->
-                            // Proton: body1Medium.copy(fontSize = 18.sp)
+
                             Text(name, style = Type.BodyMedium.copy(fontSize = 18.sp), color = C.Text, maxLines = 1)
                         }
                         AnimatedContent(

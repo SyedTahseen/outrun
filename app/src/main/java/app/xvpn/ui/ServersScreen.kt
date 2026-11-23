@@ -78,7 +78,7 @@ fun ServersScreen(
     favorites: Set<String>,
     onToggleFavorite: (Profile) -> Unit,
     onCopy: (Profile) -> Unit,
-    /** Saves an edited link in place of the old one; returns an error message, or null when it worked. */
+
     onEdit: (old: String, new: String) -> String? = { _, _ -> null },
     onAddSubscription: (String) -> Unit,
     pings: Map<String, Int>,

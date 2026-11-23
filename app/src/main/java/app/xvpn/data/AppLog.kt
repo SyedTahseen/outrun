@@ -6,11 +6,6 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-/**
- * Small persistent event log for the Log screen and "Share logs". It keeps what Android's logcat drops or buries:
- * connect / disconnect steps, errors and sing-box's own output. Never write links, passwords or keys here: log the
- * server name and protocol only.
- */
 object AppLog {
     private const val MAX_BYTES = 256 * 1024
     private const val FILE = "outrun.log"

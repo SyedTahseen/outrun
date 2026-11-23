@@ -41,8 +41,7 @@ fun OutrunTheme(content: @Composable () -> Unit) {
     val activity = LocalContext.current as? ComponentActivity
     val firstRun = remember { booleanArrayOf(true) }
     LaunchedEffect(dark) { if (firstRun[0]) firstRun[0] = false else activity?.applySystemBars(dark) }
-    // Mirrors Proton core's ProtonColors.toMaterial3ThemeColors() (surface/background = backgroundNorm,
-    // accents = brandNorm, outline = brandNorm, scrim = blenderNorm). Menus/dialogs keep backgroundSecondary.
+
     val scheme = (if (dark) darkColorScheme() else lightColorScheme()).copy(
         primary = C.Primary, onPrimary = C.OnPrimary,
         secondary = C.Primary, onSecondary = C.OnPrimary,
@@ -55,7 +54,7 @@ fun OutrunTheme(content: @Composable () -> Unit) {
         error = C.Red, onError = C.Inverted,
         scrim = C.Scrim,
     )
-    // Same mapping as Proton core's ProtonTypography.toMaterial3ThemeTypography().
+
     val typography = Typography(
         displayLarge = Type.Heading, displayMedium = Type.Heading, displaySmall = Type.Heading,
         headlineLarge = Type.Subheadline, headlineMedium = Type.Subheadline, headlineSmall = Type.Subheadline,
@@ -63,7 +62,7 @@ fun OutrunTheme(content: @Composable () -> Unit) {
         bodyLarge = Type.Body, bodyMedium = Type.Body, bodySmall = Type.Body,
         labelLarge = Type.Label, labelMedium = Type.Label, labelSmall = Type.Label,
     )
-    // Proton's ProtonTheme3 does not pass shapes to Material 3, so M3 components use the stock M3 shapes.
+
     val shapes = Shapes()
     MaterialTheme(colorScheme = scheme, typography = typography, shapes = shapes) {
         AppIndication {
@@ -76,10 +75,6 @@ fun OutrunTheme(content: @Composable () -> Unit) {
     }
 }
 
-/**
- * Display size: scales every dp and sp in the app by [AppTheme.displayScale]. The system font-size
- * setting is kept on top of it. Windows (dialogs, menus, sheets) inherit LocalDensity, so they scale too.
- */
 @Composable
 internal fun DesignScale(content: @Composable () -> Unit) {
     val base = LocalDensity.current
@@ -88,7 +83,6 @@ internal fun DesignScale(content: @Composable () -> Unit) {
     CompositionLocalProvider(LocalDensity provides density, content = content)
 }
 
-/** Screen width in app dp, i.e. with the display-size scale taken into account. */
 @Composable
 internal fun appScreenWidthDp(): Float = LocalConfiguration.current.screenWidthDp / AppTheme.displayScale
 
@@ -100,7 +94,6 @@ object AppTheme {
     var mode by mutableStateOf(SYSTEM)
         private set
 
-    /** Display size is shown as a percentage and changes in [DISPLAY_STEP] steps. */
     const val DISPLAY_MIN = 80
     const val DISPLAY_MAX = 130
     const val DISPLAY_STEP = 5
@@ -153,7 +146,7 @@ internal fun ComponentActivity.applySystemBars(dark: Boolean, navigationBarFromB
         statusBarStyle = SystemBarStyle.auto(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT) { dark },
         navigationBarStyle = SystemBarStyle.auto(navigationBarColor, navigationBarColor) { dark },
     )
-    // Same as Proton's enableEdgeToEdgeVpn(): no forced scrim behind the 3-button navigation bar.
+
     if (android.os.Build.VERSION.SDK_INT >= 29) window.isNavigationBarContrastEnforced = false
     window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(C.Bg.toArgb()))
 }

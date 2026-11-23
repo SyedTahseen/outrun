@@ -6,7 +6,6 @@ import android.content.Intent
 import app.xvpn.data.AppLog
 import app.xvpn.data.Store
 
-/** Connects the selected server after the phone boots, when "Auto-connect on boot" is on. */
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != Intent.ACTION_BOOT_COMPLETED) return

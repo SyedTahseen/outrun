@@ -201,10 +201,6 @@ fun SectionHeader(text: String, modifier: Modifier = Modifier, horizontal: Dp = 
     )
 }
 
-/**
- * Section label used on Statistics, Usage & history and Theme: same style as Statistics' own labels
- * (14sp regular, muted, 16dp above / 8dp below).
- */
 @Composable
 fun ScreenLabel(text: String, modifier: Modifier = Modifier, horizontal: Dp = Space.Gutter) {
     Text(
@@ -215,7 +211,7 @@ fun ScreenLabel(text: String, modifier: Modifier = Modifier, horizontal: Dp = Sp
 
 @Composable
 fun FieldLabel(text: String, modifier: Modifier = Modifier) {
-    // Proton's ProtonOutlinedTextField label: captionMedium + textNorm, 8dp gap to the field.
+
     Text(text, style = Type.Label, color = C.Text, modifier = modifier.padding(top = Space.Xl, bottom = Space.Sm))
 }
 
@@ -238,7 +234,7 @@ fun ListRow(icon: ImageVector, title: String, subtitle: String? = null, external
 
 @Composable
 fun ChoiceRow(label: String, note: String, selected: Boolean, onClick: () -> Unit) {
-    // Mirrors Proton's SettingsRadioItemSmall: body2 title and description, trailing radio, 12dp vertical padding.
+
     Row(
         Modifier.fillMaxWidth().selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
             .padding(vertical = Space.Md),
@@ -320,13 +316,13 @@ fun AppDialog(
     content: @Composable ColumnScope.() -> Unit = {},
 ) {
     Dialog(onDismissRequest = onDismiss) {
-        // Proton's ProtonAlert is a stock Material 3 AlertDialog: platform dialog transition, no custom scale/alpha.
+
         val shape = RoundedCornerShape(Radius.Sheet)
         Column(
             Modifier.fillMaxWidth().widthIn(min = 280.dp, max = 560.dp).clip(shape).background(C.Card).padding(Space.Xxl),
         ) {
             if (title != null) {
-                // ProtonAlert titles are headline (20 bold); ProtonBasicAlert choice dialogs use body1Bold (16 bold).
+
                 Text(title, style = if (compactTitle) Type.BodyBold else Type.Heading, color = C.Text)
                 Spacer(Modifier.height(if (compactTitle) Space.Md else Space.Lg))
             }

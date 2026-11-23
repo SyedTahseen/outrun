@@ -32,7 +32,6 @@ internal class SnackEvent(
 object Snack {
     internal val events = MutableSharedFlow<SnackEvent>(extraBufferCapacity = 8)
 
-    /** [actionLabel] adds a text button (Proton VPN uses "Undo" after removing something); [onAction] runs when it is tapped. */
     fun show(message: String, type: SnackType = SnackType.Norm, actionLabel: String? = null, onAction: (() -> Unit)? = null) {
         events.tryEmit(SnackEvent(message, type, actionLabel, onAction))
     }
@@ -51,7 +50,7 @@ private data class AppSnackVisuals(
 fun AppSnackbarHost(modifier: Modifier = Modifier) {
     val state = remember { SnackbarHostState() }
     LaunchedEffect(Unit) {
-        // collectLatest: a new message replaces the one on screen instead of queueing behind its ~4s display time.
+
         Snack.events.collectLatest { e ->
             state.currentSnackbarData?.dismiss()
             val result = state.showSnackbar(AppSnackVisuals(e.message, e.actionLabel, e.type))

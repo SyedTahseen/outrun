@@ -4,7 +4,6 @@ import java.net.ConnectException
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 
-/** Error categories, in the spirit of Proton's ErrorType, each with a readable message. */
 enum class ErrorType { VpnPermission, ServerUnreachable, EngineMissing, EngineFailed, TunnelFailed, Generic }
 
 object ConnectionErrors {

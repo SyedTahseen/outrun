@@ -14,7 +14,6 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 
-/** Proton's SimpleModalBottomSheet: backgroundNorm container, full-height expansion only, iconHint drag handle. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppInfoSheet(onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
@@ -28,7 +27,6 @@ fun AppInfoSheet(onDismiss: () -> Unit, content: @Composable ColumnScope.() -> U
     )
 }
 
-/** Proton's GenericLearnMore: 16dp side padding, subheadline title, 14sp body, optional extra content. */
 @Composable
 fun InfoSheetContent(
     title: String, details: String?,
@@ -40,7 +38,7 @@ fun InfoSheetContent(
         details?.let { Text(it, style = Type.Small, color = C.Text, modifier = Modifier.padding(bottom = Space.Lg)) }
         subDetails?.invoke()
         Spacer(Modifier.height(Space.Sm))
-        // Proton: outlined "Learn more" button with the external-link icon, 12dp below.
+
         if (learnMoreLabel != null && onLearnMore != null) {
             AppButton(
                 learnMoreLabel, onLearnMore, Modifier.fillMaxWidth().padding(bottom = Space.Md),

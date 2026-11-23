@@ -29,8 +29,6 @@ object LinkParser {
         else -> null
     }
 
-    // An HTTP(S) proxy link needs an explicit port and no path or query. That keeps ordinary web addresses, such as
-    // a status page line inside a subscription, from being taken for servers.
     private val httpProxyRe = Regex("^https?://(?:[^@/?#]*@)?(?:\\[[^\\]]+\\]|[^:/?#@]+):\\d{1,5}/?(?:#.*)?$", RegexOption.IGNORE_CASE)
 
     fun isHttpProxy(link: String): Boolean = httpProxyRe.matches(link)
