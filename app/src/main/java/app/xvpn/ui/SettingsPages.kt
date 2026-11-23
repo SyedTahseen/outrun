@@ -42,6 +42,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
@@ -113,10 +114,10 @@ fun LazyListScope.featureHeader(imageRes: Int, title: String, description: Strin
 }
 
 @Composable
-fun FeatureToggle(label: String, checked: Boolean, modifier: Modifier = Modifier, onChange: (Boolean) -> Unit) {
+fun FeatureToggle(label: String, checked: Boolean, modifier: Modifier = Modifier, enabled: Boolean = true, onChange: (Boolean) -> Unit) {
     Row(
-        modifier.clip(RoundedCornerShape(Space.Lg)).background(C.Card)
-            .toggleable(value = checked, onValueChange = onChange, role = Role.Switch)
+        modifier.alpha(if (enabled) 1f else 0.5f).clip(RoundedCornerShape(Space.Lg)).background(C.Card)
+            .toggleable(value = checked, enabled = enabled, onValueChange = onChange, role = Role.Switch)
             .padding(horizontal = Space.Xl, vertical = Space.Lg),
         horizontalArrangement = Arrangement.spacedBy(Space.Sm),
         verticalAlignment = Alignment.CenterVertically,
@@ -147,7 +148,7 @@ fun SplitTunnelingPage(
             "Customize your connection by deciding which apps and IP addresses are protected by VPN.",
         )
         item {
-            FeatureToggle("Split tunneling", on, Modifier.padding(horizontal = Space.Gutter, vertical = Space.Lg), onOn)
+            FeatureToggle("Split tunneling", on, Modifier.padding(horizontal = Space.Gutter, vertical = Space.Lg), onChange = onOn)
         }
         if (on) {
             item {
@@ -386,18 +387,35 @@ fun SettingsToggleItem(name: String, checked: Boolean, description: String?, onT
 }
 
 @Composable
-fun LanPage(on: Boolean, onOn: (Boolean) -> Unit, onBack: () -> Unit, onScrolledChange: (Boolean) -> Unit) {
+fun LanPage(
+    on: Boolean, onOn: (Boolean) -> Unit,
+    direct: Boolean, onDirect: (Boolean) -> Unit,
+    onBack: () -> Unit, onScrolledChange: (Boolean) -> Unit,
+) {
     FeaturePage("LAN connections", onBack, onScrolledChange) {
         featureHeader(
             R.drawable.setting_lan, "LAN connections",
             "Allows you to connect to printers, speakers, and other devices in your device\u2019s local network.",
         )
-        item { FeatureToggle("LAN connections", on, Modifier.padding(horizontal = Space.Gutter, vertical = Space.Lg), onOn) }
+        item { FeatureToggle("LAN connections", on, Modifier.padding(horizontal = Space.Gutter, vertical = Space.Lg), onChange = onOn) }
+        if (on) {
+            item {
+                FeatureToggle("Allow direct device connections", direct, Modifier.padding(horizontal = Space.Gutter), onChange = onDirect)
+            }
+            item {
+                Text(
+                    "Connect to Smart TVs, Android Auto, and other devices that create their own network. For maximum security, only enable when connecting to these devices.",
+                    style = Type.Caption, color = C.Muted,
+                    modifier = Modifier.padding(start = Space.Gutter, end = Space.Gutter, top = Space.Md),
+                )
+            }
+        }
         item {
             Text(
-                "Traffic to private addresses (192.168.x.x, 10.x.x.x, 172.16\u201331.x.x) goes directly, not through the VPN. Applies the next time you connect. Ignored when split tunneling includes only specific IP addresses.",
+                if (on && direct) "All private addresses (192.168.x.x, 10.x.x.x, 172.16\u201331.x.x and others) go directly, not through the VPN, and Android Auto bypasses the VPN. Applies the next time you connect. Ignored when split tunneling includes only specific IP addresses."
+                else "Only the local networks your device is connected to (such as your Wi-Fi) go directly, not through the VPN. Other private addresses still use the VPN. Applies the next time you connect. Ignored when split tunneling includes only specific IP addresses.",
                 style = Type.Caption, color = C.Muted,
-                modifier = Modifier.padding(start = Space.Gutter, end = Space.Gutter, bottom = Space.Lg),
+                modifier = Modifier.padding(start = Space.Gutter, end = Space.Gutter, top = Space.Lg, bottom = Space.Lg),
             )
         }
     }
@@ -410,6 +428,7 @@ fun CustomDnsPage(
     onBack: () -> Unit, onScrolledChange: (Boolean) -> Unit,
 ) {
     var conflictDialog by remember { mutableStateOf(false) }
+    val privateDns = rememberPrivateDnsActive()
     FeaturePage(
         "Custom DNS", onBack, onScrolledChange,
         bottom = if (on) ({
@@ -422,12 +441,14 @@ fun CustomDnsPage(
             R.drawable.setting_custom_dns, "Custom DNS",
             "Connect to VPN with a self-hosted or third-party domain name system (DNS).",
         )
+        if (privateDns) item(key = "private_dns") { PrivateDnsBanner("Custom DNS") }
         item {
             FeatureToggle(
-                "Custom DNS", on, Modifier.padding(horizontal = Space.Gutter, vertical = Space.Lg),
+                "Custom DNS", on && !privateDns, Modifier.padding(horizontal = Space.Gutter, vertical = Space.Lg),
+                enabled = !privateDns,
             ) { v -> onOn(v); if (v && netShieldConflict) conflictDialog = true }
         }
-        if (on) {
+        if (on && !privateDns) {
             item(key = "title") {
                 Text("Servers (${servers.size})", style = Type.SmallMedium, color = C.Text, modifier = Modifier.padding(Space.Lg))
             }

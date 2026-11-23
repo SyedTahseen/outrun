@@ -27,6 +27,7 @@ import app.xvpn.data.SocksAuth
 import app.xvpn.data.LinkParser
 import app.xvpn.data.Session
 import app.xvpn.data.Store
+import app.xvpn.data.PrivateDns
 import app.xvpn.data.Usage
 import app.xvpn.data.openConnection
 import app.xvpn.ui.fmtBytes
@@ -419,6 +420,14 @@ class OutrunVpnService : VpnService() {
         "↓ ${fmtBytes(sessDown)} | ${fmtSpeed(VpnState.downBytesPerSec.value)}  " +
             "↑ ${fmtBytes(sessUp)} | ${fmtSpeed(VpnState.upBytesPerSec.value)}"
 
+    private fun addRouteSafe(b: Builder, addr: String, len: Int): Boolean =
+        runCatching { b.addRoute(addr, len) }.onFailure {
+            AppLog.i(this, "service", "route $addr/$len rejected: ${it.javaClass.simpleName}")
+        }.isSuccess
+
+    private fun isInstalled(pkg: String): Boolean =
+        runCatching { packageManager.getApplicationInfo(pkg, 0) }.isSuccess
+
     private fun prefixLength(ip: String): Int = ip.substringAfter('/', if (':' in ip) "128" else "32").toInt()
 
     private suspend fun connect(link: String, tried: Set<String>, remember: Boolean = false) {
@@ -452,6 +461,9 @@ class OutrunVpnService : VpnService() {
                 )
             }
 
+            if (PrivateDns.isStrictActive(this) && (Store(this).customDnsEnabled || Store(this).netShield)) {
+                AppLog.i(this, "service", "Android Private DNS is set to a hostname, so Custom DNS and NetShield have no effect")
+            }
             val port = SingBoxCore.freePort()
             val creds = Creds.random()
             SocksAuth.register(port, creds)
@@ -502,14 +514,24 @@ class OutrunVpnService : VpnService() {
                 val incApps = if (include) settings.splitIncludeApps.filter { it != packageName } else emptyList()
                 val incIps = if (include) settings.splitIncludeIps else emptyList()
 
+                val v6On = settings.ipv6Mode != "block"
                 val manualExclude = exclude && Build.VERSION.SDK_INT < 33 && settings.splitExcludeIps.isNotEmpty()
-                if (manualExclude && settings.splitExcludeIps.any { ':' in it }) {
-                    AppLog.i(this, "service", "excluded IPv6 ranges need Android 13 or newer and are ignored")
+                val lanEx = if (settings.lanAccess && incIps.isEmpty()) {
+                    LanRoutes.lanExclusions(this, settings.lanDirect, v6On)
+                } else emptyList()
+                if (settings.lanAccess) {
+                    AppLog.i(this, "service", "LAN exclusions (${if (settings.lanDirect) "all private ranges" else "attached networks"}): " +
+                        lanEx.ifEmpty { listOf("none") }.joinToString())
                 }
-                if (incIps.isEmpty() && (settings.lanAccess || manualExclude)) {
-                    LanRoutes.ipv4Except(if (manualExclude) settings.splitExcludeIps else emptyList(), settings.lanAccess)
-                        .forEach { (addr, len) -> b.addRoute(addr, len) }
-                    if (settings.lanAccess) b.addRoute(LanRoutes.IPV6_ADDRESS, LanRoutes.IPV6_PREFIX) else b.addRoute("::", 0)
+                val manualEx = if (manualExclude) settings.splitExcludeIps else emptyList()
+                val manualRoutes = incIps.isEmpty() && (lanEx.isNotEmpty() || manualEx.isNotEmpty())
+                if (manualRoutes) {
+                    val ex = lanEx + manualEx
+                    var added = 0
+                    LanRoutes.routes(false, ex).forEach { (addr, len) -> if (addRouteSafe(b, addr, len)) added++ }
+                    if (v6On) LanRoutes.routes(true, ex).forEach { (addr, len) -> if (addRouteSafe(b, addr, len)) added++ }
+                    else addRouteSafe(b, "::", 0)
+                    if (added == 0) error("no usable routes after exclusions")
                 } else if (incIps.isEmpty()) { b.addRoute("0.0.0.0", 0); b.addRoute("::", 0) }
                 else incIps.forEach { ip ->
                     runCatching { b.addRoute(ip.substringBefore('/'), prefixLength(ip)) }
@@ -524,6 +546,9 @@ class OutrunVpnService : VpnService() {
                 else {
                     if (exclude) settings.splitApps.forEach { pkg ->
                         if (pkg != packageName) runCatching { b.addDisallowedApplication(pkg) }
+                    }
+                    if (settings.lanAccess && settings.lanDirect && isInstalled(LanRoutes.ANDROID_AUTO_PACKAGE)) {
+                        runCatching { b.addDisallowedApplication(LanRoutes.ANDROID_AUTO_PACKAGE) }
                     }
                     b.addDisallowedApplication(packageName)
                 }
@@ -627,9 +652,10 @@ class OutrunVpnService : VpnService() {
             iface = RootCore.IFACE,
             mtu = settings.mtu,
             blockIpv6 = settings.ipv6Mode == "block",
-            lan = settings.lanAccess,
+            lanExclude = if (settings.lanAccess && include.not()) LanRoutes.lanExclusions(this, settings.lanDirect, settings.ipv6Mode != "block") else emptyList(),
             includePackages = incApps,
-            excludePackages = excApps + packageName,
+            excludePackages = excApps + packageName +
+                (if (!include && settings.lanAccess && settings.lanDirect && isInstalled(LanRoutes.ANDROID_AUTO_PACKAGE)) listOf(LanRoutes.ANDROID_AUTO_PACKAGE) else emptyList()),
             includeIps = if (include) settings.splitIncludeIps else emptyList(),
             excludeIps = if (exclude) settings.splitExcludeIps else emptyList(),
             clashPort = clashPort,

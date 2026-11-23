@@ -152,6 +152,7 @@ private fun MenuPage(
     var netShield by remember { mutableStateOf(store.netShield) }
     var blockAdult by remember { mutableStateOf(store.blockAdult) }
     var lan by remember { mutableStateOf(store.lanAccess) }
+    var lanDirect by remember { mutableStateOf(store.lanDirect) }
     var mtu by remember { mutableStateOf(store.mtu) }
     var rootOn by remember { mutableStateOf(store.rootMode) }
     val rootMissing by VpnState.rootUnavailable.collectAsState()
@@ -248,7 +249,11 @@ private fun MenuPage(
             return
         }
         "lan" -> {
-            LanPage(lan, { lan = it; store.lanAccess = it; notifyReconnect(ctx) }, { page = "advanced" }, onScrolledChange)
+            LanPage(
+                lan, { lan = it; store.lanAccess = it; notifyReconnect(ctx) },
+                lanDirect, { lanDirect = it; store.lanDirect = it; notifyReconnect(ctx) },
+                { page = "advanced" }, onScrolledChange,
+            )
             return
         }
         "dns" -> {
@@ -305,7 +310,9 @@ private fun MenuPage(
                     "NetShield",
                     "Blocks ads, trackers and malicious websites while you are connected, by sending DNS lookups to a filtering resolver (AdGuard DNS). Applies the next time you connect.",
                 )
-                val conflict = customDnsOn && customDns.isNotEmpty()
+                val privateDns = rememberPrivateDnsActive()
+                if (privateDns) PrivateDnsBanner("NetShield")
+                val conflict = customDnsOn && customDns.isNotEmpty() && !privateDns
                 if (conflict) {
                     Column(
                         Modifier.padding(horizontal = Space.Gutter, vertical = Space.Md).fillMaxWidth()
@@ -318,8 +325,8 @@ private fun MenuPage(
                         AppButton("Turn off custom DNS", { customDnsOn = false; store.customDnsEnabled = false; notifyReconnect(ctx) }, Modifier.fillMaxWidth(), ButtonStyle.OutlineAccent)
                     }
                 }
-                SwitchCard("NetShield", netShield) { netShield = it; store.netShield = it; notifyReconnect(ctx) }
-                if (netShield) {
+                SwitchCard("NetShield", netShield && !privateDns, enabled = !privateDns) { netShield = it; store.netShield = it; notifyReconnect(ctx) }
+                if (netShield && !privateDns) {
                     Spacer(Modifier.height(Space.Sm))
                     SwitchCard("Block adult content", blockAdult) { blockAdult = it; store.blockAdult = it; notifyReconnect(ctx) }
                     Text(

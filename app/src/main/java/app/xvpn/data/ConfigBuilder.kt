@@ -1,6 +1,5 @@
 package app.xvpn.data
 
-import app.xvpn.vpn.LanRoutes
 import org.json.JSONArray
 import org.json.JSONObject
 import java.net.URI
@@ -99,16 +98,13 @@ object ConfigBuilder {
         val iface: String,
         val mtu: Int,
         val blockIpv6: Boolean,
-        val lan: Boolean,
+        val lanExclude: List<String>,
         val includePackages: List<String>,
         val excludePackages: List<String>,
         val includeIps: List<String>,
         val excludeIps: List<String>,
         val clashPort: Int,
     )
-
-    private val lanV4 = LanRoutes.excludedCidrs
-    private val lanV6 = listOf("fc00::/7", "fe80::/10", "ff00::/8")
 
     fun buildRoot(link: String, socksPort: Int, creds: Creds, dns: String, o: RootTun): String {
         val proxy = outbound(link)
@@ -125,7 +121,7 @@ object ConfigBuilder {
         if (o.includePackages.isNotEmpty()) tun.put("include_package", JSONArray(o.includePackages))
         else if (o.excludePackages.isNotEmpty()) tun.put("exclude_package", JSONArray(o.excludePackages))
         if (o.includeIps.isNotEmpty()) tun.put("route_address", JSONArray(o.includeIps))
-        val excluded = (if (o.lan && o.includeIps.isEmpty()) lanV4 + lanV6 else emptyList()) + o.excludeIps
+        val excluded = (if (o.includeIps.isEmpty()) o.lanExclude else emptyList()) + o.excludeIps
         if (excluded.isNotEmpty()) tun.put("route_exclude_address", JSONArray(excluded))
 
         val rules = JSONArray()

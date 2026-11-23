@@ -36,6 +36,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
@@ -273,14 +274,17 @@ fun DetailCard(
 }
 
 @Composable
-fun SwitchCard(label: String, checked: Boolean, modifier: Modifier = Modifier, onChange: (Boolean) -> Unit) {
-    AppCard(modifier.padding(horizontal = Space.Gutter), padding = 0.dp, onClick = { onChange(!checked) }) {
+fun SwitchCard(label: String, checked: Boolean, modifier: Modifier = Modifier, enabled: Boolean = true, onChange: (Boolean) -> Unit) {
+    AppCard(
+        modifier.padding(horizontal = Space.Gutter).alpha(if (enabled) 1f else 0.5f),
+        padding = 0.dp, onClick = { if (enabled) onChange(!checked) },
+    ) {
         Row(
             Modifier.fillMaxWidth().padding(start = Space.Lg, end = Space.Md, top = Space.Sm, bottom = Space.Sm),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(label, style = Type.Body, color = C.Text, modifier = Modifier.weight(1f))
-            AppSwitch(checked, onChange)
+            AppSwitch(checked, if (enabled) onChange else null)
         }
     }
 }

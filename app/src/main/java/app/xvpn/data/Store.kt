@@ -214,6 +214,10 @@ class Store(context: Context) {
         get() = prefs.getBoolean("lan_access", false)
         set(v) = prefs.edit().putBoolean("lan_access", v).apply()
 
+    var lanDirect: Boolean
+        get() = prefs.getBoolean("lan_direct", false)
+        set(v) = prefs.edit().putBoolean("lan_direct", v).apply()
+
     var autoConnectBoot: Boolean
         get() = prefs.getBoolean("auto_boot", false)
         set(v) = prefs.edit().putBoolean("auto_boot", v).apply()
@@ -243,8 +247,11 @@ class Store(context: Context) {
     private fun customDnsEffective(): List<String> =
         if (customDnsEnabled) customDnsList.filter { ipv6Mode != "block" || ':' !in it } else emptyList()
 
-    fun dnsServers(): List<String> = customDnsEffective().ifEmpty {
-        if (netShield) Choices.netShieldDns(blockAdult) else Choices.dns.first().servers
+    fun dnsServers(): List<String> {
+        val custom = customDnsEffective()
+        if (custom.isEmpty()) return if (netShield) Choices.netShieldDns(blockAdult) else Choices.dns.first().servers
+        val fallback = Choices.dns.first().servers.filter { ipv6Mode != "block" || ':' !in it }
+        return (custom + fallback).distinct()
     }
 
     fun resolverDns(): String {
