@@ -15,8 +15,6 @@ object Palette {
         get() = midnightState.value
         set(v) { if (midnightState.value != v) midnightState.value = v }
 
-    val midnightAccent = AccentSet.of(Accents.Midnight)
-
     private val accentState = mutableStateOf(AccentSet.of(Accents.Default))
 
     var accentSet: AccentSet
@@ -29,7 +27,6 @@ class AccentPreset(val id: String, val name: String, val color: Color)
 
 object Accents {
     val Default = Color(0xFF6D4AFF)
-    val Midnight = Color(0xFF347DE8)
     val Presets = listOf(
         AccentPreset("purple", "Purple", Default),
         AccentPreset("blue", "Blue", Color(0xFF2563EB)),
@@ -65,8 +62,6 @@ class AccentSet(
 private fun pick(dark: Long, light: Long, midnight: Long = dark) =
     Color(if (Palette.midnight) midnight else if (Palette.dark) dark else light)
 
-private val activeAccent get() = if (Palette.midnight) Palette.midnightAccent else Palette.accentSet
-
 object C {
     val Bg get() = pick(0xFF1C1B24, 0xFFFFFFFF, 0xFF131315)
 
@@ -79,11 +74,11 @@ object C {
     val Outline get() = pick(0xFF4A4658, 0xFFD1CFCD, 0xFF45464B)
     val Scrim get() = pick(0x85000000, 0x7A17181C)
 
-    val Primary get() = activeAccent.primary
-    val Accent get() = if (Palette.midnight) activeAccent.primary else if (Palette.dark) activeAccent.accentDark else activeAccent.primary
-    val BrandDarken20 get() = activeAccent.darken20
-    val AccentMid get() = if (Palette.dark) activeAccent.midDark else activeAccent.tint
-    val AccentDeep get() = if (Palette.dark) activeAccent.deepDark else activeAccent.tint
+    val Primary get() = Palette.accentSet.primary
+    val Accent get() = if (Palette.dark) Palette.accentSet.accentDark else Palette.accentSet.primary
+    val BrandDarken20 get() = Palette.accentSet.darken20
+    val AccentMid get() = if (Palette.dark) Palette.accentSet.midDark else Palette.accentSet.tint
+    val AccentDeep get() = if (Palette.dark) Palette.accentSet.deepDark else Palette.accentSet.tint
     val NavPill get() = Accent.copy(alpha = 0.32f).compositeOver(Card)
     val Blue = Color(0xFF2F7BF0)
 

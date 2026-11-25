@@ -260,20 +260,13 @@ fun ThemePage(
                 ThemeTile("Device theme", R.drawable.theme_auto, selected == AppTheme.SYSTEM, Modifier.weight(1f)) { onSelect(AppTheme.SYSTEM) }
             }
 
-            if (selected != AppTheme.MIDNIGHT) {
-                ScreenLabel("Accent")
-                Row(
-                    Modifier.fillMaxWidth().padding(horizontal = Space.Gutter),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Accents.Presets.forEach { p -> AccentSwatch(p, p.color == accent) { onAccent(p.color) } }
-                }
-            } else {
-                Text(
-                    "Midnight uses its own blue accent.",
-                    style = Type.Small, color = C.Muted, modifier = Modifier.fillMaxWidth().padding(horizontal = Space.Gutter, vertical = Space.Sm),
-                )
+            ScreenLabel("Accent")
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = Space.Gutter),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Accents.Presets.forEach { p -> AccentSwatch(p, p.color == accent) { onAccent(p.color) } }
             }
 
             val percent = (displayScale * 100f).roundToInt()
