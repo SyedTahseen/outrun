@@ -35,14 +35,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.lerp
-import androidx.compose.runtime.compositionLocalOf
-import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.HazeTint
-import dev.chrisbanes.haze.hazeEffect
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -71,53 +64,11 @@ fun AppCard(
     Column(
         modifier
             .then(if (onClick != null) Modifier.pressable(shape, Press.Card, onClick = onClick) else Modifier.clip(shape))
-            .then(if (Palette.midnight) Modifier.glassSurface(shape) else Modifier.background(containerColor))
-            .then(if (bordered && !Palette.midnight) Modifier.border(Sizes.Border, C.Border, shape) else Modifier)
-            .then(if (translucentBorder && !Palette.midnight) Modifier.translucentBorder(shape) else Modifier)
+            .background(containerColor)
+            .then(if (bordered) Modifier.border(Sizes.Border, C.Border, shape) else Modifier)
+            .then(if (translucentBorder) Modifier.translucentBorder(shape) else Modifier)
             .padding(padding),
         content = content,
-    )
-}
-
-/** Bottom space the floating (glass) dock covers; content scrolls under it in Midnight. Zero elsewhere. */
-val LocalDockInset = compositionLocalOf { 0.dp }
-
-/** Set by a screen that has a [dev.chrisbanes.haze.hazeSource] behind its glass surfaces (e.g. Home's map). */
-val LocalHazeState = compositionLocalOf<HazeState?> { null }
-
-/**
- * Midnight "glass": real backdrop blur (Haze) when a source is available, then a translucent white wash
- * and a light-catching gradient hairline. Without a source it degrades to wash + hairline.
- */
-@Composable
-fun Modifier.glassSurface(shape: androidx.compose.ui.graphics.Shape, haze: HazeState? = LocalHazeState.current): Modifier {
-    val blurred = if (haze != null) {
-        val tint = C.Bg.copy(alpha = 0.35f)
-        clip(shape).hazeEffect(haze) {
-            blurRadius = 24.dp
-            noiseFactor = 0.04f
-            tints = listOf(HazeTint(tint))
-        }
-    } else this
-    return blurred
-        .background(Brush.verticalGradient(listOf(C.GlassTop, C.GlassBottom)), shape)
-        .border(Sizes.Border, Brush.verticalGradient(listOf(C.GlassEdgeTop, C.GlassEdgeBottom)), shape)
-}
-
-/** App-wide backdrop. Midnight paints a soft accent glow from the top over the near-black base. */
-fun Modifier.appBackdrop(): Modifier = if (!Palette.midnight) background(C.Bg) else background(C.Bg).drawBehind {
-    val glow = C.Primary
-    drawRect(
-        Brush.radialGradient(
-            0f to glow.copy(alpha = 0.55f), 0.45f to glow.copy(alpha = 0.18f), 1f to Color.Transparent,
-            center = Offset(size.width * 0.78f, -size.height * 0.02f), radius = size.width * 1.15f,
-        ),
-    )
-    drawRect(
-        Brush.radialGradient(
-            0f to glow.copy(alpha = 0.22f), 1f to Color.Transparent,
-            center = Offset(size.width * 0.05f, size.height * 1.02f), radius = size.width * 0.9f,
-        ),
     )
 }
 
@@ -167,10 +118,7 @@ fun FastestFlag() {
 
 @Composable
 fun HeaderSurface(scrolled: Boolean = false, base: Color = C.Bg, content: @Composable ColumnScope.() -> Unit) {
-    val bg by animateColorAsState(
-        if (scrolled) C.Header else if (Palette.midnight && base == C.Bg) Color.Transparent else base,
-        label = "headerSurface",
-    )
+    val bg by animateColorAsState(if (scrolled) C.Header else base, label = "headerSurface")
     Column(Modifier.fillMaxWidth().background(bg), content = content)
 }
 

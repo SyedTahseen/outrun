@@ -30,8 +30,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.asPaddingValues
-import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
@@ -48,7 +46,6 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -73,11 +70,9 @@ import app.xvpn.data.Store
 import app.xvpn.ui.AppSnackbarHost
 import app.xvpn.ui.C
 import app.xvpn.ui.HomeScreen
-import app.xvpn.ui.LocalDockInset
 import app.xvpn.ui.MenuScreen
 import app.xvpn.ui.Motion
 import app.xvpn.ui.OutrunApp
-import app.xvpn.ui.Palette
 import app.xvpn.ui.ProtonIcons
 import app.xvpn.ui.ServersScreen
 import app.xvpn.ui.Sizes
@@ -87,11 +82,7 @@ import app.xvpn.ui.SortMode
 import app.xvpn.ui.SpeedScreen
 import app.xvpn.ui.StatsScreen
 import app.xvpn.ui.Type
-import app.xvpn.ui.appBackdrop
 import app.xvpn.ui.appVersionName
-import app.xvpn.ui.glassSurface
-import dev.chrisbanes.haze.hazeSource
-import dev.chrisbanes.haze.rememberHazeState
 import app.xvpn.ui.axisTransition
 import app.xvpn.ui.largeScreenContentPadding
 import app.xvpn.ui.panelTransition
@@ -394,12 +385,8 @@ private fun App() {
 
     val dockInset by animateDpAsState(if (dockHidden) 0.dp else Sizes.Dock, tween(Motion.Medium, easing = Motion.Standard), label = "dockInset")
 
-    val hazeState = rememberHazeState()
-    val navInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-    val underDock = if (Palette.midnight && !dockHidden) dockInset + navInset else 0.dp
     Box(Modifier.fillMaxSize().background(C.Bg).imePadding()) {
-        Box(Modifier.fillMaxSize().then(if (Palette.midnight) Modifier.hazeSource(hazeState) else Modifier).appBackdrop()) {
-            CompositionLocalProvider(LocalDockInset provides underDock) {
+        Box(Modifier.fillMaxSize()) {
             AnimatedContent(
                 targetState = screen,
                 transitionSpec = {
@@ -418,10 +405,7 @@ private fun App() {
                         .then(if (s == Screen.Stats) Modifier.background(C.Deep) else Modifier)
                         .then(if (s == Screen.Home) Modifier else Modifier.padding(horizontal = largeScreenContentPadding()))
                         .then(if (s == Screen.Home) Modifier else Modifier.statusBarsPadding())
-                        .then(
-                            if (Palette.midnight && s != Screen.Stats && !dockHidden) Modifier
-                            else Modifier.navigationBarsPadding().padding(bottom = if (s == Screen.Stats) 0.dp else dockInset),
-                        ),
+                        .navigationBarsPadding().padding(bottom = if (s == Screen.Stats) 0.dp else dockInset),
                 ) {
                     when (s) {
                         Screen.Stats -> StatsScreen(
@@ -513,7 +497,6 @@ private fun App() {
                     }
                 }
             }
-            }
 
             Spacer(
                 Modifier.align(Alignment.TopStart).fillMaxWidth().windowInsetsTopHeight(WindowInsets.statusBars)
@@ -526,11 +509,7 @@ private fun App() {
             enter = slideInVertically(tween(Motion.Medium, easing = Motion.Standard)) { it } + fadeIn(tween(Motion.Medium)),
             exit = slideOutVertically(tween(Motion.Medium, easing = Motion.Standard)) { it } + fadeOut(tween(Motion.Fast)),
         ) {
-            NavigationBar(
-                containerColor = if (Palette.midnight) androidx.compose.ui.graphics.Color.Transparent else C.Card,
-                tonalElevation = 0.dp,
-                modifier = if (Palette.midnight) Modifier.glassSurface(androidx.compose.ui.graphics.RectangleShape, hazeState) else Modifier,
-            ) {
+            NavigationBar(containerColor = C.Card, tonalElevation = 0.dp) {
                 Tab.entries.forEach { t ->
                     val selected = t == tab
                     NavigationBarItem(

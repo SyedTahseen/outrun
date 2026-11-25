@@ -84,11 +84,6 @@ object C {
     val NavPill get() = Accent.copy(alpha = 0.32f).compositeOver(Card)
     val Blue = Color(0xFF2F7BF0)
 
-    val GlassTop get() = Color.White.copy(alpha = 0.085f)
-    val GlassBottom get() = Color.White.copy(alpha = 0.035f)
-    val GlassEdgeTop get() = Color.White.copy(alpha = 0.18f)
-    val GlassEdgeBottom get() = Color.White.copy(alpha = 0.05f)
-
     val Text get() = pick(0xFFFFFFFF, 0xFF0C0C14)
     val Muted get() = pick(0xFFA7A4B5, 0xFF706D6B, 0xFFA3A4A9)
     val TextHint get() = pick(0xFF6D697D, 0xFF999693, 0xFF6C6D72)

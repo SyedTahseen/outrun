@@ -27,7 +27,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -35,8 +34,6 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import dev.chrisbanes.haze.hazeSource
-import dev.chrisbanes.haze.rememberHazeState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -124,17 +121,15 @@ fun HomeScreen(
         if (connecting) { delay(6000); slow = true }
     }
 
-    val homeHaze = rememberHazeState()
     Box(Modifier.fillMaxSize()) {
         WorldMap(
             target = cam, countryCode = camCode, dotColor = tone,
-            modifier = Modifier.fillMaxSize().then(if (Palette.midnight) Modifier.hazeSource(homeHaze) else Modifier), centerY = 0.46f,
+            modifier = Modifier.fillMaxSize(), centerY = 0.46f,
             pin = when { on -> MapPin.Connected; connecting -> MapPin.Connecting; else -> MapPin.Selected },
         )
 
         Box(Modifier.fillMaxWidth().height(Sizes.StatusOverlay).background(Brush.verticalGradient(listOf(overlay, overlay.copy(alpha = 0f)))))
 
-        CompositionLocalProvider(LocalHazeState provides if (Palette.midnight) homeHaze else null) {
         Column(
             Modifier.align(Alignment.TopCenter).widthIn(max = Sizes.StatusMaxWidth).fillMaxWidth().statusBarsPadding().padding(horizontal = Space.Gutter),
         ) {
@@ -155,20 +150,15 @@ fun HomeScreen(
             }
 
         }
-        }
 
-        val sheetShape = RoundedCornerShape(topStart = Radius.Sheet, topEnd = Radius.Sheet)
         Column(
             Modifier.align(Alignment.BottomCenter).fillMaxWidth()
-                .then(
-                    if (Palette.midnight) Modifier.glassSurface(sheetShape, homeHaze)
-                    else Modifier.drawBehind {
-                        val gradientBottom = listGradient.toPx()
-                        drawRect(Brush.verticalGradient(listOf(Color.Transparent, bg), startY = 0f, endY = gradientBottom), size = androidx.compose.ui.geometry.Size(size.width, gradientBottom))
-                        drawRect(bg, topLeft = androidx.compose.ui.geometry.Offset(0f, gradientBottom))
-                    },
-                )
-                .padding(top = if (Palette.midnight) Space.Sm else listTopOffset).padding(horizontal = Space.Gutter + listExtraPadding),
+                .drawBehind {
+                    val gradientBottom = listGradient.toPx()
+                    drawRect(Brush.verticalGradient(listOf(Color.Transparent, bg), startY = 0f, endY = gradientBottom), size = androidx.compose.ui.geometry.Size(size.width, gradientBottom))
+                    drawRect(bg, topLeft = androidx.compose.ui.geometry.Offset(0f, gradientBottom))
+                }
+                .padding(top = listTopOffset).padding(horizontal = Space.Gutter + listExtraPadding),
         ) {
             AnimatedContent(
                 targetState = when { on -> "Browsing safely from"; connecting -> "Connecting to…"; else -> "Selected server" },
@@ -247,7 +237,6 @@ fun HomeScreen(
                 }
             }
             Spacer(Modifier.height(Space.Lg))
-            Spacer(Modifier.height(LocalDockInset.current))
         }
     }
 }
@@ -274,9 +263,7 @@ private fun RecentRow(p: Profile, onClick: () -> Unit) {
 private fun StatusChip(content: @Composable () -> Unit) {
     val shape = RoundedCornerShape(Radius.Control)
     Row(
-        Modifier.clip(shape)
-            .then(if (Palette.midnight) Modifier.glassSurface(shape) else Modifier.background(C.CardOverlay).translucentBorder(shape))
-            .padding(horizontal = Space.Sm, vertical = Space.Xs),
+        Modifier.clip(shape).background(C.CardOverlay).translucentBorder(shape).padding(horizontal = Space.Sm, vertical = Space.Xs),
         verticalAlignment = Alignment.CenterVertically,
     ) { content() }
 }
