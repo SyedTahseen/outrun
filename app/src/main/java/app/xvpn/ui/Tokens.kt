@@ -22,12 +22,11 @@ object Space {
 }
 
 object Radius {
-    private val mid get() = Palette.midnight
-    val Badge get() = if (mid) 6.dp else 4.dp
-    val Small get() = if (mid) 12.dp else 8.dp
-    val Control get() = if (mid) 12.dp else 8.dp
-    val Card get() = if (mid) 18.dp else 12.dp
-    val Sheet get() = if (mid) 32.dp else 28.dp
+    val Badge = 6.dp
+    val Small = 12.dp
+    val Control = 12.dp
+    val Card = 18.dp
+    val Sheet = 32.dp
 }
 
 object Sizes {

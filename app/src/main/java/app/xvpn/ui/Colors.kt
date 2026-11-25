@@ -26,10 +26,12 @@ object Palette {
 class AccentPreset(val id: String, val name: String, val color: Color)
 
 object Accents {
-    val Default = Color(0xFF6D4AFF)
+    val Blue = Color(0xFF2563EB)
+    val Purple = Color(0xFF6D4AFF)
+    val Default = Blue
     val Presets = listOf(
-        AccentPreset("purple", "Purple", Default),
-        AccentPreset("blue", "Blue", Color(0xFF2563EB)),
+        AccentPreset("blue", "Blue", Blue),
+        AccentPreset("purple", "Purple", Purple),
         AccentPreset("teal", "Teal", Color(0xFF0F766E)),
         AccentPreset("green", "Green", Color(0xFF15803D)),
         AccentPreset("orange", "Orange", Color(0xFFC2410C)),
@@ -47,7 +49,7 @@ class AccentSet(
 ) {
     companion object {
         fun of(p: Color): AccentSet {
-            if (p == Accents.Default) return AccentSet(
+            if (p == Accents.Purple) return AccentSet(
                 p, Color(0xFF8A6EFF), Color(0xFF4D34B3), Color(0xFF372580), Color(0xFF271B54), Color(0xFFC4B7FF),
             )
             fun mix(a: Color, b: Color, t: Float) = Color(

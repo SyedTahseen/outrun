@@ -193,7 +193,7 @@ class Store(context: Context) {
         set(v) = prefs.edit().putString("theme_mode", v).apply()
 
     var accentColor: Int
-        get() = prefs.getInt("accent_color", 0xFF6D4AFF.toInt())
+        get() = prefs.getInt("accent_color", 0xFF2563EB.toInt())
         set(v) = prefs.edit().putInt("accent_color", v).apply()
 
     var displayScale: Float
