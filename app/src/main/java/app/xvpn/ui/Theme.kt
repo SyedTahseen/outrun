@@ -38,9 +38,10 @@ fun OutrunApp(content: @Composable () -> Unit) {
 fun OutrunTheme(content: @Composable () -> Unit) {
     val dark = AppTheme.isDark(isSystemInDarkTheme())
     Palette.dark = dark
+    Palette.midnight = AppTheme.isMidnight()
     val activity = LocalContext.current as? ComponentActivity
     val firstRun = remember { booleanArrayOf(true) }
-    LaunchedEffect(dark) { if (firstRun[0]) firstRun[0] = false else activity?.applySystemBars(dark) }
+    LaunchedEffect(dark, Palette.midnight) { if (firstRun[0]) firstRun[0] = false else activity?.applySystemBars(dark) }
 
     val scheme = (if (dark) darkColorScheme() else lightColorScheme()).copy(
         primary = C.Primary, onPrimary = C.OnPrimary,
@@ -90,6 +91,7 @@ object AppTheme {
     const val SYSTEM = "system"
     const val LIGHT = "light"
     const val DARK = "dark"
+    const val MIDNIGHT = "midnight"
 
     var mode by mutableStateOf(SYSTEM)
         private set
@@ -127,7 +129,9 @@ object AppTheme {
         mode = value
     }
 
-    fun isDark(systemDark: Boolean): Boolean = when (mode) { LIGHT -> false; DARK -> true; else -> systemDark }
+    fun isDark(systemDark: Boolean): Boolean = when (mode) { LIGHT -> false; DARK, MIDNIGHT -> true; else -> systemDark }
+
+    fun isMidnight(): Boolean = mode == MIDNIGHT
 }
 
 private fun Context.systemDark() =
@@ -137,6 +141,7 @@ internal fun ComponentActivity.setUpEdgeToEdge(navigationBarFromBg: Boolean = fa
     AppTheme.load(this)
     val dark = AppTheme.isDark(systemDark())
     Palette.dark = dark
+    Palette.midnight = AppTheme.isMidnight()
     applySystemBars(dark, navigationBarFromBg)
 }
 

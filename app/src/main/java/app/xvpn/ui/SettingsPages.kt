@@ -254,16 +254,26 @@ fun ThemePage(
             Row(Modifier.padding(horizontal = Space.Gutter).height(IntrinsicSize.Max)) {
                 ThemeTile("Light", R.drawable.theme_light, selected == AppTheme.LIGHT, Modifier.weight(1f)) { onSelect(AppTheme.LIGHT) }
                 ThemeTile("Dark", R.drawable.theme_dark, selected == AppTheme.DARK, Modifier.weight(1f)) { onSelect(AppTheme.DARK) }
+            }
+            Row(Modifier.padding(horizontal = Space.Gutter).height(IntrinsicSize.Max)) {
+                ThemeTile("Midnight", R.drawable.theme_midnight, selected == AppTheme.MIDNIGHT, Modifier.weight(1f)) { onSelect(AppTheme.MIDNIGHT) }
                 ThemeTile("Device theme", R.drawable.theme_auto, selected == AppTheme.SYSTEM, Modifier.weight(1f)) { onSelect(AppTheme.SYSTEM) }
             }
 
-            ScreenLabel("Accent")
-            Row(
-                Modifier.fillMaxWidth().padding(horizontal = Space.Gutter),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Accents.Presets.forEach { p -> AccentSwatch(p, p.color == accent) { onAccent(p.color) } }
+            if (selected != AppTheme.MIDNIGHT) {
+                ScreenLabel("Accent")
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = Space.Gutter),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Accents.Presets.forEach { p -> AccentSwatch(p, p.color == accent) { onAccent(p.color) } }
+                }
+            } else {
+                Text(
+                    "Midnight uses its own blue accent.",
+                    style = Type.Small, color = C.Muted, modifier = Modifier.fillMaxWidth().padding(horizontal = Space.Gutter, vertical = Space.Sm),
+                )
             }
 
             val percent = (displayScale * 100f).roundToInt()

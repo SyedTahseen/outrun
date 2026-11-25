@@ -433,7 +433,7 @@ private fun MenuPage(
             }
             ListRow(
                 ProtonIcons.CircleHalfFilled, "Theme",
-                when (themeMode) { AppTheme.LIGHT -> "Light"; AppTheme.DARK -> "Dark"; else -> "Device theme" },
+                when (themeMode) { AppTheme.LIGHT -> "Light"; AppTheme.DARK -> "Dark"; AppTheme.MIDNIGHT -> "Midnight"; else -> "Device theme" },
             ) { page = "theme" }
             ListRow(
                 ProtonIcons.Mobile, "Widget",

@@ -10,6 +10,13 @@ object Palette {
         get() = state.value
         set(v) { if (state.value != v) state.value = v }
 
+    private val midnightState = mutableStateOf(false)
+    var midnight: Boolean
+        get() = midnightState.value
+        set(v) { if (midnightState.value != v) midnightState.value = v }
+
+    val midnightAccent = AccentSet.of(Accents.Midnight)
+
     private val accentState = mutableStateOf(AccentSet.of(Accents.Default))
 
     var accentSet: AccentSet
@@ -22,6 +29,7 @@ class AccentPreset(val id: String, val name: String, val color: Color)
 
 object Accents {
     val Default = Color(0xFF6D4AFF)
+    val Midnight = Color(0xFF347DE8)
     val Presets = listOf(
         AccentPreset("purple", "Purple", Default),
         AccentPreset("blue", "Blue", Color(0xFF2563EB)),
@@ -54,34 +62,37 @@ class AccentSet(
     }
 }
 
-private fun pick(dark: Long, light: Long) = Color(if (Palette.dark) dark else light)
+private fun pick(dark: Long, light: Long, midnight: Long = dark) =
+    Color(if (Palette.midnight) midnight else if (Palette.dark) dark else light)
+
+private val activeAccent get() = if (Palette.midnight) Palette.midnightAccent else Palette.accentSet
 
 object C {
-    val Bg get() = pick(0xFF1C1B24, 0xFFFFFFFF)
+    val Bg get() = pick(0xFF1C1B24, 0xFFFFFFFF, 0xFF131315)
 
-    val Deep get() = pick(0xFF0C0C14, 0xFFF1EEEB)
-    val Card get() = pick(0xFF292733, 0xFFF5F4F2)
+    val Deep get() = pick(0xFF0C0C14, 0xFFF1EEEB, 0xFF0A0A0B)
+    val Card get() = pick(0xFF292733, 0xFFF5F4F2, 0xFF252628)
     val Header get() = Card
     val CardOverlay get() = Card.copy(alpha = 0.86f)
-    val Control get() = pick(0xFF3B3747, 0xFFEAE7E4)
-    val Border get() = pick(0xFF3B3747, 0xFFEAE7E4)
-    val Outline get() = pick(0xFF4A4658, 0xFFD1CFCD)
+    val Control get() = pick(0xFF3B3747, 0xFFEAE7E4, 0xFF343539)
+    val Border get() = pick(0xFF3B3747, 0xFFEAE7E4, 0xFF343539)
+    val Outline get() = pick(0xFF4A4658, 0xFFD1CFCD, 0xFF45464B)
     val Scrim get() = pick(0x85000000, 0x7A17181C)
 
-    val Primary get() = Palette.accentSet.primary
-    val Accent get() = if (Palette.dark) Palette.accentSet.accentDark else Palette.accentSet.primary
-    val BrandDarken20 get() = Palette.accentSet.darken20
-    val AccentMid get() = if (Palette.dark) Palette.accentSet.midDark else Palette.accentSet.tint
-    val AccentDeep get() = if (Palette.dark) Palette.accentSet.deepDark else Palette.accentSet.tint
+    val Primary get() = activeAccent.primary
+    val Accent get() = if (Palette.midnight) activeAccent.primary else if (Palette.dark) activeAccent.accentDark else activeAccent.primary
+    val BrandDarken20 get() = activeAccent.darken20
+    val AccentMid get() = if (Palette.dark) activeAccent.midDark else activeAccent.tint
+    val AccentDeep get() = if (Palette.dark) activeAccent.deepDark else activeAccent.tint
     val NavPill get() = Accent.copy(alpha = 0.32f).compositeOver(Card)
     val Blue = Color(0xFF2F7BF0)
 
     val Text get() = pick(0xFFFFFFFF, 0xFF0C0C14)
-    val Muted get() = pick(0xFFA7A4B5, 0xFF706D6B)
-    val TextHint get() = pick(0xFF6D697D, 0xFF999693)
+    val Muted get() = pick(0xFFA7A4B5, 0xFF706D6B, 0xFFA3A4A9)
+    val TextHint get() = pick(0xFF6D697D, 0xFF999693, 0xFF6C6D72)
     val OnPrimary = Color(0xFFFFFFFF)
     val PrimaryDisabled get() = AccentMid
-    val Disabled get() = pick(0xFF5B576B, 0xFFC2BFBC)
+    val Disabled get() = pick(0xFF5B576B, 0xFFC2BFBC, 0xFF56575C)
     val Inverted get() = pick(0xFF0C0C14, 0xFFFFFFFF)
 
     val Green get() = pick(0xFF2CFFCC, 0xFF1C9C7C)
@@ -93,7 +104,7 @@ object C {
     val OverlayConnected get() = if (Palette.dark) 0.5f else 0.2f
     val OverlayDisconnected get() = if (Palette.dark) 0.5f else 0.24f
 
-    val Land get() = pick(0xFF292733, 0xFFF1EEEB)
-    val LandActive get() = pick(0xFF4A4658, 0xFFD1CFCD)
-    val LandLine get() = pick(0xFF5B576B, 0xFFC2BFBC)
+    val Land get() = pick(0xFF292733, 0xFFF1EEEB, 0xFF252628)
+    val LandActive get() = pick(0xFF4A4658, 0xFFD1CFCD, 0xFF45464B)
+    val LandLine get() = pick(0xFF5B576B, 0xFFC2BFBC, 0xFF56575C)
 }
