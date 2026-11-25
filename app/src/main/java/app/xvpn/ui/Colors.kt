@@ -32,10 +32,10 @@ object Accents {
     val Presets = listOf(
         AccentPreset("blue", "Blue", Blue),
         AccentPreset("purple", "Purple", Purple),
-        AccentPreset("teal", "Teal", Color(0xFF0F766E)),
-        AccentPreset("green", "Green", Color(0xFF15803D)),
-        AccentPreset("orange", "Orange", Color(0xFFC2410C)),
-        AccentPreset("pink", "Pink", Color(0xFFBE185D)),
+        AccentPreset("lime", "Lime", Color(0xFF80EB13)),
+        AccentPreset("red", "Red", Color(0xFFD93B16)),
+        AccentPreset("orange", "Orange", Color(0xFFFE7406)),
+        AccentPreset("coral", "Coral", Color(0xFFFE504F)),
     )
 }
 
