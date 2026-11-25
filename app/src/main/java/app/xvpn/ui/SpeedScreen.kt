@@ -230,7 +230,7 @@ private fun StartView(
                     FieldLabel("Transmit Mode")
                     ModePicker(cfg.mode) { onCfg(cfg.copy(mode = it)) }
 
-                    Spacer(Modifier.height(Space.Xxl))
+                    Spacer(Modifier.height(Space.Xxl + LocalDockInset.current))
                 }
             }
         }
@@ -354,7 +354,7 @@ private fun RunningView(ui: SpeedUi, mode: Int, onMode: (Int) -> Unit, connectio
     val series = if (ui.phase == SpeedPhase.Upload) ui.upSeries else ui.downSeries
     val dialMax = dialMax(maxOf(live, series.maxOrNull()?.toDouble() ?: 0.0))
 
-    Box(Modifier.fillMaxSize()) {
+    Box(Modifier.fillMaxSize().padding(bottom = LocalDockInset.current)) {
         Column(Modifier.fillMaxSize()) {
             ScreenHeader("Speed test", onBack = { SpeedTest.stop() }) { TextAction("Stop", { SpeedTest.stop() }) }
             Row(Modifier.fillMaxWidth().padding(horizontal = Space.Gutter).staggerIn(0), verticalAlignment = Alignment.Top) {
@@ -481,7 +481,7 @@ private fun DoneView(ui: SpeedUi, mode: Int, onMode: (Int) -> Unit, connection: 
     LaunchedEffect(Unit) { reveal.animateTo(1f, tween(Motion.Long * 2, delayMillis = Motion.Medium + Motion.Stagger, easing = Motion.Standard)) }
     val downShown = rememberCountUp(ui.downMbps)
     val upShown = rememberCountUp(ui.upMbps)
-    Box(Modifier.fillMaxSize()) {
+    Box(Modifier.fillMaxSize().padding(bottom = LocalDockInset.current)) {
         Column(Modifier.fillMaxSize()) {
             ScreenHeader("Speed test", onBack = { SpeedTest.reset() }) { IconAction(ProtonIcons.ArrowUpFromSquare, "Share result", onClick = onShare) }
             Row(Modifier.fillMaxWidth().padding(horizontal = Space.Gutter), horizontalArrangement = Arrangement.End) { ModeToggle(mode, onMode) }
@@ -522,13 +522,23 @@ private fun DoneView(ui: SpeedUi, mode: Int, onMode: (Int) -> Unit, connection: 
 @Composable
 private fun ModeToggle(mode: Int, onMode: (Int) -> Unit) {
     val tick = rememberTick()
-    Row(Modifier.height(Sizes.Control).clip(RoundedCornerShape(Radius.Control)).background(C.Card).padding(Space.Xs / 2)) {
+    val trackShape = RoundedCornerShape(Radius.Control)
+    Row(
+        Modifier.height(Sizes.Control).clip(trackShape)
+            .then(if (Palette.midnight) Modifier.glassSurface(trackShape, null) else Modifier.background(C.Card))
+            .padding(Space.Xs / 2),
+    ) {
         listOf(ProtonIcons.Bolt, ProtonIcons.WindowTerminal).forEachIndexed { i, icon ->
             val on = i == mode
             val bg by animateColorAsState(if (on) C.Primary else Color.Transparent, tween(Motion.Short), label = "toggleBg")
             val tint by animateColorAsState(if (on) C.OnPrimary else C.Muted, tween(Motion.Short), label = "toggleTint")
             Box(
-                Modifier.width(Sizes.Control).fillMaxHeight().clip(RoundedCornerShape(Radius.Small)).background(bg)
+                Modifier.width(Sizes.Control).fillMaxHeight().clip(RoundedCornerShape(Radius.Small))
+                    .then(
+                        if (Palette.midnight && on)
+                            Modifier.background(Brush.horizontalGradient(listOf(C.Primary, androidx.compose.ui.graphics.lerp(C.Primary, Color.White, 0.38f))))
+                        else Modifier.background(bg),
+                    )
                     .clickable { if (!on) tick(); onMode(i) },
                 contentAlignment = Alignment.Center,
             ) { Icon(icon, if (i == 0) "Gauge" else "Log", tint = tint, modifier = Modifier.size(Sizes.Icon)) }

@@ -457,6 +457,7 @@ private fun MenuPage(
                 Text("Third party licenses", style = Type.Caption, color = C.Accent, modifier = Modifier.padding(top = Space.Sm))
             }
             Spacer(Modifier.height(Space.Xxl))
+            Spacer(Modifier.height(LocalDockInset.current))
         }
     }
 }

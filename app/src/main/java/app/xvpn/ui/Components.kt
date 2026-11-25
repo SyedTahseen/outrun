@@ -79,6 +79,9 @@ fun AppCard(
     )
 }
 
+/** Bottom space the floating (glass) dock covers; content scrolls under it in Midnight. Zero elsewhere. */
+val LocalDockInset = compositionLocalOf { 0.dp }
+
 /** Set by a screen that has a [dev.chrisbanes.haze.hazeSource] behind its glass surfaces (e.g. Home's map). */
 val LocalHazeState = compositionLocalOf<HazeState?> { null }
 

@@ -43,6 +43,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -253,7 +254,10 @@ fun ServersScreen(
                         else "No servers match.",
                     )
                 } else {
-                    LazyColumn(Modifier.fillMaxSize().verticalScrollbar(listState), state = listState) {
+                    LazyColumn(
+                        Modifier.fillMaxSize().verticalScrollbar(listState), state = listState,
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = LocalDockInset.current),
+                    ) {
                         item(key = "count") {
                             Row(Modifier.padding(start = Space.Gutter, end = Space.Gutter, top = Space.Lg), verticalAlignment = Alignment.CenterVertically) {
                                 Text("All servers (", style = Type.Small, color = C.Muted, modifier = Modifier.padding(vertical = Space.Sm))
@@ -410,7 +414,7 @@ private fun ServerRow(
 ) {
     var menu by remember { mutableStateOf(false) }
 
-    Column(modifier.fillMaxWidth().background(C.Bg)) {
+    Column(modifier.fillMaxWidth().background(if (Palette.midnight) Color.Transparent else C.Bg)) {
         Row(
             Modifier.fillMaxWidth().clickable(onClick = onConnect).heightIn(min = Sizes.ServerRow)
                 .padding(start = Space.Gutter, end = Space.Xs),
@@ -443,7 +447,7 @@ private fun ServerRow(
 
 @Composable
 private fun FastestRow(testing: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    Column(modifier.fillMaxWidth().background(C.Bg)) {
+    Column(modifier.fillMaxWidth().background(if (Palette.midnight) Color.Transparent else C.Bg)) {
         Row(
             Modifier.fillMaxWidth().clickable(enabled = !testing, onClick = onClick).heightIn(min = Sizes.ServerRow)
                 .padding(start = Space.Gutter, end = Space.Gutter),

@@ -157,14 +157,18 @@ fun HomeScreen(
         }
         }
 
+        val sheetShape = RoundedCornerShape(topStart = Radius.Sheet, topEnd = Radius.Sheet)
         Column(
             Modifier.align(Alignment.BottomCenter).fillMaxWidth()
-                .drawBehind {
-                    val gradientBottom = listGradient.toPx()
-                    drawRect(Brush.verticalGradient(listOf(Color.Transparent, bg), startY = 0f, endY = gradientBottom), size = androidx.compose.ui.geometry.Size(size.width, gradientBottom))
-                    drawRect(bg, topLeft = androidx.compose.ui.geometry.Offset(0f, gradientBottom))
-                }
-                .padding(top = listTopOffset).padding(horizontal = Space.Gutter + listExtraPadding),
+                .then(
+                    if (Palette.midnight) Modifier.glassSurface(sheetShape, homeHaze)
+                    else Modifier.drawBehind {
+                        val gradientBottom = listGradient.toPx()
+                        drawRect(Brush.verticalGradient(listOf(Color.Transparent, bg), startY = 0f, endY = gradientBottom), size = androidx.compose.ui.geometry.Size(size.width, gradientBottom))
+                        drawRect(bg, topLeft = androidx.compose.ui.geometry.Offset(0f, gradientBottom))
+                    },
+                )
+                .padding(top = if (Palette.midnight) Space.Sm else listTopOffset).padding(horizontal = Space.Gutter + listExtraPadding),
         ) {
             AnimatedContent(
                 targetState = when { on -> "Browsing safely from"; connecting -> "Connecting to…"; else -> "Selected server" },
@@ -243,6 +247,7 @@ fun HomeScreen(
                 }
             }
             Spacer(Modifier.height(Space.Lg))
+            Spacer(Modifier.height(LocalDockInset.current))
         }
     }
 }
