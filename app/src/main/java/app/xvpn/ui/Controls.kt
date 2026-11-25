@@ -36,7 +36,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.Dp
@@ -102,7 +104,14 @@ fun AppButton(
         modifier
             .height(if (large) Sizes.Button else Sizes.Control)
             .pressable(shape, Press.Control, enabled) { tick(); onClick() }
-            .background(container)
+            .then(
+                if (Palette.midnight && enabled && style == ButtonStyle.Primary)
+                    Modifier.background(Brush.horizontalGradient(listOf(C.Primary, lerp(C.Primary, Color.White, 0.38f))))
+                        .border(Sizes.Border, Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.35f), Color.White.copy(alpha = 0.05f))), shape)
+                else if (Palette.midnight && style == ButtonStyle.Secondary)
+                    Modifier.glassSurface(shape)
+                else Modifier.background(container),
+            )
             .then(if (outlined) Modifier.border(Sizes.Border, borderColor, shape) else Modifier)
             .padding(horizontal = if (large) Space.Lg else Space.Xxl),
         contentAlignment = Alignment.Center,
